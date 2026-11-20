@@ -103,3 +103,18 @@ set, and OpenBLAS honours that; the tests do the same (`tests/conftest.py`). Whe
 machine, set `OMP_NUM_THREADS` (or `OPENBLAS_NUM_THREADS`) before importing numpy.
 
 ## Test suite
+
+The full suite, slow tests included, was run on a fresh `git clone` of the repository in both environments
+(2026-11-21):
+
+| environment | result |
+|---|---|
+| Python 3.13.18, numpy 2.4.6, scipy 1.16.3, numba 0.64.0, CAMB 2.0.5 (Colab versions; `pip install -e ".[all]"`; commit 89aed45) | 398 passed, 7 skipped |
+| Python 3.12.4, numpy 1.26.4, scipy 1.13.1, numba 0.59.1, CAMB 1.5.8 (workstation, with mpi4py; commit 520e5f2) | 404 passed, 1 skipped |
+
+Skipped tests:
+* the raw DR5 chunk files (346 MB) are not shipped, so the chunk-level exactness test skips;
+* the six MPI tests skip without mpi4py and `mpirun`, which are not installed on Colab;
+* tests marked `timing` run only on machines with at least 16 cores, so they were included here but skip on Colab.
+
+Python 3.10 and 3.11 are allowed by `pyproject.toml` but were not tested.
