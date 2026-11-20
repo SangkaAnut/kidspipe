@@ -8,18 +8,23 @@ the 9-bin rebinned m-corrected xi and E_n/B_n (modes 1-20), all with exactly the
   python scripts/dr5_make_product.py make      # product npz + README + fullvector_checks.json + FULLVECTOR.md
   python scripts/dr5_make_product.py stepd     # optional step D (model chi2 of our E_n 1-6), merged into fullvector_checks.json
 
-Outputs: runs/dr5_measure/product/{dr5_xipm_cosebis_binslop1p5.npz, README.md, fullvector_checks.json, FULLVECTOR.md}.
-Read-only inputs: the pair npz files, the official release, runs/dr5_measure/adoption/adoption.json and (for a direct
-joint-chi2 comparison) the earlier pipeline's xi in /mnt/d/HI-gamma-correlation (never written, no bytecode).
+Outputs: <runs>/dr5_measure/product/{dr5_xipm_cosebis_binslop1p5.npz, README.md, fullvector_checks.json, FULLVECTOR.md}
+with <runs> = $KIDSPIPE_RUNS (default <root>/runs).
+Read-only inputs: the pair npz files, the official release ($KIDSPIPE_OFFICIAL), dr5_measure/adoption/adoption.json and
+dr5_measure/b1_integration.json, and (for a direct joint-chi2 comparison) the earlier pipeline's xi ($KIDSPIPE_THEIRS; optional,
+skipped when absent).  Each input is looked up with kidspipe.paths.find_result: <runs>/... first, then the copy shipped in
+<root>/runs/..., so a Colab session with KIDSPIPE_RUNS on Drive still finds the shipped adoption.json / b1_integration.json
+(regenerate them with dr5_b1_integration.py; adoption.json needs the earlier pipeline's files and is shipped instead).
 """
-import hashlib, importlib.util, json, sys, time
+import hashlib, importlib.util, json, os, sys, time
 from pathlib import Path
 import numpy as np
 from scipy.stats import chi2 as chi2dist
 
 sys.dont_write_bytecode = True
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 from kidspipe.measure import official as of  # noqa: E402
 from kidspipe.measure.a1check import A3_MAX_ABS_OVER_SIGMA, a3_pass, curves_z  # noqa: E402
 from kidspipe.measure.xi2cosebis import e_from_xi_binned  # noqa: E402
@@ -27,11 +32,16 @@ from kidspipe.measure.xi2cosebis import e_from_xi_binned  # noqa: E402
 _spec = importlib.util.spec_from_file_location("unord", ROOT / "scripts/dr5_measure_xi_unordered.py")
 u = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(u)
 
-SRC = ROOT / "runs/dr5_measure/xi_unordered/b1.5"
-OUT = ROOT / "runs/dr5_measure/product"
-PRODUCT = OUT / "dr5_xipm_cosebis_binslop1p5.npz"
-ADOPT = ROOT / "runs/dr5_measure/adoption/adoption.json"
-B1JSON = ROOT / "runs/dr5_measure/b1_integration.json"
+SRC = paths.find_result("dr5_measure/xi_unordered/b1.5")          # input: the 21 pair files (yours, else the shipped copy)
+OUT = paths.runs_dir() / "dr5_measure" / "product"                # output directory
+PRODUCT = OUT / "dr5_xipm_cosebis_binslop1p5.npz"                 # where `make` writes the product
+ADOPT = paths.find_result("dr5_measure/adoption/adoption.json")       # input (shipped; needs the earlier pipeline to regenerate)
+B1JSON = paths.find_result("dr5_measure/b1_integration.json")         # input (dr5_b1_integration.py, or shipped)
+
+
+def product_path():
+    """The product to READ (yours if you ran `make`, else the shipped one); evaluated at call time."""
+    return paths.find_result("dr5_measure/product/dr5_xipm_cosebis_binslop1p5.npz")
 PAIRS1 = [(i + 1, j + 1) for i, j in of.PAIRS]          # official pair order, 1-based
 NM = of.N_MODES
 PUB_PTE = {6: 0.0635, 20: 0.0902}                       # published B_n null PTEs (126 / 420 points)
@@ -233,6 +243,12 @@ def compare_adoption(ours, adopt):
 
 def run_make():
     t0 = time.time()
+    for need in (SRC, ADOPT, B1JSON):
+        if not need.exists():
+            sys.exit(f"missing input {need}: run the earlier chain steps first (dr5_measure_xi_unordered.py run, dr5_b1_integration.py; "
+                     f"adoption.json ships with the repository)")
+    if SRC != paths.runs_dir() / "dr5_measure" / "xi_unordered" / "b1.5":
+        print(f"NOTE: no pair files under {paths.runs_dir()}; using the shipped copy {SRC}", flush=True)
     ctx = u.load_context()
     A, prov, names, sizes, shas = assemble(ctx)
     save_product(A, prov, names, sizes, shas)
@@ -362,11 +378,11 @@ The exact (bin_slop 0) measurement was NOT run for all pairs; this is the PI-cho
 def run_stepd():
     t0 = time.time()
     from kidspipe.legacy import LegacyCosebisLikelihood, LegacyCosebisModel, chain_samples, load_chain
-    d = np.load(PRODUCT)
+    d = np.load(product_path())
     chain = load_chain()
     post = np.where(np.isfinite(chain[:, 43]), chain[:, 43], -np.inf)
     row = int(np.argmax(post)); s = chain_samples(chain, [row])[0]
-    model = LegacyCosebisModel(nthreads=8, cache_dir=str(ROOT / "runs/legacy/cache"), cache_size=1)
+    model = LegacyCosebisModel(nthreads=min(8, os.cpu_count() or 1), cache_dir=str(paths.runs_dir() / "legacy" / "cache"), cache_size=1)
     like = LegacyCosebisLikelihood()
     mu = model.mu(s)
     cb = of.load_official_cosebis()
@@ -375,7 +391,9 @@ def run_stepd():
     like.d = np.asarray(d["En"][:, :6], float).ravel()           # same covariance, our data vector
     c_us = like.chi2(mu)
     f = OUT / "fullvector_checks.json"
-    r = json.loads(f.read_text())
+    src_checks = f if f.exists() else paths.find_result("dr5_measure/product/fullvector_checks.json")
+    r = json.loads(src_checks.read_text())
+    OUT.mkdir(parents=True, exist_ok=True)
     r["D"] = {"row": row, "chi2_official_data": c_off, "chi2_ours": c_us, "chi2_chain_quoted": float(s["chi2_off"]), "dof": 126, "runtime_s": time.time() - t0}
     f.write_text(json.dumps(r, indent=1, default=float)); write_md(r)
     print(f"D: row {row} chi2 official data {c_off:.3f}, ours {c_us:.3f}, chain {s['chi2_off']:.3f}, {time.time()-t0:.0f}s")

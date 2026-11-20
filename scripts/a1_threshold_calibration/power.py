@@ -1,8 +1,12 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... 
+# One-off A1b threshold-calibration study, not part of the Colab chain; see scripts/README.md.
+from pathlib import Path as _P
+_R = _P(__file__).resolve().parents[2]      # repository root
 import json, numpy as np
 from pathlib import Path
 from kidspipe.measure.official import PAIRS, load_official_xi
 from kidspipe.measure.a1check import a1b_noise
-S="/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/a1_salvage/threshold_calibration/"
+S=str(_R) + "/runs/dr5_measure/a1_salvage/threshold_calibration/"
 d=np.load(S+"z.npz"); z,R,meas=d["z"],d["R"],d["meas"]
 lab=[f"xi+ {i+1}-{j+1}" for i,j in PAIRS]+[f"xi- {i+1}-{j+1}" for i,j in PAIRS]
 o=np.argsort(meas)[::-1][:5]
@@ -15,7 +19,7 @@ asc=load_official_xi(); th=asc["r_nom"][0]
 TH=Path("/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial")
 rp=np.array([np.load(TH/f"xipm_bin{i+1}_bin{j+1}.npz")["xip_raw"] for i,j in PAIRS]); rm=np.array([np.load(TH/f"xipm_bin{i+1}_bin{j+1}.npz")["xim_raw"] for i,j in PAIRS])
 cp=np.array([np.load(TH/f"xipm_bin{i+1}_bin{j+1}.npz")["xip"] for i,j in PAIRS]); cm=np.array([np.load(TH/f"xipm_bin{i+1}_bin{j+1}.npz")["xim"] for i,j in PAIRS])
-amp=json.load(open("runs/dr5_measure/a1_salvage/a1_salvage.json"))["step2_amplitude"]; sd={k:np.array(amp[f"{k}_raw"]["A_pair_err_frac"]) for k in ("xip","xim")}
+amp=json.load(open(_R / "runs/dr5_measure/a1_salvage/a1_salvage.json"))["step2_amplitude"]; sd={k:np.array(amp[f"{k}_raw"]["A_pair_err_frac"]) for k in ("xip","xim")}
 ltf=np.log(th/np.sqrt(2*300)); ltf/=np.abs(ltf).max()
 rng=np.random.default_rng(7)
 def mr(tp,tm):

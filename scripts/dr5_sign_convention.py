@@ -1,3 +1,5 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Shear sign convention for the KiDS-Legacy DR5 catalogue (RESUME "Not yet done": handoff step 5).
 
 Stages (python scripts/dr5_sign_convention.py --stage {parity,pilot,ggl,report,all}):
@@ -14,15 +16,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import sys
 import time
 from pathlib import Path
 
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 OUT = ROOT / "runs/dr5_measure/sign_convention"
-WORK = Path.home() / "kids_dr5_work"
-HI = Path("/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm")
+WORK = paths.dr5_work_dir()
+HI = Path(os.environ.get("KIDSPIPE_THEIRS_XIPM", "/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm"))   # external, read only
 PILOT = ROOT / "runs/dr5_measure/xi_chunked/assembled/ns/Bin6_Bin6.npz"
 NTH = 8
 SEED = 20261030

@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Diagnose the 1.417x pair-count excess: is it duplicates, a broken column, or upstream thinning?
 
 Tests:
@@ -15,10 +16,11 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 from kidspipe.measure.official import PAIRS, load_official_xi
 
-EXTRA = Path.home() / "kids_dr5_work" / "extra"
-MAIN = Path.home() / "kids_dr5_work"
+EXTRA = paths.dr5_work_dir() / "extra"
+MAIN = paths.dr5_work_dir()
 
 
 def main() -> None:

@@ -1,5 +1,6 @@
 """Tests for kidspipe.theory.nz (spec s3): loading, normalisation, photo-z shift."""
 import numpy as np
+from kidspipe._compat import trapezoid
 import pytest
 from scipy.interpolate import interp1d
 
@@ -19,7 +20,7 @@ def test_loading_nodes_and_norm(nz):
     assert nz.z[2] == pytest.approx(0.075, abs=1e-14)
     assert nz.z[-1] == pytest.approx(5.975, abs=1e-12)
     assert np.all(np.diff(nz.z) > 0)
-    np.testing.assert_allclose(np.trapz(nz.n, nz.z, axis=1), 1.0, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(trapezoid(nz.n, nz.z, axis=1), 1.0, rtol=0, atol=1e-12)
     assert np.all(nz.n[:, 0] == 0.0)
     assert np.all(nz.n >= 0)
 
@@ -34,9 +35,9 @@ def test_loading_matches_raw_files_and_renormalisation_size(nz):
         assert raw[:, 1].sum() * 0.05 == pytest.approx(1.0, abs=2e-6)  # raw sum*dz = 1
         zc = np.concatenate([[0.0], raw[:, 0] + 0.025])
         nr = np.concatenate([[0.0], raw[:, 1]])
-        tz = np.trapz(nr, zc)
+        tz = trapezoid(nr, zc)
         # VALIDATION_TARGETS quotes trapz of the raw (unshifted) tabulation
-        assert np.trapz(raw[:, 1], raw[:, 0]) == pytest.approx(expected_trapz[i], abs=1.5e-4)
+        assert trapezoid(raw[:, 1], raw[:, 0]) == pytest.approx(expected_trapz[i], abs=1.5e-4)
         assert 0.99 < tz < 1.0  # the shift+prepend trapz is a 0.1-0.5 % renormalisation
         np.testing.assert_allclose(nz.z, zc, atol=1e-13)
         np.testing.assert_allclose(nz.n[i], nr / tz, rtol=1e-13, atol=0)
@@ -52,7 +53,7 @@ def test_normalise_nz_batch():
     z = np.linspace(0, 3, 50)
     n = np.random.default_rng(0).uniform(0.1, 2, (3, 50))
     out = normalise_nz(z, n)
-    np.testing.assert_allclose(np.trapz(out, z, axis=1), 1.0, atol=1e-14)
+    np.testing.assert_allclose(trapezoid(out, z, axis=1), 1.0, atol=1e-14)
 
 
 def test_shift_zero_is_identity(nz):
@@ -69,7 +70,7 @@ def test_shift_matches_scipy_interp1d_reference(nz):
         for i in range(5):
             f = interp1d(nz.z, nz.n[i], kind="linear", bounds_error=False, fill_value=0.0)
             r = f(nz.z - dz[i])
-            ref[i] = r / np.trapz(r, nz.z)
+            ref[i] = r / trapezoid(r, nz.z)
         np.testing.assert_allclose(nz.shifted(dz), ref, rtol=1e-12, atol=1e-14)
         np.testing.assert_allclose(shift_nz_batch(nz.z, nz.n, dz), ref, rtol=1e-12, atol=1e-14)
         for i in range(5):
@@ -79,7 +80,7 @@ def test_shift_matches_scipy_interp1d_reference(nz):
 def test_shift_normalised_nonnegative_and_direction(nz):
     dz = np.array([0.05, 0.03, -0.02, 0.1, -0.1])
     sh = nz.shifted(dz)
-    np.testing.assert_allclose(np.trapz(sh, nz.z, axis=1), 1.0, atol=1e-12)
+    np.testing.assert_allclose(trapezoid(sh, nz.z, axis=1), 1.0, atol=1e-12)
     assert np.all(sh >= 0)
     dmean = nz.mean_z(sh) - nz.mean_z()
     # positive dz moves to higher z; the mean moves by ~dz (small tail truncation)
@@ -91,7 +92,7 @@ def test_shift_exact_grid_step():
     """On a uniform grid a shift by an integer number of nodes is an exact relabelling."""
     z = np.arange(0, 6.0, 0.05)
     n = np.exp(-0.5 * ((z - 1.0) / 0.2) ** 2)
-    n /= np.trapz(n, z)
+    n /= trapezoid(n, z)
     out = shift_nz(z, n, 0.25, renormalise=False)
     np.testing.assert_allclose(out[5:], n[:-5], atol=1e-14)
     assert np.all(out[:5] == 0.0)
@@ -108,7 +109,7 @@ def test_zero_fill_and_truncation(nz):
     # mass pushed out of the table is redistributed by the renormalisation
     raw = shift_nz(nz.z, nz.n[0], 0.1, renormalise=False)
     ren = shift_nz(nz.z, nz.n[0], 0.1)
-    np.testing.assert_allclose(ren, raw / np.trapz(raw, nz.z), rtol=1e-13)
+    np.testing.assert_allclose(ren, raw / trapezoid(raw, nz.z), rtol=1e-13)
 
 
 def test_batch_scalar_broadcast_and_class(nz):
@@ -125,7 +126,7 @@ def test_load_from_custom_dir_without_zero_row(tmp_path):
         np.savetxt(tmp_path / name, np.c_[z, n])
     nz = load_nz(tmp_path)
     assert nz.z.size == z.size + 1 and nz.z[0] == 0.0
-    np.testing.assert_allclose(np.trapz(nz.n, nz.z, axis=1), 1.0, atol=1e-13)
+    np.testing.assert_allclose(trapezoid(nz.n, nz.z, axis=1), 1.0, atol=1e-13)
 
 
 def test_shift_out_of_table_or_nan_raises_not_silent_nan(nz):
@@ -150,7 +151,7 @@ def test_negative_shift_fills_z0_node_by_interpolation(nz):
     assert sh[1] == pytest.approx(0.5 * (nz.n[0, 1] + nz.n[0, 2]), rel=1e-14)
     # beyond the first (0.025-wide) interval the grid is uniform with step 0.05: shift by half a step
     np.testing.assert_allclose(sh[2:-1], 0.5 * (nz.n[0, 2:-1] + nz.n[0, 3:]), rtol=1e-12, atol=1e-14)
-    assert sh[-1] == 0.0 and np.trapz(shift_nz(nz.z, nz.n[0], dz), nz.z) == pytest.approx(1.0, abs=1e-13)
+    assert sh[-1] == 0.0 and trapezoid(shift_nz(nz.z, nz.n[0], dz), nz.z) == pytest.approx(1.0, abs=1e-13)
 
 
 def test_kidspipe_data_env_must_exist(monkeypatch, tmp_path):

@@ -83,7 +83,8 @@ with M_i = 10^log10_M_mean_i, M_piv = 10^13.5; covariance = En block of COVMAT (
 
 ## Reproduce
 ```
-cd /mnt/d/cloning_kids_Kappa_pipeline; export PYTHONPATH=$PWD/src
+# from the repository root of your clone (after `pip install -e '.[all]'`, or with `export PYTHONPATH=$PWD/src`)
+# the official chain and data are read from $KIDSPIPE_OFFICIAL (default data/kids_legacy); results go to $KIDSPIPE_RUNS (default runs/)
 OMP_NUM_THREADS=1 NUMBA_NUM_THREADS=1 python3 scripts/legacy_validate.py eval --workers 10   # ~37 min, resumable, writes runs/legacy_val/chi2.npz
 OMP_NUM_THREADS=4 NUMBA_NUM_THREADS=4 python3 scripts/legacy_validate.py plots                # figures + runs/legacy_val/summary.json
 OMP_NUM_THREADS=4 python3 scripts/legacy_validate.py timing; OMP_NUM_THREADS=1 python3 scripts/legacy_validate.py timing

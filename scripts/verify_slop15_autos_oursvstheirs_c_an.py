@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 import sys, numpy as np
 d=np.load(sys.argv[1]); keys=sorted({k.split("__")[0] for k in d.files})
 def g(k,q): return d[f"{k}__{q}"]

@@ -1,7 +1,8 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Verifier: bin_slop 0 vs 1.5 on random subsamples of bin6 (same galaxies, same pairs), plus chunk reproduction."""
 import sys, time, json, numpy as np
 from pathlib import Path
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline"); sys.path.insert(0, str(ROOT/"src"))
+ROOT = Path(__file__).resolve().parents[1]; sys.path.insert(0, str(ROOT/"src"))
 from kidspipe.measure.xi import load_bin, make_treecorr_cat, run_pair, corr_to_arrays
 rec = load_bin(6); N = rec["ra"].size; print("N", N, flush=True)
 FRAC = float(sys.argv[1]) if len(sys.argv) > 1 else 0.15

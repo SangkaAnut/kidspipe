@@ -78,13 +78,14 @@ with errors ~0.04. I did not check these against the papers; treat as unverified
 * The emulator is an approximation (|Delta chi2| <= 0.004 on 30 test points for xi+/-; not re-tested for COSEBIs). `tests/test_e2e.py` was not re-run after the `model.cl` hook.
 * MCMC short and truncated as described; S8 R-hat 1.054.
 * The 20-mode chi2 of 293 is dominated by noise modes; modes 1-5 carry the signal.
-* The `data/cosebis/cache/` operator cache holds npz files (delete for a clean tree).
+* The `data/cosebis/cache/` operator cache holds npz files: a regenerable cache (see `data/README.md`); delete for a clean tree, it is rebuilt on first use (10-20 s per table).
 
 ## Reproduce
 ```bash
-export PYTHONPATH=$PWD/src OMP_NUM_THREADS=4 NUMBA_NUM_THREADS=4
+# from the repository root of your clone (after `pip install -e '.[all]'`, or with `export PYTHONPATH=$PWD/src`)
+export OMP_NUM_THREADS=4 NUMBA_NUM_THREADS=4
 python3 scripts/cosebis_validate.py main      # plots 01-05, 07, numbers (~1.5 min)
 COSEBIS_WALL=1500 python3 runs/cosebis/mcmc.py 5 10 10000 1500 n5   # MCMC, ~30 min on ~2 effective cores
 python3 scripts/cosebis_validate.py post      # plot 06 + reweighting (reweighting ~8 min, cached in runs/cosebis/reweight_n5.npz)
-python3 -m pytest -q tests/test_cosebis.py
+pytest -q tests/test_cosebis.py
 ```

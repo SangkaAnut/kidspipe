@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Verify that folded chunk summation is exact for K=8, on an auto pair AND a cross pair.
 
 The fold rule established by dr5_chunk_diagnose.py: TreeCorr counts ORDERED pairs, so
@@ -8,6 +9,10 @@ tomographic bins, and quantifies the xi+ difference in sigma units rather than r
 """
 import numpy as np
 import treecorr
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 
 from kidspipe.measure.xi import load_bin, make_treecorr_cat, treecorr_kwargs
 

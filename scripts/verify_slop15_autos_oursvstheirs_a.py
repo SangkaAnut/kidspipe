@@ -1,11 +1,13 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """(a) ours vs theirs in sigma units, per fine bin and 9-bin official sigma."""
 import sys, json, numpy as np
-sys.path.insert(0,"/mnt/d/cloning_kids_Kappa_pipeline/scripts"); sys.path.insert(0,"/mnt/d/cloning_kids_Kappa_pipeline/src")
+import pathlib; _R=pathlib.Path(__file__).resolve().parents[1]; sys.path.insert(0,str(_R/"scripts")); sys.path.insert(0,str(_R/"src"))
 import dr5_measure_xi_unordered as U
 from scipy.stats import chi2
 ctx=U.load_context(); out={}
 for i in range(1,7):
-    o=np.load(f"/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/xi_unordered/b1.5/Bin{i}_Bin{i}.npz")
+    o=np.load(_R/f"runs/dr5_measure/xi_unordered/b1.5/Bin{i}_Bin{i}.npz")
     t=np.load(U.THEIRS/f"xipm_bin{i}_bin{i}.npz"); mf=float(t['m_factor'])
     blk=U.pair_blocks(ctx,(i,i)); r={}
     r['np_ratio']=float(o['npairs'].sum()/t['npairs'].sum()); r['w_ratio']=float(o['weight'].sum()/t['weight'].sum())

@@ -82,7 +82,7 @@ def run_variant(job):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--variants", default="all")
-    ap.add_argument("--workers", type=int, default=12)
+    ap.add_argument("--workers", type=int, default=C.NCPU, help="worker processes (default os.cpu_count())")
     ap.add_argument("--cycles", type=int, default=3000)
     ap.add_argument("--burn", type=int, default=1500)
     ap.add_argument("--chains", type=int, default=3)
@@ -94,9 +94,9 @@ if __name__ == "__main__":
     names = list(VARIANTS) if a.variants == "all" else a.variants.split(",")
     outdir = C.OUT / "sens"
     outdir.mkdir(exist_ok=True)
-    mp_ = json.load(open(C.OUT / a.map_file))
+    mp_ = json.load(open(C.find(a.map_file)))
     x_map = np.array(mp_["theta"])
-    P = np.load(C.OUT / a.pilot / "pilot.npz")
+    P = np.load(C.find(Path(a.pilot) / "pilot.npz"))
     cov = P["cov"]
     mean = P["mean"]
     # chain starts: pilot mean (inside the posterior bulk) for chains; MAP for the optimiser

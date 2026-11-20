@@ -44,7 +44,8 @@ def test_launch_guards(monkeypatch):
 
 
 def _mpirun(n, args, timeout=240, env_extra=None):
-    env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), PYTHONDONTWRITEBYTECODE="1", OMP_NUM_THREADS="1")
+    env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), PYTHONDONTWRITEBYTECODE="1", OMP_NUM_THREADS="1",
+               OMPI_ALLOW_RUN_AS_ROOT="1", OMPI_ALLOW_RUN_AS_ROOT_CONFIRM="1")      # Colab and containers run as root
     env.update(env_extra or {})
     return subprocess.run(["mpirun", "--oversubscribe", "-n", str(n), PY, *args], cwd=ROOT, env=env, capture_output=True,
                           text=True, timeout=timeout)

@@ -389,6 +389,7 @@ def test_free_eta0_and_A_response_matches_camb():
 # ------------------------------------------------------------------------------------------
 # performance
 # ------------------------------------------------------------------------------------------
+@pytest.mark.timing
 def test_performance_full_grid_single_thread():
     import numba
 

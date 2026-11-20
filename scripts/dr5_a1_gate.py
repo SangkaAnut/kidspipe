@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """A1 (redefined): sample-identity and weight gates against the official KiDS-Legacy products.
 
 WHY THIS IS NOT THE ORIGINAL A1
@@ -39,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -47,6 +49,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 
 from kidspipe.measure.official import PAIRS, load_official_xi  # noqa: E402
 
@@ -80,7 +83,7 @@ def gate_galaxy_identity(area_deg2=967.4):
     A_MOSAIC = 1014.031
     res = {}
     for b in range(1, 7):
-        f = Path.home() / "kids_dr5_work" / f"bin{b-1}.npz"
+        f = paths.dr5_work_dir() / f"bin{b-1}.npz"
         if not f.exists():
             continue
         d = np.load(f)
@@ -238,7 +241,7 @@ def main() -> None:
                     help="fraction to subsample; 0 means use --from-npz instead")
     ap.add_argument("--from-npz", default="", help="directory of production npz files")
     ap.add_argument("--nbins", type=int, default=1000)
-    ap.add_argument("--threads", type=int, default=16)
+    ap.add_argument("--threads", type=int, default=os.cpu_count() or 1)
     ap.add_argument("--bin-slop", type=float, default=0.0)
     ap.add_argument("--pairs", default="", help="comma list i-j (1-based), e.g. 1-1,1-2")
     args = ap.parse_args()

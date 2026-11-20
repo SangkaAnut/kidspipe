@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Quick look at the coarse (20-bin) full-catalogue probe against the official xi+/-."""
 import sys
 from pathlib import Path

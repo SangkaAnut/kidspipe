@@ -8,6 +8,7 @@ import pytest
 from scipy.integrate import quad
 from scipy.special import j0
 
+from kidspipe.paths import find_result
 from kidspipe.theory import cosebis as C
 from kidspipe.likelihood import cosebis as LC
 
@@ -36,15 +37,26 @@ def test_table_parsing():
     assert len(ns[1].replace(".", "")) > 40                      # full-precision string kept
 
 
-def test_roots_norms_vs_mpmath_regeneration(F300):
-    """Independent construction from the defining conditions reproduces the tables (roots to the 8-digit rounding)."""
+def _regeneration_check(F300):
+    """Independent construction from the defining conditions reproduces the tables (roots to the 8-digit rounding).
+    Returns the wall time of the mpmath regeneration."""
     t0 = time.time()
     roots, norms, _ = C.regenerate_roots_norms(8, 0.5, 300.0, dps=70)
+    dt = time.time() - t0
     for n in range(1, 9):
         r = np.array([float(x) for x in roots[n]])
         assert np.abs(r - F300.roots[n]).max() < 6e-8            # table has 8 significant digits (roots < 10)
         assert abs(float(norms[n]) / F300.norms[n] - 1.0) < 1e-12
-    assert time.time() - t0 < 20
+    return dt
+
+
+def test_roots_norms_vs_mpmath_regeneration(F300):
+    _regeneration_check(F300)
+
+
+@pytest.mark.timing
+def test_roots_norms_regeneration_time(F300):
+    assert _regeneration_check(F300) < 20
 
 
 @pytest.mark.slow
@@ -114,7 +126,7 @@ def test_wn_vs_adaptive_quad(F300, l):
 def model_cl():
     from kidspipe.api import build_model
     m = build_model(linear_backend="emulator")
-    th = np.array(json.load(open(os.path.join(ROOT, "runs", "kv450_final", "map_best.json")))["theta"])
+    th = np.array(json.load(open(find_result("kv450_final/map_best.json")))["theta"])
     ell, Cl = m.cl(th)
     return m, th, ell, Cl
 

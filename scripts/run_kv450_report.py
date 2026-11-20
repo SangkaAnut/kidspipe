@@ -1,13 +1,14 @@
 """Collect the numbers of runs/kv450_final/* into markdown tables (printed; used to write docs/RESULTS.md)."""
 import glob
 import json
+from pathlib import Path
 import numpy as np
 import run_kv450_common as C
 from run_kv450_common import PARAM_NAMES, params
 from kidspipe.inference.chains import marginal_stats, hpd_interval_1d, weighted_quantile
 
 NAMES = list(PARAM_NAMES) + ["sigma8", "omega_m", "S8"]
-A = json.load(open(C.OUT / "combined_prod1_prod2/analysis.json"))
+A = json.load(open(C.find("combined_prod1_prod2/analysis.json")))
 PUB = {"S8": (0.737, 0.040, 0.036), "omega_m": (0.256, None, None), "A_IA": (0.98, 0.69, 0.69), "A_baryon": (2.48, None, None)}
 
 print("## MCMC marginals (prod1+prod2)\n")
@@ -18,7 +19,7 @@ for n in NAMES:
     print(f"| {n} | {s['mean']:.4g} | {s['std']:.3g} | {s['median']:.4g} | {s['lo']:.4g} | {s['hi']:.4g} | [{s['hpd_lo']:.4g}, {s['hpd_hi']:.4g}] | [{s['pj_lo']:.4g}, {s['pj_hi']:.4g}] | {A['rhat'][n]:.3f} | {A['ess'][n]:.0f} |")
 
 # chi2 / lnL statistics from the chains
-files = sorted(glob.glob(str(C.OUT / "prod1/prod_c*.npz"))) + sorted(glob.glob(str(C.OUT / "prod2/prod_c*.npz")))
+files = C.result_glob("prod1/prod_c*.npz") + C.result_glob("prod2/prod_c*.npz")
 X, LP, D = [], [], []
 for f in files:
     z = np.load(f)
@@ -48,8 +49,11 @@ print("corr(sigma8,omega_m)=", round(float(np.corrcoef(D[:, 0], D[:, 1])[0, 1]),
 # nested
 print("\n## nautilus")
 for t in ("nautilus1", "nautilus2", "nautilus3"):
-    s = json.load(open(C.OUT / t / "nested_summary.json"))
-    z = np.load(C.OUT / t / "nested.npz")
+    if not (C.find(Path(t) / "nested_summary.json").exists() and C.find(Path(t) / "nested.npz").exists()):
+        print(t, "not available (only nautilus3 ships with the repository; run_kv450_nested.py regenerates it)")
+        continue
+    s = json.load(open(C.find(Path(t) / "nested_summary.json")))
+    z = np.load(C.find(Path(t) / "nested.npz"))
     w = z["weights"]; Xn = np.hstack([z["samples"], z["derived"]])
     m = w @ Xn
     sd = np.sqrt(w @ (Xn - m) ** 2)

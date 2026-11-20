@@ -1,3 +1,5 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """(c) tree-structure sensitivity test on a bin-6 subsample: permutation / float32 positions / bin_slop 0."""
 import sys, time, json, numpy as np, treecorr
 N=int(sys.argv[1]); SLOPS=[float(x) for x in sys.argv[2].split(",")]; OUT=sys.argv[3]; NT=6

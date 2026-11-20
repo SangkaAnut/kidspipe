@@ -1,10 +1,16 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Independent verification of the 'sign' track (no import of dr5_sign_convention.py).
 stages: flat | frame | ggl | pilot"""
 import sys, json, time
 import numpy as np, treecorr
 from pathlib import Path
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline"); OUT = ROOT / "runs/dr5_measure/sign_convention/verify"
-WORK = Path.home() / "kids_dr5_work"
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
+ROOT = Path(__file__).resolve().parents[1]; OUT = ROOT / "runs/dr5_measure/sign_convention/verify"
+WORK = paths.dr5_work_dir()
 def save(key, val):
     f = OUT / "verify.json"; d = json.loads(f.read_text()) if f.exists() else {}
     d[key] = val; f.write_text(json.dumps(d, indent=1))

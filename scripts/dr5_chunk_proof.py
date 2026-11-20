@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """End-to-end proof that the chunked driver reproduces the single-shot pipeline exactly.
 
 Runs at low density on purpose (2% subsample, 4 chunks) so it finishes in minutes and can be
@@ -18,9 +19,9 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
-SCRATCH = Path.home() / "kids_dr5_chunkproof"
-PY = "/home/anut/anaconda3/bin/python3"
+ROOT = Path(__file__).resolve().parents[1]
+SCRATCH = Path.home() / "kids_dr5_chunkproof"   # scratch tree for the proof
+PY = sys.executable
 
 # --- 1. build a 2% catalogue in a scratch WORK tree
 import os
@@ -28,10 +29,11 @@ os.environ["PYTHONSAFEPATH"] = ""
 os.environ["PYTHONPATH"] = str(ROOT / "src")
 sys.path.insert(0, str(ROOT / "src"))
 from kidspipe.measure.xi import load_bin  # noqa: E402
+from kidspipe import paths  # noqa: E402
 
 SCRATCH.mkdir(parents=True, exist_ok=True)
 rng = np.random.default_rng(3)
-rec = load_bin(1, work=Path.home() / "kids_dr5_work")
+rec = load_bin(1, work=paths.dr5_work_dir())
 n = rec["ra"].size
 idx = np.sort(rng.choice(n, int(n * 0.02), replace=False))
 sub = {k: rec[k][idx] for k in rec}
@@ -46,7 +48,7 @@ for d in (SCRATCH / "xi_chunked",):
 from kidspipe.measure.xi import make_treecorr_cat, run_pair, corr_to_arrays  # noqa: E402
 
 cat = make_treecorr_cat(sub)
-gg = run_pair(cat, cat, nbins=1000, bin_slop=0.0, num_threads=16)
+gg = run_pair(cat, cat, nbins=1000, bin_slop=0.0, num_threads=os.cpu_count() or 1)
 ref = corr_to_arrays(gg)
 print(f"reference: npairs={ref['npairs'].sum():.6e}  w={ref['weight'].sum():.6e}")
 
@@ -69,7 +71,7 @@ print(f"chunks: {[c.nobj for c in cats]}")
 d = drv.OUTROOT / "chunks" / "Bin1_Bin1"
 d.mkdir(parents=True, exist_ok=True)
 for (a, b) in drv.chunk_pairs(NCH, same_bin=True):
-    g = run_pair(cats[a], cats[b], nbins=1000, bin_slop=0.0, num_threads=16)
+    g = run_pair(cats[a], cats[b], nbins=1000, bin_slop=0.0, num_threads=os.cpu_count() or 1)
     arr = corr_to_arrays(g)
     arr["fold"] = np.float64(drv.fold_factor(a, b, True))
     np.savez(d / f"c{a:02d}_{b:02d}.npz", **arr)

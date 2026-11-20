@@ -1,9 +1,11 @@
 # kidspipe usage
 
-All commands are run from the repository root with the package on the path:
+All commands are run from the repository root (a clone of this repository, or the Colab checkout) with the package installed or on the path.
+Install with `pip install -e '.[all]'` (see the README for the extras); the `kidspipe` command is then equivalent to `python3 -m kidspipe`.
+Input and output locations are controlled by environment variables (`KIDSPIPE_DATA`, `KIDSPIPE_RUNS`, ...; table in the README, defined in `src/kidspipe/paths.py`).
 
 ```bash
-export PYTHONPATH=$PWD/src          # or: pip install -e .
+export PYTHONPATH=$PWD/src          # or: pip install -e .  (then PYTHONPATH is not needed)
 export OMP_NUM_THREADS=4            # CAMB threads of one process (the CLI sets 4 if you do not)
 export NUMBA_NUM_THREADS=4          # numba (HMcode/Limber) threads; numba ignores OMP_NUM_THREADS and uses ALL cores by default
                                     # (the `kidspipe` CLI sets it from OMP_NUM_THREADS / --threads / --worker-threads; the Python API does not)
@@ -12,7 +14,7 @@ python3 -m kidspipe <command> --help
 ```
 
 Every command takes the model options below, a deterministic `--seed` (where randomness is involved) and
-`--out DIR` (default `runs/<name>/`, `--name` defaults to the command name).
+`--out DIR` (default `runs/<name>/`, i.e. `$KIDSPIPE_RUNS/<name>/` when `KIDSPIPE_RUNS` is set; `--name` defaults to the command name).
 
 | model option | meaning |
 |---|---|
@@ -76,7 +78,7 @@ then random prior draws. Writes `map.json` (parameters, chi2, ln post, derived, 
 `--workers N` runs one start per worker process.
 
 Cost warning: the gradient is a finite difference and three of the 14 parameters (omch2, ombh2, h) each need a new CAMB transfer
-function (about 0.8 s with 4 threads, ~2.8 s with 1 thread on this machine), so one gradient costs ~2.5-8 s. Budget
+function (about 0.8 s with 4 threads, ~2.8 s with 1 thread on the development workstation, 22 cores under WSL2), so one gradient costs ~2.5-8 s. Budget
 `--maxiter`, `--rounds` and `--starts` accordingly.
 
 ### `mcmc`: chains
@@ -90,7 +92,7 @@ python3 -m kidspipe mcmc --method ensemble --walkers 36 --steps 300 --workers 18
 ```
 
 *Blocked Metropolis.* One cycle = one joint update of the six parameters (omch2, ombh2, h, n_s, ln_1e10_A_s, A_baryon) [one new CAMB
-transfer function: ~0.8 s on the loaded shared machine used for development], then `--rep-medium` (2) updates of (n_s, ln_1e10_A_s, A_baryon)
+transfer function: ~0.8 s on the loaded, shared development workstation], then `--rep-medium` (2) updates of (n_s, ln_1e10_A_s, A_baryon)
 [~17 ms: exact rescale of the cached transfer function + new P_nl], then `--rep-fast` (6) updates of the eight fast parameters
 (A_IA, delta_c, A_c, dz1..5) [~1.4 ms]. `--separate-slow` moves (omch2, ombh2, h) alone in the first block instead (worse for the
 omch2 - A_s degeneracy, see README). Proposal covariances are the conditional covariances of a learned full covariance (adaptation during
@@ -151,7 +153,7 @@ mpirun -n 5 -x PYTHONPATH -x OMP_NUM_THREADS python3 -m kidspipe map --starts 4 
 * If a task or the root fails, queued tasks are cancelled and the error is raised once the running tasks finish; a
   failing worker initialiser prints its traceback with the rank.
 
-Batch scripts with `--mpi` (same model: rank 0 schedules and writes, ranks 1..N-1 evaluate):
+Batch scripts with `--mpi` (the `mpi` extra needs an MPI library, e.g. `apt install libopenmpi-dev openmpi-bin`; MPI is optional and not needed in Colab) (same model: rank 0 schedules and writes, ranks 1..N-1 evaluate):
 
 ```bash
 mpirun -n 11 -x PYTHONPATH python3 scripts/legacy_validate.py eval --mpi        # Legacy chain samples, 10 workers
@@ -184,6 +186,14 @@ from kidspipe.inference import find_map, blocked_metropolis, load_chain, summary
 ## Tests
 
 ```bash
-PYTHONPATH=src python3 -m pytest -q -m "not slow"           # unit + e2e (fast)
-PYTHONPATH=src python3 -m pytest -q tests/test_e2e.py        # incl. the slow nested-sampler smoke tests
+pytest -q -m "not slow"                                     # unit + e2e (fast); pytest finds src/ through pyproject.toml
+pytest -q tests/test_e2e.py                                  # incl. the slow nested-sampler smoke tests
 ```
+
+Tests marked `timing` assert wall-clock speed and run only with `KIDSPIPE_TIMING_TESTS=1` or on machines with at least 8 cores.
+
+## DR5 measurement chain
+
+The DR5 scripts (`scripts/dr5_*.py`) read the public catalogue from `$KIDSPIPE_DR5_CATALOGUE` (default `~/kids_dr5_work/KiDS_Legacy_NS_unblind_final.fits`; download URL in
+`data/README.md`), keep the per-bin extract in `$KIDSPIPE_DR5_WORK` and write to `$KIDSPIPE_RUNS/dr5_measure/`. `scripts/dr5_chain.py` runs the core chain step by step
+(`scripts/README.md`); the recorded command sequence and run times are in `docs/DR5_MEASUREMENT_REPORT.md` section 6. Use one process per tomographic pair (memory, see that section).

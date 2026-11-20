@@ -11,8 +11,15 @@ ROOT = Path(__file__).resolve().parents[1]
 PRODUCT = ROOT / "runs/dr5_measure/product/dr5_xipm_cosebis_binslop1p5.npz"
 pytestmark = pytest.mark.skipif(not PRODUCT.exists() or not (official.OFFICIAL / "KiDS_Legacy_xipm.fits").exists(),
                                 reason="product or official release absent")
-spec = importlib.util.spec_from_file_location("mkprod", ROOT / "scripts/dr5_make_product.py")
-mk = importlib.util.module_from_spec(spec); spec.loader.exec_module(mk)
+
+
+@pytest.fixture(scope="module")
+def mk():
+    """scripts/dr5_make_product.py, loaded only when the tests actually run (never at collection)."""
+    spec = importlib.util.spec_from_file_location("mkprod", ROOT / "scripts" / "dr5_make_product.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 @pytest.fixture(scope="module")
@@ -39,11 +46,11 @@ def test_m_correction_identity(prod):
     assert np.allclose(prod["xip"] * mf[:, None], prod["xip_raw"], rtol=1e-13) and np.allclose(prod["xim"] * mf[:, None], prod["xim_raw"], rtol=1e-13)
 
 
-def test_validate_passes_on_product(prod, fx):
+def test_validate_passes_on_product(prod, fx, mk):
     mk.validate_product(prod, fx)
 
 
-def test_shuffled_pair_is_caught(prod, fx):
+def test_shuffled_pair_is_caught(prod, fx, mk):
     bad = {k: v.copy() for k, v in prod.items()}
     for k in ("xip_raw", "xim_raw", "xip", "xim", "npairs", "weight"):       # swap two pairs' fine data, keep their labels
         bad[k][[0, 5]] = bad[k][[5, 0]]
@@ -60,11 +67,11 @@ def test_shuffled_pair_is_caught(prod, fx):
 
 
 @pytest.fixture(scope="module")
-def filt():
+def filt(mk):
     return mk.u.load_context()["filt"]
 
 
-def test_cosebis_are_the_integral_of_the_stored_xi(prod, filt):
+def test_cosebis_are_the_integral_of_the_stored_xi(prod, filt, mk):
     mk.validate_cosebis(prod, filt)
     for k, f in (("En", 3.0), ("Bn", 0.0)):                                   # a scaled or zeroed COSEBIs array must be caught
         bad = {x: v.copy() for x, v in prod.items()}
@@ -73,7 +80,7 @@ def test_cosebis_are_the_integral_of_the_stored_xi(prod, filt):
             mk.validate_cosebis(bad, filt)
 
 
-def test_product_matches_its_source_files(prod):
+def test_product_matches_its_source_files(prod, mk):
     src = ROOT / "runs/dr5_measure/xi_unordered/b1.5"
     mk.validate_sources(prod, src)
     bad = {x: v.copy() for x, v in prod.items()}

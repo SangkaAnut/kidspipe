@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Check A4 done properly: independent pair counter vs TreeCorr on a catalogue with a REAL
 shear field, so that xi_+, xi_- are non-zero and a frame error would show up as a wrong
 amplitude or a wrong sign rather than as noise.

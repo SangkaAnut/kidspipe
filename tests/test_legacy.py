@@ -1,7 +1,10 @@
 """KiDS-Legacy COSEBIs pipeline tests (fast; one CAMB run for the official-best-sample check)."""
+import shutil
+
 import numpy as np
 import pytest
 
+from kidspipe.paths import find_result
 from kidspipe.legacy import (LegacyCosebisLikelihood, LegacyCosebisModel, LegacyData, chain_samples, ia_amplitudes,
                              load_chain)
 from kidspipe.legacy.data import PAIRS
@@ -33,12 +36,16 @@ def test_filters_2_300_conditions():
     assert np.max(np.abs(c2) / sc) < 1e-9 and np.max(np.abs(c4) / sc) < 1e-9
 
 
-def test_official_best_sample_chi2():
+def test_official_best_sample_chi2(tmp_path):
+    cache = tmp_path / "cache"                       # work on a copy of the shipped W-operator cache (speed) so nothing is written to the repo
+    shipped = find_result("legacy/cache")
+    if shipped.is_dir():
+        shutil.copytree(shipped, cache)
     ch = load_chain()
     ok = np.isfinite(ch[:, 43]) & np.isfinite(ch[:, 22])
     row = np.where(ok)[0][np.argmax(ch[ok, 43])]
     s = chain_samples(ch, [row])[0]
-    m = LegacyCosebisModel(cache_dir="runs/legacy/cache")
+    m = LegacyCosebisModel(cache_dir=cache)
     like = LegacyCosebisLikelihood()
     c2 = like.chi2(m.mu(s))
     assert abs(c2 - s["chi2_off"]) < 0.5

@@ -4,6 +4,7 @@ import os
 import time
 
 import numpy as np
+from kidspipe._compat import trapezoid
 import pytest
 from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
@@ -397,9 +398,9 @@ def test_kcap_equals_fft_plus_trapezoid():
     kp, km = kc.xi_binned(C)
     for b in (0, 4, 8):
         s = np.nonzero((th >= kc.edges_rad[b]) & (th < kc.edges_rad[b + 1]))[0]
-        ref = np.trapz(th[s] * xp[p, s], th[s]) / np.trapz(th[s], th[s])
+        ref = trapezoid(th[s] * xp[p, s], th[s]) / trapezoid(th[s], th[s])
         assert kp[p, b] == pytest.approx(ref, rel=1e-12)
-        ref = np.trapz(th[s] * xm[p, s], th[s]) / np.trapz(th[s], th[s])
+        ref = trapezoid(th[s] * xm[p, s], th[s]) / trapezoid(th[s], th[s])
         assert km[p, b] == pytest.approx(ref, rel=1e-12)
 
 
@@ -445,6 +446,7 @@ def test_dense_exact_binning_vs_kcap_bias_size():
 # ----------------------------------------------------------------------------------------
 # timing
 # ----------------------------------------------------------------------------------------
+@pytest.mark.timing
 def test_timing_fast_operator_and_fft():
     """The fast operator must beat the FFT path by >= 10x, both timed in this run.  The old fixed limit (2 ms) failed
     under CPU contention (MKL splits the 15x400 @ 400x18 product over every core and waits for the slowest: 7-9 ms with
@@ -478,6 +480,7 @@ def test_timing_fast_operator_and_fft():
     assert t_fft < 0.1
 
 
+@pytest.mark.timing
 def test_operator_build_time():
     t0 = time.perf_counter()
     H.HankelBinner(ELL)

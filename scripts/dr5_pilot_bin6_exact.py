@@ -1,3 +1,5 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Pilot Bin6_Bin6 re-measured at (bin_slop=0, angle_slop=0) -- the setting that is exact by construction (brute-force
 check in runs/dr5_measure/angle_slop/brute_check.json) -- with OUR chunked ordered approach (copy of
 scripts/dr5_pilot_bin6_slop.py).  Chunk files go to runs/dr5_measure/pilot_bin6/<tag>_chunks/ (NOT xi_chunked/),
@@ -11,7 +13,7 @@ from pathlib import Path
 import numpy as np
 from scipy.stats import chi2 as chi2dist
 
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 spec = importlib.util.spec_from_file_location("drv", ROOT / "scripts/dr5_measure_xi_chunked.py")
 drv = importlib.util.module_from_spec(spec); spec.loader.exec_module(drv)

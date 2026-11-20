@@ -2,9 +2,14 @@
 
 Not a public API: builds the posterior with the options used throughout runs/kv450_final/, a bounded
 fixed-parameter / penalised optimiser wrapper, and small chain helpers.
+
+Paths (kidspipe.paths): results are written to ``OUT`` = ``<runs>/kv450_final`` with ``<runs>`` = $KIDSPIPE_RUNS (default <root>/runs).  Results used
+as INPUTS (MAP, pilot, production chains, ...) are read with ``find(rel)`` / ``result_glob(pattern)``: ``OUT`` first, else the copy shipped in
+<root>/runs/kv450_final.  ``NCPU`` = os.cpu_count() is the default for every ``--workers`` option of the drivers.
 """
 from __future__ import annotations
 
+import glob
 import json
 import os
 import sys
@@ -17,8 +22,26 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-OUT = ROOT / "runs" / "kv450_final"
+from kidspipe import paths                          # noqa: E402
+
+OUT = paths.runs_dir() / "kv450_final"
 OUT.mkdir(parents=True, exist_ok=True)
+NCPU = os.cpu_count() or 1                          # default worker count of the drivers
+
+
+def find(rel) -> Path:
+    """Existing result ``kv450_final/<rel>`` used as an input: yours (``OUT``), else the shipped copy."""
+    return paths.find_result(Path("kv450_final") / rel)
+
+
+def result_glob(pattern) -> list:
+    """Sorted files matching ``pattern`` (relative to kv450_final): yours if any, else the shipped ones."""
+    for base in (OUT, paths.shipped_runs_dir() / "kv450_final"):
+        fs = sorted(glob.glob(str(base / pattern)))
+        if fs:
+            return fs
+    return []
+
 
 from kidspipe import api, params                    # noqa: E402
 from kidspipe.params import PARAM_NAMES, BOUNDS     # noqa: E402

@@ -5,6 +5,7 @@ import os
 import time
 
 import numpy as np
+from kidspipe._compat import trapezoid
 import pytest
 from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
@@ -139,6 +140,7 @@ def test_ns_rescale_equals_fresh_camb():
     assert be2.stats["camb_runs"] == 2
 
 
+@pytest.mark.timing
 def test_rescale_is_fast(backend, lin_sanity):
     t = time.perf_counter()
     for i in range(20):
@@ -220,7 +222,7 @@ def test_pk_cb_vs_total(lin_sanity):
     k = r.k_h
     x = k * R
     W = 3 * (np.sin(x) - x * np.cos(x)) / x ** 3
-    integ = lambda pk: np.sqrt(np.trapz(k ** 3 * pk / (2 * np.pi ** 2) * W ** 2, np.log(k)))
+    integ = lambda pk: np.sqrt(trapezoid(k ** 3 * pk / (2 * np.pi ** 2) * W ** 2, np.log(k)))
     assert integ(r.pk_cb[0]) / integ(r.pk_lin[0]) - 1 == pytest.approx(0.004, abs=0.0015)
     assert integ(r.pk_lin[0]) == pytest.approx(r.sigma8_0, rel=1e-3)
 
@@ -273,15 +275,25 @@ def test_reduced_grid_matches_full_grid(lin_sanity):
     assert err < 2e-4
 
 
+_THREAD_COSMO = dict(omch2=0.13, ombh2=0.0221, h=0.68, n_s=0.99, ln_1e10_A_s=3.0)
+
+
 @pytest.mark.slow
-def test_thread_independence_and_speed():
-    """Results identical for 1 and 4 threads; 4 threads at least 1.5x faster than 1."""
-    d = dict(omch2=0.13, ombh2=0.0221, h=0.68, n_s=0.99, ln_1e10_A_s=3.0)
-    b1 = LinearBackend(nthreads=1)
-    t = time.perf_counter(); r1 = b1.compute(**d); t1 = time.perf_counter() - t
-    b4 = LinearBackend(nthreads=4)
-    t = time.perf_counter(); r4 = b4.compute(**d); t4 = time.perf_counter() - t
+def test_thread_independence():
+    """Results identical for 1 and 4 threads."""
+    r1 = LinearBackend(nthreads=1).compute(**_THREAD_COSMO)
+    r4 = LinearBackend(nthreads=4).compute(**_THREAD_COSMO)
     assert np.max(np.abs(r1.pk_lin / r4.pk_lin - 1)) < 1e-10
+
+
+@pytest.mark.slow
+@pytest.mark.timing
+def test_thread_speed():
+    """4 threads at least 1.5x faster than 1 (needs >= 4 free cores; skipped on small machines)."""
+    b1 = LinearBackend(nthreads=1)
+    t = time.perf_counter(); b1.compute(**_THREAD_COSMO); t1 = time.perf_counter() - t
+    b4 = LinearBackend(nthreads=4)
+    t = time.perf_counter(); b4.compute(**_THREAD_COSMO); t4 = time.perf_counter() - t
     assert t1 / t4 > 1.5
 
 

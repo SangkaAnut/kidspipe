@@ -17,6 +17,7 @@ variable                    meaning                                             
 ``KIDSPIPE_DR5_CATALOGUE``  the DR5 shear catalogue                                ``<dr5_work>/KiDS_Legacy_NS_unblind_final.fits``
                             ``KiDS_Legacy_NS_unblind_final.fits`` (16.4 GB)
 ``KIDSPIPE_EMULATOR``       linear-transfer emulator artefact                      ``<data>/emulator/transfer_emulator_v1.npz``
+``KIDSPIPE_PLOTS``          figures written by the scripts                         ``<root>/plots``
 ==========================  ====================================================  =========================================
 
 Functions are evaluated at call time, so a variable set after import still takes effect for later calls (module-level
@@ -27,7 +28,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-__all__ = ["root", "data_dir", "runs_dir", "shipped_runs_dir", "find_result", "official_dir", "dr5_work_dir", "dr5_catalogue", "emulator_artefact",
+__all__ = ["root", "data_dir", "runs_dir", "shipped_runs_dir", "find_result", "official_dir", "dr5_work_dir", "dr5_catalogue", "emulator_artefact", "plots_dir",
            "CATALOGUE_NAME", "CATALOGUE_URL", "RELEASE_URL"]
 
 #: file name of the KiDS-Legacy (DR5) shear catalogue
@@ -93,6 +94,10 @@ def dr5_work_dir() -> Path:
 
 def dr5_catalogue() -> Path:
     return _env("KIDSPIPE_DR5_CATALOGUE") or dr5_work_dir() / CATALOGUE_NAME
+
+
+def plots_dir() -> Path:
+    return _env("KIDSPIPE_PLOTS") or root() / "plots"
 
 
 def emulator_artefact() -> Path:

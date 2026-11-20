@@ -1,5 +1,5 @@
 """Convergence diagnostics + marginal summaries of production chains.   usage: run_kv450_analyze.py TAG [--burn-frac 0.2] [--thin 1]
-Reads runs/kv450_final/TAG/prod_c*.npz (samples, log_post, derived = sigma8, omega_m, S8), writes TAG/analysis.json and prints tables."""
+Reads <runs>/kv450_final/TAG/prod_c*.npz (else the shipped copy) (samples, log_post, derived = sigma8, omega_m, S8), writes TAG/analysis.json and prints tables."""
 import argparse
 import glob
 import json
@@ -13,7 +13,7 @@ NAMES = list(PARAM_NAMES) + ["sigma8", "omega_m", "S8"]
 
 
 def load(tag, burn_frac=0.2, thin=1):
-    files = [f for t in tag.split(",") for f in sorted(glob.glob(str(C.OUT / t / "prod_c*.npz")))]
+    files = [f for t in tag.split(",") for f in C.result_glob(f"{t}/prod_c*.npz")]
     chains, lps = [], []
     for f in files:
         z = np.load(f)

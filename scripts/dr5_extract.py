@@ -6,32 +6,107 @@ and writes ONE npz per tomographic bin on the Linux filesystem (~/kids_dr5_work)
 
 Also records the selection diagnostics needed for the n_eff / sigma_e gate.
 
-Usage:
-  PYTHONPATH=src /home/anut/anaconda3/bin/python3 scripts/dr5_extract.py
+Usage (from any directory; the repository root is found from this file's location)::
+
+  python scripts/dr5_extract.py [--catalogue P] [--out D] [--chunk N] [--force]
+
+Defaults come from ``kidspipe.paths``: ``--catalogue`` = ``$KIDSPIPE_DR5_CATALOGUE`` (else
+``<dr5_work>/KiDS_Legacy_NS_unblind_final.fits``), ``--out`` = ``$KIDSPIPE_DR5_WORK`` (else ``~/kids_dr5_work``).
+The catalogue must be the UNCOMPRESSED 16.4 GB ``.fits`` on a local disk (cfitsio would inflate a ``.fits.gz`` entirely
+in memory); download once from ``paths.CATALOGUE_URL`` (7.2 GB gz) and decompress with ``gunzip`` / ``pigz -d``.
+
+The step is skipped when all six ``bin*.npz`` and ``extract_info.json`` exist and their row counts match the catalogue,
+unless ``--force``. Every output is written under a temporary name and renamed (``os.replace``), so an interrupted run
+never leaves a truncated bin file.
 """
 from __future__ import annotations
 
+import argparse
 import json
+import os
+import sys
 import time
 from pathlib import Path
 
 import numpy as np
 
-CAT = Path("/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/KiDS_Legacy_NS_unblind_final.fits")
-OUT = Path.home() / "kids_dr5_work"
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from kidspipe import paths  # noqa: E402
+
+CAT = paths.dr5_catalogue()
+OUT = paths.dr5_work_dir()
 COLS = ["RAJ2000", "DECJ2000", "PATCH", "TOMOBIN", "e1", "e2", "weight"]
 CHUNK = 5_000_000
 NBIN = 6
 
 
-def main() -> None:
-    import fitsio
+def _fail(msg: str) -> None:
+    print(f"dr5_extract: {msg}", file=sys.stderr)
+    sys.exit(2)
 
-    OUT.mkdir(parents=True, exist_ok=True)
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    tmp = path.with_name(f".{path.name}.part")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+
+
+def _already_done(out: Path, nrows: int) -> bool:
+    """True if all 6 bin files and extract_info.json exist and are consistent with the catalogue row count."""
+    info_path = out / "extract_info.json"
+    if not info_path.is_file():
+        return False
+    try:
+        info = json.loads(info_path.read_text())
+        if int(info["nrows_total"]) != int(nrows):
+            return False
+        for b in range(NBIN):
+            p = out / f"bin{b}.npz"
+            if not p.is_file():
+                return False
+            with np.load(p) as z:
+                if int(z["ra"].shape[0]) != int(info["bins"][str(b)]["n_gal"]):
+                    return False
+    except Exception:
+        return False
+    return True
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--catalogue", type=Path, default=CAT, help=f"uncompressed KiDS-Legacy shear catalogue (default {CAT})")
+    ap.add_argument("--out", type=Path, default=OUT, help=f"directory for bin0..5.npz + extract_info.json (default {OUT})")
+    ap.add_argument("--chunk", type=int, default=CHUNK, help=f"rows read per slice (default {CHUNK:,})")
+    ap.add_argument("--force", action="store_true", help="re-extract even if complete outputs already exist")
+    args = ap.parse_args()
+    cat, out, chunk = args.catalogue.expanduser(), args.out.expanduser(), int(args.chunk)
+
+    if str(cat).endswith(".gz"):
+        _fail(f"{cat} is gzip-compressed. cfitsio would inflate the whole 16.4 GB table in memory. Decompress first, e.g.\n"
+              f"  gunzip -k {cat}      (or: pigz -dk {cat})\nand pass the .fits file with --catalogue.")
+    if not cat.is_file():
+        _fail(f"catalogue not found: {cat}\n"
+              f"Download the public KiDS-Legacy shear catalogue (7.2 GB gzip, 16.4 GB once decompressed; see "
+              f"https://kids.strw.leidenuniv.nl/DR5/legacy_wl.php):\n"
+              f"  curl -L -o {cat}.gz {paths.CATALOGUE_URL}\n"
+              f"  gunzip {cat}.gz\n"
+              f"or point --catalogue / $KIDSPIPE_DR5_CATALOGUE at an existing copy. Keep it on a local disk, not a Drive mount.")
+    try:
+        import fitsio
+    except ImportError:
+        _fail("the python package 'fitsio' is required: pip install fitsio  (or pip install -e '.[measure]')")
+
+    out.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
-    f = fitsio.FITS(str(CAT))
+    f = fitsio.FITS(str(cat))
     nrows = f[1].get_nrows()
     print(f"rows={nrows:,}", flush=True)
+    if not args.force and _already_done(out, nrows):
+        print(f"all {NBIN} bin files and extract_info.json already present in {out} with matching row counts; "
+              f"nothing to do (use --force to redo)", flush=True)
+        return
 
     # accumulate per bin; 40.9M x ~20 B ~ 0.8 GB total -- fine
     ra = [[] for _ in range(NBIN)]
@@ -44,8 +119,8 @@ def main() -> None:
     tomo_hist = np.zeros(16, dtype=np.int64)
     n_bad_tomo = 0
 
-    for start in range(0, nrows, CHUNK):
-        stop = min(start + CHUNK, nrows)
+    for start in range(0, nrows, chunk):
+        stop = min(start + chunk, nrows)
         d = f[1].read(rows=np.arange(start, stop), columns=COLS)
         tomo = d["TOMOBIN"].astype(np.int16)
         tomo_hist += np.bincount(tomo[tomo >= 0], minlength=16)[:16]
@@ -65,7 +140,7 @@ def main() -> None:
         print(f"  read {stop:,}/{nrows:,}  {time.time()-t0:.0f}s", flush=True)
 
     info = {
-        "catalogue": str(CAT),
+        "catalogue": str(cat),
         "nrows_total": int(nrows),
         "nrows_used": int(tomo_hist[1:NBIN + 1].sum()),
         "nrows_rejected_bad_tomobin": int(n_bad_tomo),
@@ -96,11 +171,10 @@ def main() -> None:
         e2sum = ee1.astype(np.float64) ** 2 + ee2.astype(np.float64) ** 2
         sig_e = float(np.sqrt(np.sum(ww.astype(np.float64) * e2sum) / sw / 2.0))
 
-        np.savez(
-            OUT / f"bin{b}.npz",
-            ra=r, dec=dd,
-            e1=ee1, e2=ee2, w=ww, north=nn,
-        )
+        tmp = out / f".bin{b}.npz.part"
+        with open(tmp, "wb") as fh:
+            np.savez(fh, ra=r, dec=dd, e1=ee1, e2=ee2, w=ww, north=nn)
+        os.replace(tmp, out / f"bin{b}.npz")
         info["bins"][str(b)] = {
             "n_gal": int(r.size),
             "n_dropped_nonfinite_or_nonpos_weight": n_drop,
@@ -115,7 +189,7 @@ def main() -> None:
               f"dropped={n_drop}", flush=True)
         del r, dd, ee1, ee2, ww, nn
 
-    (OUT / "extract_info.json").write_text(json.dumps(info, indent=2))
+    _atomic_write_text(out / "extract_info.json", json.dumps(info, indent=2))
     print(f"done in {time.time()-t0:.0f}s", flush=True)
 
 

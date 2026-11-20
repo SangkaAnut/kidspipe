@@ -1,10 +1,11 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Pilot Bin6_Bin6 re-measured with bin_slop=1.5 (their setting), otherwise OUR chunked-ordered settings.
 Resumable; chunk files go to runs/dr5_measure/pilot_bin6/slop15_chunks/ (NOT xi_chunked/).  Assembly by
 assemble() with the same fold-weighted sums as scripts/dr5_measure_xi_chunked.py::do_assemble."""
 import importlib.util, sys, time
 from pathlib import Path
 import numpy as np
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 spec = importlib.util.spec_from_file_location("drv", ROOT / "scripts/dr5_measure_xi_chunked.py")
 drv = importlib.util.module_from_spec(spec); spec.loader.exec_module(drv)

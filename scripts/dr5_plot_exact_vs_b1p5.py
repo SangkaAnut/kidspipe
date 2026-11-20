@@ -1,10 +1,10 @@
 """Figure: exact run minus bin_slop 1.5 product, per pair, in units of the release's sigma.
 
-Reads runs/dr5_measure/product_exact/exact_vs_b1p5.json (written by scripts/dr5_make_exact_product.py); writes
-plots/dr5_exact_vs_b1p5.png.  Diverging blue-grey-red, symmetric limits; one shared scale for the four COSEBIs panels so the
+Reads <runs>/dr5_measure/product_exact/exact_vs_b1p5.json (written by scripts/dr5_make_exact_product.py; <runs> = $KIDSPIPE_RUNS, else
+the copy shipped in <root>/runs); writes dr5_exact_vs_b1p5.png into $KIDSPIPE_PLOTS (default <root>/plots).  Diverging blue-grey-red, symmetric limits; one shared scale for the four COSEBIs panels so the
 with/without-edge-bins panels compare directly.
 """
-import json, sys
+import json, os, sys
 from pathlib import Path
 import numpy as np
 import matplotlib
@@ -13,9 +13,13 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
 sys.dont_write_bytecode = True
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
-REP = ROOT / "runs/dr5_measure/product_exact/exact_vs_b1p5.json"
-OUTF = ROOT / "plots/dr5_exact_vs_b1p5.png"
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
+
+REP = paths.find_result("dr5_measure/product_exact/exact_vs_b1p5.json")
+PLOTS = Path(os.environ["KIDSPIPE_PLOTS"]).expanduser() if os.environ.get("KIDSPIPE_PLOTS") else ROOT / "plots"
+OUTF = PLOTS / "dr5_exact_vs_b1p5.png"
 CMAP = LinearSegmentedColormap.from_list("bgr", ["#2a78d6", "#f0efec", "#e34948"])
 INK, MUTED = "#1f1f1e", "#6b6a66"
 
@@ -63,6 +67,7 @@ def main():
     fig.text(0.06, 0.945, sub, ha="left", fontsize=9, color=MUTED)
     fig.text(0.06, 0.035, note, ha="left", fontsize=8.5, color=MUTED)
     OUTF.parent.mkdir(exist_ok=True)
+    OUTF.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUTF, bbox_inches="tight"); print("wrote", OUTF)
 
 

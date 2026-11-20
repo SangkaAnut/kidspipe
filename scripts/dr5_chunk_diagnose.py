@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Why did naive RA-strip chunking lose 3.3%? Compare three decompositions of the same pairs.
 
   (1) single shot                          gg.process(cat, cat)
@@ -10,6 +11,10 @@
 """
 import numpy as np
 import treecorr
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 
 from kidspipe.measure.xi import load_bin, make_treecorr_cat, treecorr_kwargs
 

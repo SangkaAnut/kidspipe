@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from kidspipe._compat import trapezoid
 import pytest
 from scipy import integrate
 from scipy.interpolate import CubicSpline, RegularGridInterpolator
@@ -103,14 +104,14 @@ def test_W_boundary_properties(toy, nz):
     W, nchi = lim._kernels(nz.z, nz.n)
     assert np.all(W[:, 0] == 0.0) and np.all(W >= -1e-12)
     # int n dchi = int n dz = 1 ; W(chi_max) ~ 0
-    np.testing.assert_allclose(np.trapz(nchi, lim.chi, axis=1), 1.0, atol=2e-4)
+    np.testing.assert_allclose(trapezoid(nchi, lim.chi, axis=1), 1.0, atol=2e-4)
     assert np.all(W[:, -1] < 1e-8 * W.max())
 
 
 # ----------------------------------------------------------------------------- (a) analytic
 def tent(z_nz, zs, half):
     n = np.clip(1 - np.abs(z_nz - zs) / half, 0, None)
-    return n / np.trapz(n, z_nz)
+    return n / trapezoid(n, z_nz)
 
 
 def test_flat_sky_power_law_delta_n():
@@ -248,7 +249,7 @@ def test_fold_vs_independent_separate_integration(toy, nz):
     W = np.zeros((5, N))
     for m in range(1, N):
         f = n[:, m:] * (1.0 - chi[m] / chi[m:])[None, :]
-        W[:, m] = chi[m] * (1 + z[m]) * np.trapz(f, z[m:], axis=1)
+        W[:, m] = chi[m] * (1 + z[m]) * trapezoid(f, z[m:], axis=1)
     nc = n / g
     D = np.sqrt(toy["pk"][:, 0] / toy["pk"][0, 0])
     F = -A_IA * C1_RHO_CRIT * OM / np.interp(z, toy["z_pk"], D)
@@ -309,6 +310,7 @@ def test_ia_constant_pieces(toy):
 
 
 # ----------------------------------------------------------------------------- performance
+@pytest.mark.timing
 def test_warm_update_is_fast(toy, nz):
     lim = Limber().set_power(toy["chi_tab"], toy["z_tab"], OM, toy["z_pk"], toy["k_h"], toy["pk"])
     lim.set_nz_grid(nz.z)

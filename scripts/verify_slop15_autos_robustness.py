@@ -1,10 +1,13 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Independent re-computation of the slop1.5 auto-pair eval (robustness check). Read-only; prints numbers."""
 import json, re, sys, numpy as np
 from pathlib import Path
 from astropy.io import fits
 from scipy.stats import chi2
-R = Path("/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure")
-OFF = Path("/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/KiDS_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/data")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths
+R = Path(__file__).resolve().parents[1] / "runs/dr5_measure"
+OFF = paths.official_dir()
 ev = json.load(open(R/"xi_unordered/b1.5/eval.json"))
 M = [-0.023, -0.016, -0.011, 0.020, 0.030, 0.045]
 def boxr(z):

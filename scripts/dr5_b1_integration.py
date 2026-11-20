@@ -2,7 +2,8 @@
 COSEBIs FITS.  This isolates the xi -> E_n integration from any measurement error and also
 decides the integration convention (theta column, weight scheme, length unit).
 
-Writes runs/dr5_measure/b1_integration.json
+Writes <runs>/dr5_measure/b1_integration.json  (<runs> = $KIDSPIPE_RUNS, default <root>/runs).  Needs only the official release
+files (kidspipe.paths.official_dir(), $KIDSPIPE_OFFICIAL); about 3 s.
 """
 from __future__ import annotations
 
@@ -16,11 +17,12 @@ import numpy as np
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from kidspipe import paths
 from kidspipe.measure.official import (PAIRS, cov_e_block, load_official_cosebis, load_official_xi)
 from kidspipe.theory.cosebis import CosebisFilters
 from kidspipe.measure.xi2cosebis import e_from_xi_binned
 
-OUT = Path(__file__).resolve().parents[1] / "runs" / "dr5_measure"
+OUT = paths.runs_dir() / "dr5_measure"
 
 
 def main() -> None:

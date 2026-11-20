@@ -1,5 +1,9 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... 
+# One-off A1b threshold-calibration study, not part of the Colab chain; see scripts/README.md.
+from pathlib import Path as _P
+_R = _P(__file__).resolve().parents[2]      # repository root
 import json, numpy as np
-V="/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/a1_salvage/threshold_calibration/standardised/verify/"
+V=str(_R) + "/runs/dr5_measure/a1_salvage/threshold_calibration/standardised/verify/"
 L=lambda c: json.load(open(V+f"e2ev2_{c}_ma2.json"))["stats"]
 n,r,t10,t44=L("null"),L("real"),L("tilt10"),L("tilt44_20")
 out={"n_null":len(n["minp"]),"n_real_seeds":len(r["minp"])}

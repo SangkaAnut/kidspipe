@@ -1,15 +1,20 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Independent verification of sigma_e (does not import dr5_sigma_e.py). Run with OMP<=4."""
 import numpy as np, json
 from astropy.io import fits
-HDR='/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/KiDs_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/data/KiDS_Legacy_xipm.fits'
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
+HDR=str(paths.official_dir()/'KiDS_Legacy_xipm.fits')
 h=fits.open(HDR)['NZ_SOURCE'].header
 sig=np.array([h['SIG_E_%d'%i] for i in range(1,7)])
 m=np.array([-0.023,-0.016,-0.011,0.020,0.030,0.045])   # Wright+25 Table 1 last column (checked vs paper text)
 res={k:[] for k in ['C9_div','C9_nom','C9_mul','C9_div_patchc','lin_div','C9_unw_div','implied_m','wmean_e1','wmean_e2','C9_div_float32']}
 for b in range(6):
-    d=np.load('/home/anut/kids_dr5_work/bin%d.npz'%b)
+    d=np.load(str(paths.dr5_work_dir())+'/bin%d.npz'%b)
     e1=d['e1'].astype(np.float64); e2=d['e2'].astype(np.float64); w=d['w'].astype(np.float64); N=d['north']
-    ex=np.load('/home/anut/kids_dr5_work/extra/bin%d.npz'%b)
+    ex=np.load(str(paths.dr5_work_dir())+'/extra/bin%d.npz'%b)
     assert ex['TOMOBIN'][0]==b+1 and np.all(ex['TOMOBIN']==b+1)
     assert np.allclose(ex['weight'],w,rtol=1e-6)          # same weight column, same row order
     w2=w*w; S2=w2.sum()
@@ -32,4 +37,4 @@ for b in range(6):
 print('implied m',[round(x,5) for x in res['implied_m']])
 print('table m  ',m.tolist())
 # n_eff check: (1+m) cancels in Eq C.12 for uniform m
-json.dump({k:[float(x) for x in v] for k,v in res.items()}|{'SIG_E':sig.tolist(),'m':m.tolist()},open('runs/dr5_measure/sigma_e/verify.json','w'),indent=1)
+json.dump({k:[float(x) for x in v] for k,v in res.items()}|{'SIG_E':sig.tolist(),'m':m.tolist()},open(paths.runs_dir()/'dr5_measure/sigma_e/verify.json','w'),indent=1)

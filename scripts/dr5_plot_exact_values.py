@@ -3,21 +3,22 @@ scripts/dr5_make_plots.py plots 1 and 3).
 
   python scripts/dr5_plot_exact_values.py
 
-Inputs (read only): runs/dr5_measure/product_exact/dr5_xipm_cosebis_exact.npz, runs/dr5_measure/product/dr5_xipm_cosebis_binslop1p5.npz,
-the official FITS (kidspipe.measure.official).  Writes plots/dr5_08_xipm_exact_vs_official.png, plots/dr5_09_En_exact.png,
-plots/dr5_09b_Bn_exact.png.  The exact run is not gated (PI 2026-11-02): no gate band is drawn.
+Inputs (read only; <runs>/... first, else the copy shipped in <root>/runs/...): dr5_measure/product_exact/dr5_xipm_cosebis_exact.npz,
+dr5_measure/product/dr5_xipm_cosebis_binslop1p5.npz, the official FITS (kidspipe.measure.official).  Writes dr5_08_xipm_exact_vs_official.png,
+dr5_09_En_exact.png, dr5_09b_Bn_exact.png into $KIDSPIPE_PLOTS (default <root>/plots).  The exact run is not gated (PI 2026-11-02): no gate band is drawn.
 """
 import importlib.util, sys, textwrap
 from pathlib import Path
 import numpy as np
 
 sys.dont_write_bytecode = True
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 _spec = importlib.util.spec_from_file_location("dr5plots", ROOT / "scripts/dr5_make_plots.py")
 P = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(P)
 of = P.of
-EXACT = ROOT / "runs/dr5_measure/product_exact/dr5_xipm_cosebis_exact.npz"
+EXACT = paths.find_result("dr5_measure/product_exact/dr5_xipm_cosebis_exact.npz")
 C_B15 = "#6b6b6b"
 
 

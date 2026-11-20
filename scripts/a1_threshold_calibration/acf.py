@@ -1,3 +1,7 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... 
+# One-off A1b threshold-calibration study, not part of the Colab chain; see scripts/README.md.
+from pathlib import Path as _P
+_R = _P(__file__).resolve().parents[2]      # repository root
 import json, numpy as np
 from pathlib import Path
 from kidspipe.measure.official import PAIRS, load_official_xi
@@ -24,4 +28,4 @@ print("ratio from lag1 only (MA1 null): median %.3f"%np.median(np.sqrt(np.clip(1
 print("ratio from lags 1-2 only: median %.3f"%np.median(np.sqrt(np.clip(1+2*((19/20)*R[:,0]+(18/20)*R[:,1]),0,None))))
 # does sigma vary across theta? (heteroscedastic z)
 print("z rms by theta decade:", [round(z[:,m].std(),3) for m in np.array_split(np.arange(1000),5)])
-np.savez("/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/a1_salvage/threshold_calibration/z.npz", z=z, R=R, meas=meas)
+np.savez(str(_R) + "/runs/dr5_measure/a1_salvage/threshold_calibration/z.npz", z=z, R=R, meas=meas)

@@ -37,17 +37,17 @@ def job(j):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--workers", type=int, default=C.NCPU, help="worker processes (default os.cpu_count())")
     a = ap.parse_args()
     X, LP = [], []
-    for f in sorted(glob.glob(str(C.OUT / "prod*/prod_c*.npz"))):
+    for f in C.result_glob("prod*/prod_c*.npz"):
         z = np.load(f)
         X.append(z["samples"]); LP.append(z["log_post"])
     X, LP = np.concatenate(X), np.concatenate(LP)
     chi2 = -2 * (LP - params.log_prior(X))
     order = np.argsort(chi2)
     import json
-    starts = [("map", json.load(open(C.OUT / "map_best.json"))["theta"]), ("chain_minchi2", X[order[0]])]
+    starts = [("map", json.load(open(C.find("map_best.json")))["theta"]), ("chain_minchi2", X[order[0]])]
     rng = np.random.default_rng(1)
     good = np.nonzero(chi2 < 183)[0]
     for k in rng.choice(good, 4, replace=False):

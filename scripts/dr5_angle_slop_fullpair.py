@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Full-pair Bin6_Bin6 deviations of the stored full measurements from the exact (bin_slop 0, angle_slop 0) one, in OFFICIAL sigma.
 Inputs (read-only): pilot_bin6/bin6_bin6_b0_a0_assembled.npz (exact), xi_chunked/assembled/ns/Bin6_Bin6.npz (0:default),
 pilot_bin6/bin6_bin6_slop15_assembled.npz (1.5:default).  Output: angle_slop/fullpair_vs_exact.json."""

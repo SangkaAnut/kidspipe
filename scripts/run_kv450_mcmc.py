@@ -166,13 +166,17 @@ if __name__ == "__main__":
                   "scales", [round(v, 3) for v in r["scales"].values()], "lp_end", round(r["lp_end"], 2), r["stats"], flush=True)
         print("pooled sd:", dict(zip(PARAM_NAMES, np.sqrt(np.diag(covp)).round(4))))
     else:
-        P = np.load(C.OUT / a.pilot / "pilot.npz")
+        P = np.load(C.find(Path(a.pilot) / "pilot.npz"))
         cov = P["cov"] * a.cov_inflate
         scales = P["scales"]
         src = a.starts_from or a.pilot
-        import glob
-        nsrc = len(glob.glob(str(C.OUT / src / "pilot_c*.npz")))
-        ends = np.array([np.load(C.OUT / src / f"pilot_c{i % nsrc}.npz")["samples"][-1] for i in range(a.chains)])
+        pfiles = C.result_glob(f"{src}/pilot_c*.npz")      # the pilot chain files themselves are not shipped (only pilot.npz)
+        if not pfiles:
+            raise SystemExit(f"no pilot chains {C.OUT / src}/pilot_c*.npz: run the `pilot` stage first (tag {src}), or give --starts-from "
+                             f"a tag that has them")
+        nsrc = len(pfiles)
+        pdir = Path(pfiles[0]).parent
+        ends = np.array([np.load(pdir / f"pilot_c{i % nsrc}.npz")["samples"][-1] for i in range(a.chains)])
         jobs = [(i, ends[i], cov, scales, a.seed * 1000 + i, str(outdir), a.minutes, a.max_cycles, a.chunk, a.ckpt, a.thin, a.tune)
                 for i in range(a.chains)]
         with ctx.Pool(len(jobs), **init) as pool:

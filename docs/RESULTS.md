@@ -211,7 +211,7 @@ The MAP-based S8 values (0.728 - 0.788) vary more than the posterior means becau
 1. **`python -m kidspipe` cannot use the emulator**: `cli.py::_model_kw` does not pass `linear_backend`, so `map`/`mcmc`/`nested` always run exact CAMB. All production runs here use `api.build_model(linear_backend='emulator')` from `scripts/run_kv450_common.py`.
    The CLI was not changed (not owned by this task).
 2. **Thread oversubscription**: `theory/hmcode.py` and `theory/limber.py` use `numba` `prange`; `OMP_NUM_THREADS=1` does not limit numba. Many single-core worker processes therefore each started a 22-thread pool and
-   ran far below full speed (observed: the first MAP batch produced no result in 12 min while the load average rose to 76, to which other jobs on the machine contributed; after setting `NUMBA_NUM_THREADS=1` a start took 4 - 20 min). The drivers set `NUMBA_NUM_THREADS=1` (in `run_kv450_common.py`) before importing numpy/numba. The pipeline
+   ran far below full speed (observed: the first MAP batch produced no result in 12 min while the load average rose to 76, to which other jobs on the workstation contributed; after setting `NUMBA_NUM_THREADS=1` a start took 4 - 20 min). The drivers set `NUMBA_NUM_THREADS=1` (in `run_kv450_common.py`) before importing numpy/numba. The pipeline
    should do this itself when used with process pools.
 3. **HMcode is the cost, not the emulator**: single-threaded a new cosmology costs ~0.2 s (HMcode ~0.19 s on 150 z nodes), the emulator ~25 ms. This is why the MAP exploration used the 41-node grid and why fewer medium moves per cycle were used.
 4. **The MAP is not a point estimate**: chi2 differs by < 1 along a 4-parameter valley that reaches the prior bounds; small changes in start, optimiser or grid move ombh2 (0.019 - 0.026), h (0.68 - 0.82), ln_1e10_A_s (4.1 - 5.0).
@@ -221,10 +221,10 @@ The MAP-based S8 values (0.728 - 0.788) vary more than the posterior means becau
 
 ## 6. Reproduce
 
-Everything runs from the repository root (scripts add `src/` to the path themselves); one core per worker process. Wall times are for the shared 22-core machine used here.
+Everything runs from the repository root of a clone (scripts add `src/` to the path themselves; outputs go to `runs/kv450_final/`, or to `$KIDSPIPE_RUNS/kv450_final/` when that variable is set); one core per worker process. Wall times are for the shared development workstation (22 cores, WSL2); scale `--workers` to your machine (a free Colab runtime has 2 vCPUs, so these steps need hours there; `docs/COLAB.md` and `notebooks/01_kv450_inference.ipynb` give Colab-sized settings). The reference results of this analysis (`runs/kv450_final/`: MAP, chains, summaries) are shipped with the repository, so the later steps can be re-analysed without re-running the earlier ones.
 
 ```bash
-cd /mnt/d/cloning_kids_Kappa_pipeline
+# run from the repository root of your clone
 # 1. global MAP
 python3 scripts/run_kv450_map.py --stage explore --starts 36 --workers 13     # 36 starts, 41-node grid, ~29 min -> map_explore.json
 python3 scripts/run_kv450_map.py --stage polish --top 6 --workers 6 --polish none && cp runs/kv450_final/map_starts.json runs/kv450_final/map_polish_lbfgs.json   # ~2 min

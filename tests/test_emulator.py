@@ -193,6 +193,7 @@ def test_reduced_z_grid_and_cache(emu):
     assert ro.pk_lin.shape == (5, emu.k_mpc.size)
 
 
+@pytest.mark.timing
 def test_evaluation_time_below_10ms(emu):
     be = EmulatedLinearBackend(emulator=emu, nthreads=4, cache_size=2)
     rng = np.random.default_rng(3)

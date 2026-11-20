@@ -430,6 +430,7 @@ def test_cli_mcmc_parallel_chains_tiny(tmp_path):
 @pytest.mark.slow
 @pytest.mark.parametrize("sampler", ["nautilus", "dynesty"])
 def test_cli_nested_tiny(tmp_path, sampler):
+    pytest.importorskip({"nautilus": "nautilus", "dynesty": "dynesty"}[sampler])
     r = run_cli("nested", "--sampler", sampler, "--nlive", "40", "--max-calls", "250", "--n-eff", "10", "--out",
                 str(tmp_path / sampler), "--quiet", timeout=1500)
     assert r.returncode == 0, r.stdout + r.stderr

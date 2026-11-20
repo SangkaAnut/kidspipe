@@ -1,9 +1,11 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Pilot Bin6_Bin6: OUR exact (bin_slop=0, ordered) measurement vs the official release and vs the external
 (their) TreeCorr measurement.  Run scripts/dr5_pilot_bin6_slop.py first for the bin_slop=1.5 test (item 4).
 Outputs: runs/dr5_measure/pilot_bin6/{pilot.json,PILOT_BIN6.md}, plots/dr5_pilot_bin6_*.png
 """
 from __future__ import annotations
-import json, sys
+import json, os, sys
 from pathlib import Path
 import numpy as np
 from scipy.stats import chi2 as chi2dist
@@ -11,7 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from kidspipe.measure import official as of  # noqa: E402
 from kidspipe.measure.a1check import (A1B_THRESH, A3_MAX_ABS_OVER_SIGMA, a3_pass, boxcar_ratio, curves_z,  # noqa: E402
@@ -20,7 +22,7 @@ from kidspipe.measure.xi2cosebis import e_from_xi_binned  # noqa: E402
 from kidspipe.theory.cosebis import CosebisFilters  # noqa: E402
 
 OUT = ROOT / "runs/dr5_measure/pilot_bin6"; OUT.mkdir(parents=True, exist_ok=True)
-PL = ROOT / "plots"; PL.mkdir(exist_ok=True)
+PL = Path(os.environ.get("KIDSPIPE_PLOTS") or ROOT / "plots"); PL.mkdir(parents=True, exist_ok=True)
 THEIRS = Path("/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial/xipm_bin6_bin6.npz")
 K = of.PAIRS.index((5, 5))
 M6 = 0.045

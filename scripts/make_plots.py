@@ -1,12 +1,15 @@
-"""Diagnostic plots for kidspipe -> plots/*.png  (run from anywhere: python3 scripts/make_plots.py).
+"""Diagnostic plots for kidspipe -> $KIDSPIPE_PLOTS (default <root>/plots)  (run from anywhere: python3 scripts/make_plots.py).
 
 Inputs are saved artefacts only (chains, MAP, profile, benchmark and validation JSON) plus a few model evaluations.
   01 data vs best-fit model (15 tomographic pairs)       02 HMcode P_nl vs stored reference + CAMB 'mead'
   03 posterior: S8, Omega_m, sigma8 and nuisance          04 convergence: S8/omch2 traces and per-chain means
   05 chi2 profiles (ln A_s and S8)                        06 emulator-vs-CAMB accuracy
   07 timing per move type                                 08 chi2 split by tomographic pair
+Artefacts are read from <runs> ($KIDSPIPE_RUNS, default <root>/runs) first, else from the copy shipped in <root>/runs (kidspipe.paths.find_result);
+data/validation from $KIDSPIPE_DATA (default <root>/data).
 """
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -17,9 +20,18 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-OUT = ROOT / "plots"
-OUT.mkdir(exist_ok=True)
-RUN = ROOT / "runs" / "kv450_final"
+from kidspipe import paths  # noqa: E402
+OUT = Path(os.environ["KIDSPIPE_PLOTS"]).expanduser() if os.environ.get("KIDSPIPE_PLOTS") else ROOT / "plots"
+OUT.mkdir(parents=True, exist_ok=True)
+
+
+class _Run:
+    """``RUN / "x.json"`` -> the existing result ``kv450_final/x.json`` (yours, else shipped); see kidspipe.paths.find_result."""
+    def __truediv__(self, name):
+        return paths.find_result(Path("kv450_final") / name)
+
+
+RUN = _Run()
 PUB_S8 = (0.737, 0.036, 0.040)   # external published KV450 value (not in the repo)
 
 
@@ -33,7 +45,10 @@ def load_chains(tags=("prod1", "prod2"), burn=0.05):
     S, D, chain_id = [], [], []
     n = 0
     for t in tags:
-        for f in sorted((RUN / t).glob("prod_c*.npz")):
+        d = RUN / t
+        if not list(d.glob("prod_c*.npz")):                 # your run dir exists but has no chains: use the shipped ones
+            d = paths.shipped_runs_dir() / "kv450_final" / t
+        for f in sorted(d.glob("prod_c*.npz")):
             z = np.load(f, allow_pickle=True)
             k = int(burn * len(z["samples"]))
             S.append(z["samples"][k:]); D.append(z["derived"][k:]); chain_id.append(np.full(len(z["samples"]) - k, n)); n += 1
@@ -77,8 +92,8 @@ def plot_data_model():
 def plot_pnl():
     from kidspipe.theory.linear import LinearBackend
     from kidspipe.theory.nonlinear import get_pnl
-    kref = np.loadtxt(ROOT / "data/validation/k_h.txt"); zref = np.loadtxt(ROOT / "data/validation/z.txt")
-    pref = np.loadtxt(ROOT / "data/validation/pk_mead.txt")           # (nz, nk), z ascending
+    kref = np.loadtxt(paths.data_dir() / "validation/k_h.txt"); zref = np.loadtxt(paths.data_dir() / "validation/z.txt")
+    pref = np.loadtxt(paths.data_dir() / "validation/pk_mead.txt")           # (nz, nk), z ascending
     idx = [0, 12, 25, 50, 75, 99]
     zsub = zref[idx]
     lin = LinearBackend(z_grid=zsub).compute(0.1181838, 0.02228089, 0.679565, 0.9679701, np.log(2.170229e-9 * 1e10))
@@ -164,7 +179,7 @@ def plot_profiles():
 
 # ----------------------------------------------------------------------------------------------- 06 emulator accuracy
 def plot_emulator():
-    v = json.load(open(ROOT / "runs/validate_emulator_pipeline_spec.json"))
+    v = json.load(open(paths.find_result("validate_emulator_pipeline_spec.json")))
     fig, axs = plt.subplots(1, 2, figsize=(12, 4.2))
     axs[0].hist(v["dchi2"], bins=25); axs[0].set_xlabel(r"$\Delta\chi^2$ (emulator - exact CAMB)")
     axs[0].set_title(f"{v['n']} held-out points, max |d chi2| = {v['max_abs_dchi2']:.4f}")
@@ -176,7 +191,7 @@ def plot_emulator():
 
 # ----------------------------------------------------------------------------------------------- 07 timing
 def plot_timing():
-    b = json.load(open(ROOT / "runs/bench_t4.json"))
+    b = json.load(open(paths.find_result("bench_t4.json")))
     cfg = [k for k in ("i", "ii", "iii", "iv") if k in b["configs"]]
     moves = [("slow block", "cosmology move\n(omch2/ombh2/h + ...)"), ("lnAs/A_baryon", "medium move\n(lnAs/A_baryon)"), ("A_IA/dz", "nuisance move\n(A_IA, dz)")]
     fig, ax = plt.subplots(figsize=(10, 4.8)); w = 0.2

@@ -139,7 +139,8 @@ def test_load_bin_out_of_range_raises(tmp_path):
 
 
 def test_load_bin_default_work_dir_constant():
-    assert xim_mod.WORK == Path.home() / "kids_dr5_work"
+    from kidspipe import paths
+    assert xim_mod.WORK == paths.dr5_work_dir()
 
 
 def test_treecorr_kwargs_declare_arcmin_and_binning():

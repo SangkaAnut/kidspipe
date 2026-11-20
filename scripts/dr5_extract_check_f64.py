@@ -1,3 +1,5 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Integrity check of the float64 re-extraction (RESUME bug 15) before any measurement uses it.
 
 new  = ~/kids_dr5_work/bin<b-1>.npz          (float64, this re-extraction)
@@ -9,11 +11,15 @@ rounding; e1/e2/w equal to old after float32 rounding.  Writes runs/dr5_measure/
 """
 import json, sys
 from pathlib import Path
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 import numpy as np
 
-W = Path.home() / "kids_dr5_work"
-EXT = Path("/mnt/d/HI-gamma-correlation/pipeline/00_extracts/outputs")
-OUT = Path("/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/xi_unordered/extract_check_f64.json")
+W = paths.dr5_work_dir()
+EXT = Path("/mnt/d/HI-gamma-correlation/pipeline/00_extracts/outputs")      # external (earlier pipeline), read only
+OUT = paths.runs_dir() / "dr5_measure/xi_unordered/extract_check_f64.json"
 rep, ok = {}, True
 for b in range(1, 7):
     new, old, ext = np.load(W / f"bin{b-1}.npz"), np.load(W / "f32_backup" / f"bin{b-1}.npz"), np.load(EXT / f"bin{b}.npz")

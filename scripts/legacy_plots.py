@@ -1,5 +1,8 @@
-"""Figures and summary numbers for the KiDS-Legacy COSEBIs validation (called by legacy_validate.py plots)."""
-import json, time
+"""Figures and summary numbers for the KiDS-Legacy COSEBIs validation (called by legacy_validate.py plots).
+
+Inputs <runs>/legacy_val/{chi2,selection}.npz (else the copies shipped in <root>/runs); figures to $KIDSPIPE_PLOTS (default <root>/plots),
+summary.json to <runs>/legacy_val/."""
+import json, os, sys, time
 from dataclasses import replace
 from pathlib import Path
 import numpy as np
@@ -11,9 +14,11 @@ from scipy.linalg import solve_triangular
 from scipy.stats import chi2 as chi2dist
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "runs" / "legacy_val"
-PLOTS = ROOT / "plots"
-CACHE = str(ROOT / "runs" / "legacy" / "cache")
+sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
+OUT = paths.runs_dir() / "legacy_val"                    # summary.json is written here
+PLOTS = Path(os.environ["KIDSPIPE_PLOTS"]).expanduser() if os.environ.get("KIDSPIPE_PLOTS") else ROOT / "plots"   # figures
+CACHE = str(paths.runs_dir() / "legacy" / "cache")
 C = dict(off="#1f4e79", ours="#d95f02", top="#1b9e77", rnd="#7570b3", gray="#666666")
 plt.rcParams.update({"font.size": 10, "axes.grid": True, "grid.alpha": 0.25, "figure.dpi": 100, "savefig.dpi": 140})
 
@@ -46,7 +51,7 @@ def stage_plots(a):
     chain = load_chain()
     data = LegacyData.load()
     like = LegacyCosebisLikelihood(data=data)
-    z = np.load(OUT / "chi2.npz"); sel = np.load(OUT / "selection.npz")
+    z = np.load(paths.find_result("legacy_val/chi2.npz")); sel = np.load(paths.find_result("legacy_val/selection.npz"))   # yours, else shipped
     summary = {}
 
     # ===================================================================== 1. chi2 comparison

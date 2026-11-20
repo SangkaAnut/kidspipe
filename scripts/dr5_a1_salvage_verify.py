@@ -1,10 +1,16 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Independent verification of A1 salvage. Own rebin, own covariance slicing, own B_i fit."""
 import glob, re, json, numpy as np
 from astropy.io import fits
 from pathlib import Path
-O=Path("/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/KiDS_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/data")
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
+O=paths.official_dir()
 T=Path("/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial")
-OUT=Path("/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/a1_salvage/verify"); OUT.mkdir(exist_ok=True)
+OUT=Path(__file__).resolve().parents[1]/"runs/dr5_measure/a1_salvage/verify"; OUT.mkdir(parents=True, exist_ok=True)
 pairs=[(i,j) for i in range(1,7) for j in range(i,7)]
 res={}
 # ascii

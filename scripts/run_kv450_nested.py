@@ -33,7 +33,7 @@ def prior_transform(u):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--workers", type=int, default=12)
+    ap.add_argument("--workers", type=int, default=C.NCPU, help="worker processes (default os.cpu_count())")
     ap.add_argument("--z-grid", default="spec")
     ap.add_argument("--n-live", type=int, default=500)
     ap.add_argument("--n-eff", type=float, default=2000)

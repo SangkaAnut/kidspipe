@@ -43,7 +43,8 @@ Usage
   # assemble the finished chunk-pairs into one npz per tomographic pair
   python3 scripts/dr5_measure_xi_chunked.py --assemble --nchunks 16
 
-Output tree: runs/dr5_measure/xi_chunked/
+Output tree: <runs>/dr5_measure/xi_chunked/   (<runs> = $KIDSPIPE_RUNS, default <root>/runs; the chunk files are resumable, so keep it on
+persistent storage on Colab)
   chunks/Bin{i}_Bin{j}/c{a:02d}_{b:02d}.npz     per chunk-pair
   assembled/ns/Bin{i}_Bin{j}.npz                same schema as dr5_measure_xi.py
   manifest.json                                  parameters + provenance
@@ -52,6 +53,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -61,9 +63,12 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from kidspipe import paths  # noqa: E402
 from kidspipe.measure.official import PAIRS  # noqa: E402
 
-OUTROOT = ROOT / "runs" / "dr5_measure" / "xi_chunked"
+#: output tree: <runs>/dr5_measure/xi_chunked with <runs> = $KIDSPIPE_RUNS (default <root>/runs); the per-bin input extract is
+#: read from $KIDSPIPE_DR5_WORK (kidspipe.measure.xi.load_bin).  --threads defaults to os.cpu_count().
+OUTROOT = paths.runs_dir() / "dr5_measure" / "xi_chunked"
 NLETTER = {1: 7416371, 2: 7359911, 3: 6799681, 4: 6880432, 5: 6477538, 6: 5960461}
 
 
@@ -249,7 +254,7 @@ def main() -> None:
     ap.add_argument("--all", action="store_true", help="run every chunk-pair not yet done")
     ap.add_argument("--assemble", action="store_true", help="assemble chunk-pairs into pair npz")
     ap.add_argument("--status", action="store_true", help="report progress and estimated cost")
-    ap.add_argument("--threads", type=int, default=16, help="TreeCorr threads (per worker rank under --mpi)")
+    ap.add_argument("--threads", type=int, default=os.cpu_count() or 1, help="TreeCorr threads (default os.cpu_count(); per worker rank under --mpi)")
     ap.add_argument("--bin-slop", type=float, default=0.0)
     ap.add_argument("--angle-slop", type=float, default=None,
                     help="TreeCorr angle_slop (rad). Default None = TreeCorr default (0.1); 0 = exact xi_- "
@@ -262,7 +267,7 @@ def main() -> None:
     ap.add_argument("--mpi", action="store_true",
                     help="distribute chunk-pairs over MPI ranks: `mpirun -n N python scripts/dr5_measure_xi_chunked.py --all "
                          "--mpi --threads T ...`; rank 0 schedules, ranks 1..N-1 compute (N >= 2), each with T threads")
-    ap.add_argument("--outroot", default=None, help="output tree (default runs/dr5_measure/xi_chunked); for tests")
+    ap.add_argument("--outroot", default=None, help="output tree (default <runs>/dr5_measure/xi_chunked); for tests")
     args = ap.parse_args()
     if args.outroot:
         OUTROOT = Path(args.outroot)

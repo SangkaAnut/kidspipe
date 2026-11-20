@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Decide the shear sign convention against the official ascii xi_+/xi_-, on a 1/20 subsample.
 
 e1/e2 in KiDS are Lensfit ellipticities in the (RA, Dec) sky frame; TreeCorr expects the
@@ -13,6 +14,7 @@ Writes runs/dr5_measure/convention.json
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -26,7 +28,7 @@ from kidspipe.measure.xi import load_bin, make_treecorr_cat, run_pair, corr_to_a
 
 OUT = Path(__file__).resolve().parents[1] / "runs" / "dr5_measure"
 STRIDE = 20
-THREADS = 16
+THREADS = os.cpu_count() or 1
 PAIRS_TODO = [(1, 1), (1, 2)]
 
 

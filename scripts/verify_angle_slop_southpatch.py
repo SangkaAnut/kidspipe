@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """southpatch verifier: run settings on a southern Bin6 patch (run) / analyze (analyze)."""
 import sys, time, json, os
 from pathlib import Path

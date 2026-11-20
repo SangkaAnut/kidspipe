@@ -1,31 +1,35 @@
 """Six DR5 measurement plots (PI option (a): TreeCorr 5.1.4, bin_slop 1.5, unordered, float64 positions) in plots/.
 
-  python scripts/dr5_make_plots.py a4      # fresh small-subsample estimator cross-check -> runs/dr5_measure/product/a4_recheck.json
+  python scripts/dr5_make_plots.py a4      # fresh small-subsample estimator cross-check -> <runs>/dr5_measure/product/a4_recheck.json
   python scripts/dr5_make_plots.py plots   # all six figures (needs a4_recheck.json for plot 6)
 
-Inputs (read only): runs/dr5_measure/product/dr5_xipm_cosebis_binslop1p5.npz, the official FITS/ascii (via kidspipe.measure.official),
-runs/dr5_measure/b1_integration.json (B1 scalars; arrays are recomputed from the official ascii: it stores none),
-runs/dr5_measure/xi_unordered/b1.5 npz + the earlier pipeline's xi (theirs, read only) for ours/theirs,
-the float64 extract ~/kids_dr5_work/bin{0,5}.npz (a4 only).
+Paths (kidspipe.paths): <runs> = $KIDSPIPE_RUNS (default <root>/runs); figures go to $KIDSPIPE_PLOTS (default <root>/plots).
+Inputs (read only; each looked up as <runs>/..., else the copy shipped in <root>/runs/...): dr5_measure/product/dr5_xipm_cosebis_binslop1p5.npz,
+fullvector_checks.json, a4_recheck.json (plot 6 is skipped without it), the official FITS/ascii (via kidspipe.measure.official),
+dr5_measure/b1_integration.json (B1 scalars; arrays are recomputed from the official ascii: it stores none),
+and the earlier pipeline's xi (theirs, $KIDSPIPE_THEIRS, optional: the two ours-vs-theirs panels of plot 2 are omitted when it is absent);
+the float64 extract $KIDSPIPE_DR5_WORK/bin{0,5}.npz (a4 only).  The a4 TreeCorr runs use os.cpu_count() threads.
 Plots: dr5_01_xipm_vs_official, dr5_02_npairs_weights_ratio, dr5_03_En_vs_official, dr5_03b_Bn_vs_official, dr5_04_integration_vs_measurement,
 dr5_05_Bn_null, dr5_06_estimator_crosscheck.
 """
-import importlib.util, json, sys, time
+import importlib.util, json, os, sys, time
 from pathlib import Path
 import numpy as np
 from scipy.stats import chi2 as chi2dist
 
 sys.dont_write_bytecode = True
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 from kidspipe.measure import official as of  # noqa: E402
 from kidspipe.measure.a1check import A3_MAX_ABS_OVER_SIGMA  # noqa: E402
 from kidspipe.measure.xi2cosebis import e_from_xi_binned  # noqa: E402
 
-PRODUCT = ROOT / "runs/dr5_measure/product/dr5_xipm_cosebis_binslop1p5.npz"
-FULLV = ROOT / "runs/dr5_measure/product/fullvector_checks.json"
-A4JSON = ROOT / "runs/dr5_measure/product/a4_recheck.json"
-PLOTS = ROOT / "plots"
+PRODUCT = paths.find_result("dr5_measure/product/dr5_xipm_cosebis_binslop1p5.npz")     # input
+FULLV = paths.find_result("dr5_measure/product/fullvector_checks.json")                 # input
+A4JSON = paths.find_result("dr5_measure/product/a4_recheck.json")                       # input of `plots`
+A4OUT = paths.runs_dir() / "dr5_measure" / "product" / "a4_recheck.json"                # output of `a4`
+PLOTS = Path(os.environ["KIDSPIPE_PLOTS"]).expanduser() if os.environ.get("KIDSPIPE_PLOTS") else ROOT / "plots"
 PAIRS1 = [(i + 1, j + 1) for i, j in of.PAIRS]
 NM, NP = of.N_MODES, of.N_PAIR
 
@@ -95,15 +99,18 @@ def plot1(d, fx):
 def plot2(d, asc, u):
     import matplotlib.pyplot as plt
     th = d["r_nom"][0]
-    ours_th = {}
-    for k, p in enumerate(PAIRS1):
-        t = u.load_theirs(p)
-        ours_th[k] = t
-    fig, axs = plt.subplots(2, 2, figsize=(14, 9.5), sharex=True)
+    ours_th = {k: u.load_theirs(p) for k, p in enumerate(PAIRS1)}
+    have_theirs = all(t is not None for t in ours_th.values())
+    if not have_theirs:
+        print(f"NOTE plot 2: the earlier pipeline's xi ({u.THEIRS}) is not available; the two ours-vs-theirs panels are omitted "
+              f"(set KIDSPIPE_THEIRS to include them)", flush=True)
+    nrow = 2 if have_theirs else 1
+    fig, axs = plt.subplots(nrow, 2, figsize=(14, 9.5 if have_theirs else 5.5), sharex=True, squeeze=False)
     panels = [("weight (ours) / weight (official ascii)", lambda k: d["weight"][k] / asc["weight"][k]),
-              ("npairs (ours) / npairs (official ascii)", lambda k: d["npairs"][k] / asc["npairs"][k]),
-              ("npairs ours / theirs (earlier pipeline)", lambda k: d["npairs"][k] / ours_th[k]["npairs"]),
-              ("weight ours / theirs (earlier pipeline)", lambda k: d["weight"][k] / ours_th[k]["weight"])]
+              ("npairs (ours) / npairs (official ascii)", lambda k: d["npairs"][k] / asc["npairs"][k])]
+    if have_theirs:
+        panels += [("npairs ours / theirs (earlier pipeline)", lambda k: d["npairs"][k] / ours_th[k]["npairs"]),
+                   ("weight ours / theirs (earlier pipeline)", lambda k: d["weight"][k] / ours_th[k]["weight"])]
     stats = []
     for ax, (ttl, fn) in zip(axs.ravel(), panels):
         allr = []
@@ -112,20 +119,23 @@ def plot2(d, asc, u):
             ax.plot(th, r, color=BIN_COL[i - 1], lw=1.8 if i == j else 0.9, ls="-" if i == j else "--", alpha=0.9)
         allr = np.array(allr); stats.append((ttl, np.nanmin(allr), np.nanmax(allr)))
         ax.set_xscale("log"); ax.set_title(ttl, loc="left"); ax.set_ylabel("ratio")
-    for ax in axs[1]:
+    for ax in axs[-1]:
         ax.set_xlabel(r"$\theta$ [arcmin] (1000 fine bins)")
     axs[0, 0].text(0.02, 0.5, "autos ~0.5: official weight counts ordered pairs, ours unordered;\ncrosses ~1.0", transform=axs[0, 0].transAxes, fontsize=8.5, va="center")
     axs[0, 1].text(0.02, 0.62, "official `npairs` column is a normalised column, not a raw count\n(ratio ~1.41 for crosses, ~0.71 for autos = 1.41/2; report section 3.5).\nUse npairs_weighted/weight for count comparisons.",
                    transform=axs[0, 1].transAxes, fontsize=8.5, va="center")
-    for ax in axs[1]:
-        ax.set_ylim(0.99998, 1.00002); ax.ticklabel_format(axis="y", useOffset=False, style="plain"); ax.set_yticks([0.99998, 0.99999, 1.0, 1.00001, 1.00002])
-    axs[1, 0].text(0.02, 0.9, f"min {stats[2][1]:.8f}  max {stats[2][2]:.8f}", transform=axs[1, 0].transAxes, fontsize=9)
-    axs[1, 1].text(0.02, 0.9, f"min {stats[3][1]:.8f}  max {stats[3][2]:.8f}", transform=axs[1, 1].transAxes, fontsize=9)
+    if have_theirs:
+        for ax in axs[1]:
+            ax.set_ylim(0.99998, 1.00002); ax.ticklabel_format(axis="y", useOffset=False, style="plain"); ax.set_yticks([0.99998, 0.99999, 1.0, 1.00001, 1.00002])
+        axs[1, 0].text(0.02, 0.9, f"min {stats[2][1]:.8f}  max {stats[2][2]:.8f}", transform=axs[1, 0].transAxes, fontsize=9)
+        axs[1, 1].text(0.02, 0.9, f"min {stats[3][1]:.8f}  max {stats[3][2]:.8f}", transform=axs[1, 1].transAxes, fontsize=9)
     from matplotlib.lines import Line2D
     h = [Line2D([], [], color=BIN_COL[b], lw=2, label=f"first bin {b + 1}") for b in range(6)]
     h += [Line2D([], [], color="k", lw=1.8, label="auto (solid)"), Line2D([], [], color="k", lw=0.9, ls="--", label="cross (dashed)")]
     fig.legend(handles=h, loc="lower center", ncol=8, fontsize=9)
-    fig.suptitle("Plot 2: pair counts and weights, per pair, fine bins. Ours vs official ascii (top), ours vs theirs (bottom; exactly 1 expected)", x=0.01, ha="left", fontsize=12)
+    fig.suptitle("Plot 2: pair counts and weights, per pair, fine bins. Ours vs official ascii (top), ours vs theirs (bottom; exactly 1 expected)" if have_theirs
+                 else "Plot 2: pair counts and weights, per pair, fine bins. Ours vs official ascii (the ours-vs-theirs panels need the earlier pipeline's xi: omitted)",
+                 x=0.01, ha="left", fontsize=12)
     fig.tight_layout(rect=(0, 0.05, 1, 0.96))
     return fig, stats
 
@@ -183,7 +193,7 @@ def plot4(d, cb, asc, filt):
     E1, B1 = b1_arrays(asc, cb, filt)
     sig = np.sqrt(np.diag(cb["cov"])[:NP * NM]).reshape(NP, NM)
     z1 = (E1 - cb["En"]) / sig; z2 = (d["En"] - cb["En"]) / sig
-    b1json = json.loads((ROOT / "runs/dr5_measure/b1_integration.json").read_text())["trials"]["meanr|edges|rad"]
+    b1json = json.loads(paths.find_result("dr5_measure/b1_integration.json").read_text())["trials"]["meanr|edges|rad"]
     chk = abs(np.abs(z1).max() - b1json["max_abs_dE_over_sigma"])
     assert chk < 1e-6, f"recomputed B1 max/sigma {np.abs(z1).max()} != stored {b1json['max_abs_dE_over_sigma']}"
     m = np.arange(1, NM + 1)
@@ -252,7 +262,12 @@ def run_a4():
     from kidspipe.measure.paircount import PairCounter
     from kidspipe.measure.xi import corr_to_arrays, make_treecorr_cat, treecorr_kwargs
     t0 = time.time()
-    work = Path.home() / "kids_dr5_work"
+    work = paths.dr5_work_dir()
+    for b in (6, 1):
+        if not (work / f"bin{b - 1}.npz").is_file():
+            sys.exit(f"a4 needs the per-bin extract {work / f'bin{b - 1}.npz'}: run scripts/dr5_extract.py first "
+                     f"(or set KIDSPIPE_DR5_WORK)")
+    nthreads = os.cpu_count() or 1
     cat = {}
     ra0 = dec0 = None
     for b in (6, 1):
@@ -289,15 +304,16 @@ def run_a4():
                 if bs == 1.5 and flip:
                     continue
                 f1 = make_treecorr_cat(c1, flip_g2=flip); f2 = f1 if p[0] == p[1] else make_treecorr_cat(c2, flip_g2=flip)
-                gg = treecorr.GGCorrelation(treecorr_kwargs(A4_NBINS, bs, 16)); t2 = time.time()
+                gg = treecorr.GGCorrelation(treecorr_kwargs(A4_NBINS, bs, nthreads)); t2 = time.time()
                 gg.process(f1) if p[0] == p[1] else gg.process(f1, f2)
                 a = corr_to_arrays(gg); a["seconds"] = time.time() - t2
                 r[f"treecorr_bs{bs:g}_flipg2{int(flip)}"] = a
         out["pairs"][pname(p)] = r
         print(f"{pname(p)} done {time.time() - t0:.0f}s", flush=True)
     out["r_nom"] = np.sqrt(edges[:-1] * edges[1:]); out["runtime_s"] = time.time() - t0
-    A4JSON.write_text(json.dumps(out, default=lambda o: o.tolist() if isinstance(o, np.ndarray) else float(o)))
-    print(f"wrote {A4JSON} in {time.time() - t0:.0f}s")
+    A4OUT.parent.mkdir(parents=True, exist_ok=True)
+    A4OUT.write_text(json.dumps(out, default=lambda o: o.tolist() if isinstance(o, np.ndarray) else float(o)))
+    print(f"wrote {A4OUT} in {time.time() - t0:.0f}s")
 
 
 def plot6():
@@ -360,7 +376,7 @@ def main():
         return run_a4()
     import matplotlib
     matplotlib.use("Agg")
-    style(); PLOTS.mkdir(exist_ok=True)
+    style(); PLOTS.mkdir(parents=True, exist_ok=True)
     u = _u()
     d = dict(np.load(PRODUCT))
     ctx = u.load_context(); fx, cb, asc, filt = ctx["fx"], ctx["cb"], ctx["asc"], ctx["filt"]

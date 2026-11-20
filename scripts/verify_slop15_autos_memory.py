@@ -1,7 +1,8 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Peak-RSS / time scaling of the unordered runner path on random subsamples (<=300k). 6 threads. One config per call:
    python verify_slop15_autos_memory.py N cross|auto [repeat]"""
 import sys, time, resource, numpy as np
-sys.path.insert(0, "/mnt/d/cloning_kids_Kappa_pipeline/src")
+import pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 import treecorr
 from kidspipe.measure import xi as xim
 from kidspipe.measure.xi import corr_to_arrays, make_treecorr_cat, treecorr_kwargs

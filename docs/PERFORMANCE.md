@@ -1,6 +1,6 @@
 # kidspipe performance: cost per move, accuracy per step, expected sampling cost
 
-Everything here was measured with this code (CAMB 1.5.8, numba 0.59.1, numpy 1.26, Python 3.12) on a 22-logical-core WSL2 machine that is **shared with other jobs**.
+Everything here was measured with this code (CAMB 1.5.8, numba 0.59.1, numpy 1.26, Python 3.12) on the development workstation (22 logical cores, WSL2), which was **shared with other jobs**. A Colab runtime has fewer cores (2 vCPUs free, about 8 Pro) and different clocks, so absolute times will differ; use the relative costs. Timing figures are only comparable on a quiet machine with the same thread settings.
 Section 1 says which numbers are trustworthy and why. Section 8 (speed-up versus the original kcap/CosmoSIS pipeline) is an **estimate**: kcap itself was never built or run.
 "External" marks numbers that are not from this repository.
 
@@ -8,6 +8,8 @@ Contents: 1 provenance and noise, 2 per-move cost, 3 stage breakdown, 4 threads,
 7 expected cost of full runs, 8 speed-up versus kcap (estimate), 9 start-up and memory, 10 caveats, 11 reproduce.
 
 ## 1. Provenance of the numbers, and the machine-load problem
+
+Only the small top-level result files `runs/*.json` (the `bench_*.json` files below) are part of the repository; `runs/bench_default/`, `runs/perf_doc/` (including the `perf_doc/*.py` helper scripts named in section 11) and the logs are local records of the development workstation and are not shipped.
 
 | file (in `runs/`) | what | when | status |
 |---|---|---|---|
@@ -23,7 +25,7 @@ The earlier summary figures quoted for it (i: 2.5 s, ii: 1.15 s, iii: 72 ms) are
 (1-thread ii slow block: 1932 ms in `bench_t1`, 1960 ms in the scan; iii: 76.3 vs 77.5 ms) and with the quiet-machine CAMB timing in `docs/interface_notes/linear_background.md`
 (`camb.get_results`, 150 z, 4 threads: 0.53 s; 1 thread: 2.04 s). I could not verify the load at 22:07-22:19 (it was not logged); "quiet" is an inference from that consistency.
 
-**I could not re-measure on a quiet machine today.** The load average was 21-25 for the whole session (a 14-core science job). As a calibration I re-ran configs ii-iv at 1 thread
+**I could not re-measure on a quiet workstation today.** The load average was 21-25 for the whole session (a 14-core science job). As a calibration I re-ran configs ii-iv at 1 thread
 (`perf_doc/bench_recheck_t1.json`): everything was 2.7-3.6x slower than `bench_t1` (ii slow block 5813 vs 1932 ms; iii slow block 213 vs 76 ms; iii medium move 228 vs 64 ms; fast move 3.6 vs 1.3 ms).
 The slow-down is not uniform (CAMB 2.7x, numba HMcode 3.6x), so scaling loaded numbers back is not exact. Use ratios between configurations from the quiet set only.
 A second re-check at 4 threads (`perf_doc/bench_recheck_t4_load9.json`, load average 9 rising to 22 during the run; ii slow block 1.70 s vs 0.58 s, iii slow block 106 ms vs 35 ms, iii fast move 12 ms vs 1.2 ms, i slow block 1.63 s vs 1.10 s) was 1.5-10x slower and very noisy: not usable, kept only as evidence that the machine was not quiet.
@@ -118,7 +120,7 @@ CAMB threads are set per call through `camb.config.ThreadNum`; numba threads (`N
   I did not profile the 16-thread degradation; this explanation is a guess. Use 2-4 threads per process with the emulator, 1 when running many chains.
 * The README's measured pool throughput (8 single-thread workers, config ii, loaded machine: 2.83 new cosmologies/s vs 4.1/s ideal from the quiet 1-thread cost) suggests ~70 % parallel efficiency across processes
   (memory bandwidth and SMT sharing); a 20-worker emulator run was not measured.
-* Rule of thumb for the tables above: if you run N parallel processes on this machine, expect each to be up to 1.5x slower than the numbers in section 2 (and ~3x under the load seen today).
+* Rule of thumb for the tables above: if you run N parallel processes on the development workstation, expect each to be up to 1.5x slower than the numbers in section 2 (and ~3x under the load seen today).
 
 ## 5. Accuracy cost of each step
 
@@ -278,14 +280,15 @@ The emulator artefact is stamped with the CAMB version (1.5.8), box, seeds and s
 * The emulator error versus the production CAMB output is dominated by CAMB's own k-node aliasing at the low-omch2/high-ombh2 corner (section 6c); it is a 0.004 effect in chi2.
 * The 41-node z grid is a different approximation from the emulator: up to 0.07 in chi2 on these 20 points, with a positive mean shift. Decide per use case.
 * The `fast` exact-binning difference is a deliberate numerical choice (section 5, step 1); it must not be counted as emulator or HMcode error, and it is not an error against the spec anchors beyond 0.56.
-* `tests/test_hankel.py::test_timing_fast_operator_and_fft` is a wall-clock test and fails on a loaded machine; `tests/test_emulator.py::test_evaluation_time_below_10ms` asserts on the best of 30 evaluations for the same reason.
+* `tests/test_hankel.py::test_timing_fast_operator_and_fft` is a wall-clock test and fails on a loaded machine; it and the other wall-clock tests carry the `timing` marker and are skipped unless `KIDSPIPE_TIMING_TESTS=1` is set or the machine has at least 8 cores (the thresholds are unchanged; on slow machines they are skipped, not loosened); `tests/test_emulator.py::test_evaluation_time_below_10ms` asserts on the best of 30 evaluations for the same reason.
 * Wall-clock numbers depend strongly on co-running jobs (2.7-3.6x slow-down seen); the CPU time of a single-thread process is not a cure (the slower core speed under SMT/memory contention shows up in CPU time as well).
 * The kcap comparison in section 8 is an estimate; do not quote its ratios as measured.
 
 ## 11. Reproduce
 
 ```bash
-cd <repo>; export PYTHONPATH=$PWD/src OPENBLAS_NUM_THREADS=1
+# from the repository root (after `pip install -e .`, or with `export PYTHONPATH=$PWD/src`)
+export OPENBLAS_NUM_THREADS=1
 # timing tables (run only on a quiet machine: check `uptime`)
 OMP_NUM_THREADS=4 NUMBA_NUM_THREADS=4 python3 benchmarks/bench_pipeline.py --threads 4 --moves 30 --no-acc --out runs/bench_t4.json
 OMP_NUM_THREADS=1 NUMBA_NUM_THREADS=1 python3 benchmarks/bench_pipeline.py --threads 1 --moves 30 --no-acc --out runs/bench_t1.json
@@ -293,8 +296,8 @@ python3 benchmarks/bench_pipeline.py --threads-scan 1 2 4 8 16 --moves 25 --cfg-
 python3 benchmarks/bench_pipeline.py --mcmc runs/bench_t4.json                                   # expected-MCMC accounting
 # accuracy decomposition (section 5): all seven configurations on the same points, no timing
 python3 benchmarks/bench_pipeline.py --configs i ii iii iv v vi vii --acc-only --n-acc 20 --out runs/acc_decomp.json
-# independent emulator check (section 6) and the stage breakdown / start-up
+# independent emulator check (section 6) and the stage breakdown / start-up (helper scripts of the development workstation, not shipped; the results are in the tables above)
 python3 runs/perf_doc/verify_emulator.py ; python3 runs/perf_doc/stages.py ; python3 runs/perf_doc/startup.py emulator
 python3 benchmarks/validate_emulator_pipeline.py --n 50 --seed 777                              # the cached 50-point validation
-PYTHONPATH=src python3 -m pytest -q tests/test_emulator.py -m "not slow"                          # emulator unit tests incl. the held-out checks
+python3 -m pytest -q tests/test_emulator.py -m "not slow"                          # emulator unit tests incl. the held-out checks
 ```

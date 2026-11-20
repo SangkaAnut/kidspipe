@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Converged sky-area measurement for the extracted catalogue, and the area-vs-density test.
 
 The occupancy area must be quoted at a resolution where pixels are still well populated
@@ -9,10 +10,14 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 
 import numpy as np
 
-MAIN = Path.home() / "kids_dr5_work"
+MAIN = paths.dr5_work_dir()
 RATIO = 1.41698
 
 

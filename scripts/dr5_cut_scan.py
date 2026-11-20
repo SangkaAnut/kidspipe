@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Which selection cut explains the 1.417x pair-count excess?
 
 For an auto-pair count npairs ~ (f N)^2/2, a measured npairs ratio of 1.417 means the official
@@ -17,9 +18,10 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 from kidspipe.measure.official import load_official_cosebis
 
-EXTRA = Path.home() / "kids_dr5_work" / "extra"
+EXTRA = paths.dr5_work_dir() / "extra"
 RATIO = 1.41698
 F_TARGET = 1.0 / np.sqrt(RATIO)
 

@@ -1,17 +1,21 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... 
+# One-off A1b threshold-calibration study, not part of the Colab chain; see scripts/README.md.
 """Independent verification of the standardised A1b-noise criterion (i).  Modes (argv[1]):
   gen      alt noise generators (AR(2), MA2+tail GP, block bootstrap): size at shipped thresholds + real pte  -> gen.json
   circ     paired injection contamination of fitted lag-1/2 and of the plain-fit MA(2) theta               -> circ.json
   power    re-run 3 power entries with the SHIPPED fixed table (own injections)                            -> power.json
   e2e      end-to-end: refit null from each simulated/injected realisation, build its own table+threshold -> e2e_<cond>_<seed>.json
 """
+from pathlib import Path as _P
+_R = _P(__file__).resolve().parents[2]      # repository root
 import sys, json, time
 from pathlib import Path
 import numpy as np
 from multiprocessing import Pool
-sys.path.insert(0, "/mnt/d/cloning_kids_Kappa_pipeline/scripts/a1_threshold_calibration")
+sys.path.insert(0, str(_R) + "/scripts/a1_threshold_calibration")
 from kidspipe.measure import a1check as A
 from kidspipe.measure.official import PAIRS, load_official_xi
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = _R
 OUT = ROOT / "runs/dr5_measure/a1_salvage/threshold_calibration/standardised/verify"
 SH = ROOT / "runs/dr5_measure/a1_salvage/threshold_calibration/standardised"
 TH = Path("/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial")

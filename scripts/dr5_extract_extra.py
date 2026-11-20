@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Diagnostic (read-only) extraction of extra catalogue columns, to pin down which selection
 cut makes our pair counts match the official DR5 measurement.
 
@@ -18,11 +19,15 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 
 import numpy as np
 
-CAT = Path("/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/KiDS_Legacy_NS_unblind_final.fits")
-OUT = Path.home() / "kids_dr5_work" / "extra"
+CAT = paths.dr5_catalogue()
+OUT = paths.dr5_work_dir() / "extra"
 COLS = ["TOMOBIN", "Z_B", "SG2DPHOT", "FLUX_RADIUS", "model_SNratio", "pixel_SNratio",
         "n_exposures_used", "MAG_AUTO", "weight", "shear_weight_only", "gold_weight_only",
         "2D_measurement_variance"]

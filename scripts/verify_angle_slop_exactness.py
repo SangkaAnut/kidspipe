@@ -1,7 +1,8 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 import os, sys, json, time
 os.environ["OMP_NUM_THREADS"]="6"
 import numpy as np, treecorr
-sys.path.insert(0,"src")
+sys.path.insert(0,str(__import__("pathlib").Path(__file__).resolve().parents[1]/"src"))
 from kidspipe.measure import xi as X
 N=int(sys.argv[1]) if len(sys.argv)>1 else 30000
 rec=X.load_bin(6)
@@ -63,7 +64,7 @@ for name,r in R.items():
     d["time"]=r["t"]; out[name]=d
 out["xip_scale"]=float(np.abs(mine["xip"]).max()); out["np_total"]=float(mine["np"].sum())
 print(json.dumps(out,indent=1))
-json.dump(out,open("runs/dr5_measure/angle_slop/verify/exactness_a.json","w"),indent=1)
+json.dump(out,open(str(__import__("pathlib").Path(__file__).resolve().parents[1])+"/runs/dr5_measure/angle_slop/verify/exactness_a.json","w"),indent=1)
 print("tc np total",b["np"].sum(),"mine",mine["np"].sum())
 eq=(b["np"]==mine["np"])&(b["np"]>0)
 print("bins equal count",eq.sum(),"of",(b["np"]>0).sum())

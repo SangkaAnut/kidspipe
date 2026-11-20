@@ -1,3 +1,5 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """A1 salvage: can 'their measured xi reproduces the official fine ascii' be made a meaningful check?
 
 Everything is computed here from files; nothing is copied from earlier notes.  Outputs go to
@@ -24,8 +26,9 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.stats import chi2 as chi2dist
 
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 from kidspipe.measure.official import (PAIRS, load_official_cosebis, load_official_xi,  # noqa: E402
                                        load_official_xipm_fits, weighted_rebin)
 from kidspipe.measure.xi2cosebis import e_from_xi_binned  # noqa: E402

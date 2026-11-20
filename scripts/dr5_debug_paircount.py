@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Debug the pair counter against TreeCorr on a small, controlled catalogue.
 
 The A4 run showed npairs disagreeing by up to 50% on an auto-pair and |xi_x| ~ 0.26, which is

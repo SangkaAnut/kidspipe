@@ -3,9 +3,13 @@
 
 Stages (default: all, in order)::
 
-    python scripts/train_emulator.py generate   # parallel exact CAMB runs on a Sobol design -> runs/emulator_train/*.npz
-    python scripts/train_emulator.py fit        # PCA + regression -> data/emulator/transfer_emulator_v1.npz
-    python scripts/train_emulator.py validate   # held-out error report (JSON in runs/emulator_train/validation.json)
+    python scripts/train_emulator.py generate   # parallel exact CAMB runs on a Sobol design -> <runs>/emulator_train/*.npz
+    python scripts/train_emulator.py fit        # PCA + regression -> data/emulator/transfer_emulator_v1.npz ($KIDSPIPE_EMULATOR)
+    python scripts/train_emulator.py validate   # held-out error report (JSON in <runs>/emulator_train/validation.json)
+
+<runs> = $KIDSPIPE_RUNS (default <root>/runs).  ``fit`` OVERWRITES the emulator artefact the pipeline uses (``kidspipe.paths.emulator_artefact()``:
+the shipped data/emulator/transfer_emulator_v1.npz unless $KIDSPIPE_EMULATOR points elsewhere); set $KIDSPIPE_EMULATOR to write a new
+artefact without touching the shipped one.  ``--workers`` defaults to os.cpu_count() (about 17 core-hours for ``generate``).
 
 Everything is seeded; re-running ``python scripts/train_emulator.py`` reproduces the artefact (up to CAMB
 floating-point reproducibility).  CAMB runs use 1 OpenMP thread per worker process, ``--workers`` processes.
@@ -30,9 +34,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 import numpy as np  # noqa: E402
+from kidspipe import paths  # noqa: E402
 
-TRAIN_DIR = ROOT / "runs" / "emulator_train"
-ARTEFACT = ROOT / "data" / "emulator" / "transfer_emulator_v1.npz"
+TRAIN_DIR = paths.runs_dir() / "emulator_train"
+ARTEFACT = paths.emulator_artefact()
 
 # ---- the design (documented in docs/PERFORMANCE.md) -----------------------------------------------------
 BOX = {"omch2": (0.03, 0.34), "ombh2": (0.019, 0.026), "h": (0.64, 0.82)}
@@ -233,11 +238,12 @@ def _loo_gp_one(args):
     return ell, np.linalg.solve(K, rfull / sd) * sd, best.fun
 
 
-def _fit_gp_residual(Xs, C, deg, n_jobs=20):
+def _fit_gp_residual(Xs, C, deg, n_jobs=None):
     """Polynomial (degree ``deg``) + per-PC ARD squared-exponential GP on the residual; hyper-parameters per PC by
     leave-one-out error (numpy/scipy only)."""
     from joblib import Parallel, delayed
     from kidspipe.theory.emulator import poly_design
+    n_jobs = n_jobs or os.cpu_count() or 1
     P = poly_design(Xs, deg)
     coef = np.linalg.lstsq(P, C, rcond=1e-13)[0]
     R = C - P @ coef
@@ -355,7 +361,7 @@ def validate(args):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("stage", nargs="?", default="all", choices=["all", "generate", "fit", "validate"])
-    ap.add_argument("--workers", type=int, default=20)
+    ap.add_argument("--workers", type=int, default=os.cpu_count() or 1, help="CAMB worker processes for `generate` (default os.cpu_count())")
     ap.add_argument("--n-train", type=int, default=N_TRAIN)
     ap.add_argument("--n-test", type=int, default=N_TEST)
     ap.add_argument("--n-aug", type=int, default=N_AUG)

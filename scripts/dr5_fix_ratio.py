@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Recompute the full-sample npairs ratio with the correct pair matching.
 
 Both saved probes (probe_sub5.npz at 1000 bins, /tmp/c_00_11.npz at 20 bins) were produced
@@ -16,9 +17,10 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 from kidspipe.measure.official import PAIRS, load_official_xi
 
-MAIN = Path.home() / "kids_dr5_work"
+MAIN = paths.dr5_work_dir()
 SUBSAMPLE = 5          # probe_sub5 was a 1/5 stride subsample -> npairs scale by 25
 
 

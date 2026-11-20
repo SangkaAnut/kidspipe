@@ -15,11 +15,20 @@ REPORT = ROOT / "runs/dr5_measure/product_exact/exact_vs_b1p5.json"
 B15 = ROOT / "runs/dr5_measure/product/dr5_xipm_cosebis_binslop1p5.npz"
 ASM = ROOT / "runs/dr5_measure/xi_chunked/assembled/ns"
 CHUNKS = ROOT / "runs/dr5_measure/xi_chunked/chunks"
-pytestmark = pytest.mark.skipif(not all(f.exists() for f in (PRODUCT, REPORT, B15, ASM, CHUNKS))
+pytestmark = pytest.mark.skipif(not all(f.exists() for f in (PRODUCT, REPORT, B15, ASM))
                                 or not (official.OFFICIAL / "KiDS_Legacy_xipm.fits").exists(),
-                                reason="exact product, its report, assembled/chunk files or official release absent")
-spec = importlib.util.spec_from_file_location("mkexact", ROOT / "scripts/dr5_make_exact_product.py")
-mx = importlib.util.module_from_spec(spec); spec.loader.exec_module(mx)
+                                reason="exact product, its report, assembled files or official release absent")
+# the raw chunk files (346 MB) are not shipped: only the test that re-checks them needs them
+needs_chunks = pytest.mark.skipif(not CHUNKS.exists(), reason="raw chunk files (runs/dr5_measure/xi_chunked/chunks) absent: not shipped")
+
+
+@pytest.fixture(scope="module")
+def mx():
+    """scripts/dr5_make_exact_product.py, loaded only when the tests actually run (never at collection)."""
+    spec = importlib.util.spec_from_file_location("mkexact", ROOT / "scripts" / "dr5_make_exact_product.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 @pytest.fixture(scope="module")
@@ -33,7 +42,7 @@ def b15():
 
 
 @pytest.fixture(scope="module")
-def ctx():
+def ctx(mx):
     return mx.u.load_context()
 
 
@@ -50,11 +59,11 @@ def test_settings_and_shapes(prod):
     assert prov["gate"].startswith("none") and prov["nchunks"] == 16
 
 
-def test_validate_passes(prod, b15, ctx):
+def test_validate_passes(prod, b15, ctx, mx):
     mx.validate_exact_product(prod, b15, ctx["fx"])
 
 
-def test_mixups_are_caught(prod, b15, ctx):
+def test_mixups_are_caught(prod, b15, ctx, mx):
     bad = copy(prod)
     for k in ("xip_raw", "xim_raw", "xip", "xim", "npairs", "weight", "varxi", "xip9", "xim9"):    # swap two pairs, keep labels
         bad[k][[0, 5]] = bad[k][[5, 0]]
@@ -65,7 +74,7 @@ def test_mixups_are_caught(prod, b15, ctx):
         mx.validate_exact_product(bad, b15, ctx["fx"])
 
 
-def test_consistently_wrong_m_is_caught(prod, b15, ctx):
+def test_consistently_wrong_m_is_caught(prod, b15, ctx, mx):
     """m values shifted and every m-dependent array recomputed consistently: only the anchor to the pipeline's m catches it."""
     bad = copy(prod)
     bad["m_gold"] = bad["m_gold"] + 0.01
@@ -78,7 +87,7 @@ def test_consistently_wrong_m_is_caught(prod, b15, ctx):
         mx.validate_exact_product(bad, b15, ctx["fx"])
 
 
-def test_auto_pairs_are_unordered(prod, b15, ctx):
+def test_auto_pairs_are_unordered(prod, b15, ctx, mx):
     """The driver's ordered auto counts must have been halved: totals match the unordered bin_slop 1.5 product to 1e-4."""
     r = prod["npairs"].sum(1) / b15["npairs"].sum(1)
     assert np.all(np.abs(r - 1) < 1e-4)
@@ -89,27 +98,28 @@ def test_auto_pairs_are_unordered(prod, b15, ctx):
         mx.validate_exact_product(bad, b15, ctx["fx"])
 
 
-def test_meanr_is_checked(prod, b15, ctx):
+def test_meanr_is_checked(prod, b15, ctx, mx):
     bad = copy(prod); bad["meanr"][0, 400] *= 1.1                                                   # outside its fine bin
     with pytest.raises(AssertionError, match="meanr"):
         mx.validate_exact_product(bad, b15, ctx["fx"])
 
 
-def test_cosebis_are_the_integral_of_the_stored_xi(prod, ctx):
+def test_cosebis_are_the_integral_of_the_stored_xi(prod, ctx, mx):
     mx.validate_cosebis(prod, ctx["filt"])
     bad = copy(prod); bad["En"][7] *= 3.0
     with pytest.raises(AssertionError):
         mx.validate_cosebis(bad, ctx["filt"])
 
 
-def test_product_matches_assembled_files(prod):
+def test_product_matches_assembled_files(prod, mx):
     mx.validate_sources(prod)
     bad = copy(prod); bad["varxi"][0, 400] *= 1.0001                                                # pair 1-1 is an auto pair
     with pytest.raises(AssertionError):
         mx.validate_sources(bad)
 
 
-def test_chunks_are_exact_and_complete(monkeypatch):
+@needs_chunks
+def test_chunks_are_exact_and_complete(monkeypatch, mx):
     rows, meanr = mx.check_chunks()
     assert len(rows) == 21 and all(r["chunk_files"] == (136 if a == b else 256)
                                    for (a, b), r in zip(mx.PAIRS1, rows.values()))
@@ -131,7 +141,7 @@ def _leaves(a, b, path=""):
         yield path, a, b
 
 
-def test_report_matches_product(prod, b15, ctx):
+def test_report_matches_product(prod, b15, ctx, mx):
     """The stored comparison (JSON and the markdown table) is what the current product gives (catches a stale report)."""
     rep = json.loads(REPORT.read_text())
     per, full, arrays, decomp, fw = mx.compare(prod, b15, ctx)

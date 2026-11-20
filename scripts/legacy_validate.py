@@ -5,16 +5,23 @@ Stages (run in this order; see docs/KIDS_LEGACY_VALIDATION.md for exact commands
   plots   all figures plots/legacy_*.png and the summary json runs/legacy_val/summary.json
   timing  ms per E_n evaluation (runs/legacy_val/timing.json)
 
-Keep OMP_NUM_THREADS / NUMBA_NUM_THREADS = 1 for `eval` (one single-threaded CAMB per worker).
+Keep OMP_NUM_THREADS / NUMBA_NUM_THREADS = 1 for `eval` (one single-threaded CAMB per worker); --workers defaults to os.cpu_count().
+
+Paths (kidspipe.paths): results in <runs>/legacy_val/ and the operator cache in <runs>/legacy/cache with <runs> = $KIDSPIPE_RUNS
+(default <root>/runs); figures in $KIDSPIPE_PLOTS (default <root>/plots).  `eval` resumes from <runs>/legacy_val/chi2.npz (your own run
+only); `plots` reads chi2.npz / selection.npz from <runs>, else from the copy shipped in <root>/runs (no 2 h eval needed).
 """
 import argparse, contextlib, json, os, sys, time
 from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "runs" / "legacy_val"
-PLOTS = ROOT / "plots"
-CACHE = str(ROOT / "runs" / "legacy" / "cache")
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
+from kidspipe import paths  # noqa: E402
+OUT = paths.runs_dir() / "legacy_val"
+PLOTS = Path(os.environ["KIDSPIPE_PLOTS"]).expanduser() if os.environ.get("KIDSPIPE_PLOTS") else ROOT / "plots"
+CACHE = str(paths.runs_dir() / "legacy" / "cache")
 COL = dict(S8=20, sigma8=21, Om=23, post=43, prior=42, logw=41)
 
 _M = None
@@ -132,12 +139,11 @@ if __name__ == "__main__":
     ap.add_argument("--n-top", type=int, default=150)
     ap.add_argument("--n-draw", type=int, default=4000)
     ap.add_argument("--seed", type=int, default=7)
-    ap.add_argument("--workers", type=int, default=10)
+    ap.add_argument("--workers", type=int, default=os.cpu_count() or 1, help="eval worker processes (default os.cpu_count())")
     ap.add_argument("--n-time", type=int, default=8)
     ap.add_argument("--mpi", action="store_true", help="eval over MPI ranks: `mpirun -n N python scripts/legacy_validate.py eval "
                     "--mpi`; rank 0 schedules and saves, ranks 1..N-1 evaluate (one single-threaded model each); --workers ignored")
     a = ap.parse_args()
-    sys.path.insert(0, str(ROOT / "src"))
     from kidspipe import mpi
     if a.mpi and a.stage != "eval":
         raise SystemExit("--mpi applies to the eval stage only")
@@ -153,7 +159,7 @@ if __name__ == "__main__":
             print(f"MPI: {nw} worker ranks", flush=True)
             stage_eval(a)
         sys.exit(0)
-    OUT.mkdir(parents=True, exist_ok=True); PLOTS.mkdir(exist_ok=True)
+    OUT.mkdir(parents=True, exist_ok=True); PLOTS.mkdir(parents=True, exist_ok=True)
     if a.stage == "eval":
         stage_eval(a)
     elif a.stage == "timing":

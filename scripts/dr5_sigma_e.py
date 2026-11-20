@@ -1,9 +1,14 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """sigma_e gate: every defensible variant vs official SIG_E_i. Reads only cached npz + release FITS header."""
 import json, itertools, numpy as np
 from astropy.io import fits
-W='/home/anut/kids_dr5_work/'
-REL='/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/KiDs_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/data/KiDS_Legacy_xipm.fits'
-OUT='/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/sigma_e/sigma_e.json'
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
+W=str(paths.dr5_work_dir())+'/'
+REL=str(paths.official_dir()/'KiDS_Legacy_xipm.fits')
+OUT=str(paths.runs_dir()/'dr5_measure/sigma_e/sigma_e.json')
 M=[-0.023,-0.016,-0.011,0.020,0.030,0.045]   # m_gold, Wright+25 Table 1 (x1e-2: -2.3,-1.6,-1.1,2.0,3.0,4.5)
 A_EFF=967.4; A_MOS=1014.03
 h=fits.getheader(REL,'NZ_SOURCE')

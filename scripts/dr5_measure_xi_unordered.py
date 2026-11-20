@@ -5,11 +5,16 @@ gg.process(cat) on the whole bin catalogue (no chunking), cross pairs gg.process
 sep_units arcmin, angle_slop = TreeCorr default, catalogue e1,e2 as is (no flip), catalogue weight.  Official release:
 TreeCorr 4.2.3, bin_slop 1.5 (Wright+25 Sect. 2.5.1 footnote 1).
 
-  python scripts/dr5_measure_xi_unordered.py run  [--pairs autos|all|I-J,...] [--bin-slop 1.5] [--threads 20] [--force]
+  python scripts/dr5_measure_xi_unordered.py run  [--pairs autos|all|I-J,...] [--bin-slop 1.5] [--threads N] [--force]
   python scripts/dr5_measure_xi_unordered.py eval [--pairs ...] [--bin-slop 1.5]            (reads our npz)
   python scripts/dr5_measure_xi_unordered.py eval --source theirs --pairs autos              (preview from their xi)
 
-Outputs: runs/dr5_measure/xi_unordered/b<slop>/Bin<I>_Bin<J>.npz, manifest.json, eval.json, EVAL.md.
+Paths (kidspipe.paths): inputs bin0..5.npz from $KIDSPIPE_DR5_WORK (written by dr5_extract.py), official release files from
+$KIDSPIPE_OFFICIAL; outputs under <runs>/dr5_measure/xi_unordered/ with <runs> = $KIDSPIPE_RUNS (default <root>/runs):
+b<slop>/Bin<I>_Bin<J>.npz, manifest.json, eval.json, EVAL.md.  --threads defaults to os.cpu_count().  Run one process per pair
+on a 12-16 GB machine (a TreeCorr cross pair needs about 5 GB and a long-lived process retains memory across pairs).
+Optional inputs that degrade gracefully when absent: the earlier pipeline's xi (``$KIDSPIPE_THEIRS``, default
+/mnt/d/HI-gamma-correlation/...; the ours-vs-theirs comparison is skipped) and a1_salvage.json (the one-constant A_p test is skipped).
 Evaluation functions take (pair, ours_dict, ordered): all weighting is scale invariant, so an ordered (2x npairs)
 chunk-assembled npz gives the same gates; `ordered` only normalises the npairs ratio against theirs.
 """
@@ -18,15 +23,17 @@ from pathlib import Path
 import numpy as np
 from scipy.stats import chi2 as chi2dist
 
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 from kidspipe.measure import official as of  # noqa: E402
 from kidspipe.measure.a1check import (A1B_THRESH, A3_MAX_ABS_OVER_SIGMA, a1b_noise, a3_pass,  # noqa: E402
                                       boxcar_ratio, curves_z)
 
-OUTROOT = ROOT / "runs/dr5_measure/xi_unordered"
-THEIRS = Path("/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial")
-SALV = ROOT / "runs/dr5_measure/a1_salvage/a1_salvage.json"
+OUTROOT = paths.runs_dir() / "dr5_measure" / "xi_unordered"
+# earlier pipeline's xi (external, optional): only used for the informational ours-vs-theirs comparison
+THEIRS = Path(os.environ.get("KIDSPIPE_THEIRS", "/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial"))
+SALV = paths.find_result("dr5_measure/a1_salvage/a1_salvage.json")     # input (shipped copy is found if you have none of your own)
 # m_gold per bin, Wright+25 Table 1: same list as scripts/dr5_adopt_01.py (M); xi_corr = xi_raw / ((1+m_i)(1+m_j))
 M = [-0.023, -0.016, -0.011, 0.020, 0.030, 0.045]
 N_ANG = 9
@@ -365,7 +372,7 @@ def do_eval(args):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("cmd", choices=["run", "eval"])
     ap.add_argument("--pairs", default="autos"); ap.add_argument("--bin-slop", type=float, default=1.5)
-    ap.add_argument("--threads", type=int, default=20); ap.add_argument("--force", action="store_true")
+    ap.add_argument("--threads", type=int, default=os.cpu_count() or 1, help="TreeCorr threads (default: os.cpu_count())"); ap.add_argument("--force", action="store_true")
     ap.add_argument("--source", choices=["ours", "theirs"], default="ours")
     ap.add_argument("--subsample", type=int, default=0, help=argparse.SUPPRESS)
     ap.add_argument("--seed", type=int, default=0, help=argparse.SUPPRESS)

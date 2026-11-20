@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """The 6 auto pairs at bin_slop 1.5: theta*xi+/- (9 bins) vs the official release, residuals in official sigma, float32 run for comparison.
 
   python scripts/dr5_plot_autos.py   -> plots/dr5_autos_b1p5.png
@@ -7,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 sys.dont_write_bytecode = True
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from kidspipe.measure.a1check import A3_MAX_ABS_OVER_SIGMA  # noqa: E402
 

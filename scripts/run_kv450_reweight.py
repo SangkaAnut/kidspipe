@@ -48,7 +48,7 @@ if __name__ == "__main__":
     ap.add_argument("--tags", default="prod1,prod2")
     ap.add_argument("--variants", default="kcap,reduced")
     ap.add_argument("--n", type=int, default=600)
-    ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--workers", type=int, default=C.NCPU, help="worker processes (default os.cpu_count())")
     ap.add_argument("--burn-frac", type=float, default=0.1)
     ap.add_argument("--mpi", action="store_true", help="evaluate over MPI ranks: `mpirun -n N python scripts/run_kv450_reweight.py "
                     "--mpi ...`; rank 0 schedules and writes, ranks 1..N-1 evaluate; --workers ignored")
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     try:
         S, D = [], []
         for t in a.tags.split(","):
-            for f in sorted(glob.glob(str(C.OUT / t / "prod_c*.npz"))):
+            for f in C.result_glob(f"{t}/prod_c*.npz"):
                 z = np.load(f)
                 b = int(a.burn_frac * len(z["samples"]))
                 S.append(z["samples"][b:])

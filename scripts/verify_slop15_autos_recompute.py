@@ -1,12 +1,14 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Independent recompute of A3 / E_n / B_n / A1 for the 6 slop-1.5 unordered auto pairs. Own code; only CosebisFilters imported."""
 import sys, json, glob, os
 import numpy as np
 from scipy.stats import chi2
-sys.path.insert(0, "/mnt/d/cloning_kids_Kappa_pipeline/src")
+import pathlib; _R = pathlib.Path(__file__).resolve().parents[1]; sys.path.insert(0, str(_R / "src"))
+from kidspipe import paths
 from kidspipe.theory.cosebis import CosebisFilters
 from astropy.io import fits
-OFF = "/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/KiDS_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/data/"
-OUT = "/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/xi_unordered/b1.5/"
+OFF = str(paths.official_dir()) + "/"
+OUT = str(_R / "runs/dr5_measure/xi_unordered/b1.5") + "/"
 MM = [-0.023, -0.016, -0.011, 0.020, 0.030, 0.045]
 ARC = np.deg2rad(1/60)
 res = {}
@@ -74,7 +76,7 @@ for p in range(1, 7):
         zb = zz[:1000//20*20].reshape(-1, 20).mean(1)
         A1.append(zb.std()/(zz.std()/np.sqrt(20)))
     # catalogue
-    c = np.load(f"/home/anut/kids_dr5_work/bin{p-1}.npz")
+    c = np.load(paths.dr5_work_dir() / f"bin{p-1}.npz")
     nobj = len(c["w"]); sw = float(c["w"].astype(np.float64).sum()); sw2 = float((c["w"].astype(np.float64)**2).sum())
     prov = {k: (d[k].item() if d[k].ndim == 0 else None) for k in d.files if d[k].ndim == 0}
     R[p] = dict(A3_rnom=a3["r_nom"], A3_meanr=a3["meanr"], A3_wt=a3w, maxE6=np.abs(dE[:6]).max(), maxE20=np.abs(dE).max(),
@@ -85,4 +87,4 @@ for p in range(1, 7):
                 Emean=(float(c["e1"].astype(float)@c["w"]/sw), float(c["e2"].astype(float)@c["w"]/sw)))
     print(p, {k: (np.round(v, 4) if isinstance(v, (float, np.floating, tuple, list)) else v) for k, v in R[p].items() if k != "prov"}, flush=True)
     print("   prov", prov)
-json.dump(R, open("/tmp/claude-1000/-home-anut/8ecc82c7-22dd-490c-b045-63f93bce2233/scratchpad/recompute.json", "w"), default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))
+json.dump(R, open("/tmp/verify_slop15_autos_recompute.json", "w"), default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))

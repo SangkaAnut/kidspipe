@@ -5,6 +5,7 @@ import sys
 import time
 
 import numpy as np
+from kidspipe._compat import trapezoid
 import pytest
 from scipy import stats
 
@@ -235,7 +236,7 @@ def test_simple_params_prior_transform_consistent():
     # normalisation: integral of exp(log_prior) over the box = 1
     xs = np.linspace(-1, 2, 30001)
     lpv = np.array([p.log_prior([x, 1.0]) for x in xs]) + np.log(4.0)    # flat part 1/4
-    assert np.trapz(np.exp(lpv), xs) == pytest.approx(1.0, abs=1e-4)
+    assert trapezoid(np.exp(lpv), xs) == pytest.approx(1.0, abs=1e-4)
 
 
 # ----------------------------------------------------------------------------- maxlike
@@ -402,7 +403,7 @@ def _banana_marginal_cdf():
     """y | x ~ N(x^2, 0.3^2), x ~ N(0,1): marginal CDF of y by brute-force quadrature over x and y."""
     xs = np.linspace(-9, 9, 36001)
     ys = np.linspace(-2.5, 14, 3301)
-    py = np.array([np.trapz(stats.norm.pdf(xs) * stats.norm.pdf(v, xs ** 2, 0.3), xs) for v in ys])
+    py = np.array([trapezoid(stats.norm.pdf(xs) * stats.norm.pdf(v, xs ** 2, 0.3), xs) for v in ys])
     cdf = np.concatenate([[0], np.cumsum(0.5 * (py[1:] + py[:-1]) * np.diff(ys))])
     return lambda q: np.interp(q, ys, cdf)
 
@@ -483,15 +484,26 @@ def test_samplers_uniform_box_boundary_handling():
             assert abs(xj.var() * 12 - 1) < 6 * np.sqrt(0.8 / ess) + 0.02, (name, j, xj.var() * 12)
 
 
-def test_ensemble_sampler_truncated_gaussian(toy):
-    ref_mean, ref_cov = toy.truncated_reference()
+@pytest.fixture(scope="module")
+def ensemble_run(toy):
+    """One 64-walker, 12000-step ensemble run on the truncated toy Gaussian: (p0, chain output, wall time in s)."""
     nw, ns = 64, 12000
     rng = np.random.default_rng(0)
     p0 = toy.mean + 0.05 * rng.multivariate_normal(np.zeros(D), toy.cov, size=nw)
     p0 = np.clip(p0, toy.bounds[:, 0] + 1e-9, toy.bounds[:, 1] - 1e-9)
     t0 = time.time()
     out = mcmc.ensemble_sampler(toy.lp_vec, p0, ns, vectorized=True, seed=1)
-    assert time.time() - t0 < 20
+    return p0, out, time.time() - t0
+
+
+@pytest.mark.timing
+def test_ensemble_sampler_wall_time(ensemble_run):
+    assert ensemble_run[2] < 20
+
+
+def test_ensemble_sampler_truncated_gaussian(toy, ensemble_run):
+    ref_mean, ref_cov = toy.truncated_reference()
+    p0, out, _ = ensemble_run
     assert 0.1 < out.acceptance_fraction.mean() < 0.9
     c = out.chain[2000:]                                    # discard burn-in
     assert np.all(c >= toy.bounds[:, 0]) and np.all(c <= toy.bounds[:, 1])
@@ -654,7 +666,7 @@ def test_pjhpd_matches_brute_force_small_n():
         assert wn[m2].sum() / wn.sum() < 0.68
 
 
-def test_pjhpd_gaussian_analytic_and_speed():
+def test_pjhpd_gaussian_analytic():
     """Joint HPD of a d-dim Gaussian is the ellipsoid r^2 <= chi2_d.ppf(q): projection = +-sqrt(chi2)*sigma."""
     rng = np.random.default_rng(1)
     sg = np.array([0.5, 2.0])
@@ -663,14 +675,17 @@ def test_pjhpd_gaussian_analytic_and_speed():
     for q in (0.68, 0.95):
         ext = ch.pjhpd_extents(x, lp, None, (q,))[0]
         np.testing.assert_allclose(0.5 * (ext[:, 1] - ext[:, 0]), np.sqrt(stats.chi2.ppf(q, 2)) * sg, rtol=0.01)
-    # 14-d: speed (O(N log N)), and the sample extent can only undershoot the ellipsoid
+
+
+def _check_pjhpd_14d(rng):
+    """14-d Gaussian: the sample extent can only undershoot the ellipsoid.  Returns the wall time of ``pjhpd_extents``."""
     d, n = 14, 400_000
     sg = np.linspace(0.5, 2.0, d)
     x = rng.normal(size=(n, d)) * sg
     lp = -0.5 * np.sum((x / sg) ** 2, axis=1)
     t0 = time.perf_counter()
     ext = ch.pjhpd_extents(x, lp, None, (0.68, 0.95))
-    assert time.perf_counter() - t0 < 5.0
+    dt = time.perf_counter() - t0
     for a, q in enumerate((0.68, 0.95)):
         half = 0.5 * (ext[a, :, 1] - ext[a, :, 0])
         expected = np.sqrt(stats.chi2.ppf(q, d)) * sg
@@ -678,6 +693,17 @@ def test_pjhpd_gaussian_analytic_and_speed():
     # PJ-HPD is much wider than the marginal 68 % interval (that is the point of it)
     marg = ch.marginal_stats(x[:, :2], None, ["a", "b"], 0.68, lp)
     assert marg["a"]["pj_hi"] - marg["a"]["pj_lo"] > 2 * (marg["a"]["hi"] - marg["a"]["lo"])
+    return dt
+
+
+def test_pjhpd_14d_extents():
+    _check_pjhpd_14d(np.random.default_rng(3))
+
+
+@pytest.mark.timing
+def test_pjhpd_14d_speed():
+    """O(N log N): 400k samples in 14-d in under 5 s."""
+    assert _check_pjhpd_14d(np.random.default_rng(3)) < 5.0
 
 
 def test_hpd_1d_and_quantiles_vs_brute_force():

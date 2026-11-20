@@ -1,3 +1,5 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """TreeCorr (bin_slop, angle_slop) accuracy/cost study on real KiDS-Legacy DR5 shear catalogues.
 
 Subcommands
@@ -16,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -158,7 +161,7 @@ def cmd_chunks(args):
 
 
 # ================================================================================================= analysis
-THEIRS_DIR = Path("/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial")   # READ ONLY
+THEIRS_DIR = Path(os.environ.get("KIDSPIPE_THEIRS", "/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial"))   # READ ONLY, external
 M_GOLD = {1: -0.023, 2: -0.016, 3: -0.011, 4: 0.020, 5: 0.030, 6: 0.045}         # Wright+25 Table 1 (as dr5_adopt_01)
 EDGES9 = np.exp(np.linspace(np.log(2.0), np.log(300.0), 10))
 RANGES = {"2-10": (2.0, 10.0), "10-60": (10.0, 60.0), "60-300": (60.0, 300.01)}
@@ -353,13 +356,13 @@ if __name__ == "__main__":
     sp = ap.add_subparsers(dest="cmd", required=True)
     p = sp.add_parser("run"); p.add_argument("--patch", default="A"); p.add_argument("--pair", default="6-6")
     p.add_argument("--settings", required=True, help="comma list bin_slop:angle_slop (def = TreeCorr default)")
-    p.add_argument("--threads", type=int, default=16); p.add_argument("--force", action="store_true")
+    p.add_argument("--threads", type=int, default=os.cpu_count() or 1); p.add_argument("--force", action="store_true")
     p.add_argument("--signal", action="store_true", help="replace e1,e2 by a noiseless synthetic spin-2 field (tag SIG<patch>)")
     p.set_defaults(fn=cmd_run)
     p = sp.add_parser("chunks"); p.add_argument("--cp", required=True, help="comma list a-b of chunk-pairs")
-    p.add_argument("--settings", required=True); p.add_argument("--threads", type=int, default=16)
+    p.add_argument("--settings", required=True); p.add_argument("--threads", type=int, default=os.cpu_count() or 1)
     p.add_argument("--force", action="store_true"); p.set_defaults(fn=cmd_chunks)
     p = sp.add_parser("analyze"); p.add_argument("--pairs", default="6-6,1-6"); p.add_argument("--patches", default="A,B")
     p.set_defaults(fn=cmd_analyze)
-    p = sp.add_parser("brute"); p.add_argument("--threads", type=int, default=16); p.set_defaults(fn=cmd_brute)
+    p = sp.add_parser("brute"); p.add_argument("--threads", type=int, default=os.cpu_count() or 1); p.set_defaults(fn=cmd_brute)
     a = ap.parse_args(); a.fn(a)

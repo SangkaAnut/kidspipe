@@ -1,10 +1,11 @@
 # kidspipe - design contract
 
-Clean-room, pure-Python (numpy/scipy/numba + CAMB) re-implementation of the KV450 cosmic-shear
+Pure-Python (numpy/scipy/numba + CAMB) re-implementation of the KV450 cosmic-shear
 (xi+/-) inference pipeline. The single source of truth for the MATHEMATICS is
 `docs/MASTER_MATH_SPEC.md` (cited "spec sN"); validation material is in `docs/VALIDATION_TARGETS.md`.
-Implementers must NOT read `reference/kcap` source code or `docs/study/` (clean-room); the data files
-they need are already copied to `data/`. Python 3.12, numpy 1.26, scipy 1.13, numba 0.59, camb 1.5.8,
+Implementers were told NOT to read the kcap source code (<https://github.com/KiDS-WL/kcap>; a local copy `reference/kcap`, not shipped in the repository, is what `docs/study/` and the comparison documents quote) or `docs/study/`
+("clean room" in this sense: the implementation was written from the spec); the data files
+they need are already copied to `data/`. Developed with Python 3.12, numpy 1.26, scipy 1.13, numba 0.59, camb 1.5.8 (Python 3.10-3.13, numpy 2.x and CAMB 2.x are supported too, see `COMPATIBILITY.md`),
 dynesty, nautilus-sampler, pytest. No CosmoSIS, no datablock, no MPI requirement (optional `--mpi` through mpi4py, see USAGE.md "MPI").
 
 ## Conventions (global)

@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Step A: measure xi_+/xi_-/xi_x for all 21 tomographic pairs (1<=i<=j<=6) on the official
 binning (Log, 1000 bins, 2-300 arcmin), plus pair counts and weights.
 

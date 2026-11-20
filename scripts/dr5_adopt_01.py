@@ -1,3 +1,5 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """ADOPT the validated work from pipeline/01_lensing_validation, verified through THIS project's code.
 
 We do not copy their JSON. We read their measured xi+/- (21 pairs, 1000 log bins), push it through
@@ -27,8 +29,9 @@ from pathlib import Path
 import numpy as np
 from astropy.io import fits
 
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 
 from kidspipe.measure.official import (PAIRS, load_official_cosebis, load_official_xi,  # noqa: E402
                                        cov_e_block)
@@ -37,8 +40,7 @@ from kidspipe.measure.xi2cosebis import e_from_xi_binned  # noqa: E402
 from kidspipe.theory.cosebis import CosebisFilters  # noqa: E402
 
 THEIRS = Path("/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial")
-OFFICIAL = Path("/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/"
-                "KiDS_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/data")
+OFFICIAL = paths.official_dir()
 OUT = ROOT / "runs" / "dr5_measure" / "adoption"
 OUT.mkdir(parents=True, exist_ok=True)
 

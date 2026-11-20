@@ -1,4 +1,8 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... 
+# One-off A1b threshold-calibration study, not part of the Colab chain; see scripts/README.md.
 """Shared engine for the standardised A1b-noise study (data loading, injections, null sims, statistics)."""
+from pathlib import Path as _P
+_R = _P(__file__).resolve().parents[2]      # repository root
 import json
 from pathlib import Path
 import numpy as np
@@ -6,7 +10,7 @@ from scipy.stats import norm
 from kidspipe.measure.official import PAIRS, load_official_xi
 from kidspipe.measure import a1check as A
 
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = _R
 OUT = ROOT / "runs/dr5_measure/a1_salvage/threshold_calibration/standardised"
 OUT.mkdir(parents=True, exist_ok=True)
 TH = Path("/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial")

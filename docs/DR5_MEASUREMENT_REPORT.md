@@ -1,7 +1,7 @@
 # KiDS-Legacy (DR5) cosmic-shear measurement: report
 
 Project: `kidspipe`, a from-the-math rebuild of the KiDS cosmic-shear pipeline. This report follows section 5 of `docs/HANDOFF_PROMPT_DR5_MEASUREMENT.md` (six sections). Date of the product decision: 2026-11-02.
-Paths are relative to the project root `/mnt/d/cloning_kids_Kappa_pipeline` unless absolute. Every number below is cited to the file that holds it; a handful of numbers that were computed inline while writing this report are marked **[inline]** and listed in section 5.9.
+Paths are relative to the project root (the repository root; on the development workstation it was `/mnt/d/cloning_kids_Kappa_pipeline`) unless absolute. Absolute paths and `~/kids_dr5_work/` in the text record where files were on that workstation when the runs were made; on a fresh clone see section 6 (`$KIDSPIPE_DR5_WORK`, `$KIDSPIPE_RUNS`). Every number below is cited to the file that holds it; a handful of numbers that were computed inline while writing this report are marked **[inline]** and listed in section 5.9.
 
 ## 0. What the product is, in plain words
 
@@ -335,19 +335,26 @@ mpirun -n 3 -x PYTHONPATH -x OMP_NUM_THREADS=10 $PY scripts/dr5_measure_xi_chunk
 
 ### 6.1 Environment
 
-Interpreter `/home/anut/anaconda3/bin/python3`. Versions queried for this report: Python 3.12.4, **TreeCorr 5.1.4**, **numpy 1.26.4**, **astropy 6.1.0**, scipy 1.13.1, fitsio 1.4.2. Machine: 22 cores, 16 GB, WSL2, data on `/mnt/d`. Do not upgrade numpy (numba 0.59 needs numpy < 1.27). The catalogue directory `/mnt/d/HI-gamma-correlation/` is read-only.
+**As recorded (development workstation).** Interpreter: the Anaconda Python 3.12 of that workstation. Versions queried for this report: Python 3.12.4, **TreeCorr 5.1.4**, **numpy 1.26.4**, **astropy 6.1.0**, scipy 1.13.1, fitsio 1.4.2. Machine: 22 cores, 16 GB, WSL2, data on a Windows drive (`/mnt/d`). With numba 0.59 numpy had to stay below 1.27 for the recorded runs. The catalogue directory of the earlier project (`/mnt/d/HI-gamma-correlation/`) was read-only.
+
+**On a fresh clone.** Install with `pip install -e '.[all]'` (the `measure` extra brings TreeCorr and fitsio; numpy 2.x and newer numba/astropy are supported, see `docs/COMPATIBILITY.md`; the recorded numbers were produced with the versions above). The catalogue is *not* shipped: it comes from the public KiDS server
+(`https://kids.strw.leidenuniv.nl/DR5/data_files/KiDS_Legacy_NS_unblind_final.fits.gz`, 7.2 GB gzipped, 16.4 GB unpacked; page `https://kids.strw.leidenuniv.nl/DR5/legacy_wl.php`, see `data/README.md`) into `$KIDSPIPE_DR5_CATALOGUE`
+(default `~/kids_dr5_work/KiDS_Legacy_NS_unblind_final.fits`). The per-bin float64 files `bin0.npz` .. `bin5.npz` (about 1.6 GB) live in `$KIDSPIPE_DR5_WORK` (default `~/kids_dr5_work`), and all outputs (`dr5_measure/...`) go to `$KIDSPIPE_RUNS` (default `<repo>/runs`; the shipped records and products
+in `<repo>/runs` are used as inputs when you have not produced your own). The official KiDS-Legacy release files are read from `$KIDSPIPE_OFFICIAL` (default `data/kids_legacy`, shipped). `scripts/dr5_chain.py` automates the chain below (`scripts/README.md`); the table is the sequence it follows,
+with the times that were recorded here. Expect much longer wall times with 2 vCPUs.
 
 ```
-cd /mnt/d/cloning_kids_Kappa_pipeline
-export PYTHONPATH=src OMP_NUM_THREADS=20 PYTHONUNBUFFERED=1
-PY=/home/anut/anaconda3/bin/python3
+# from the repository root of your clone
+export PYTHONPATH=src                              # only needed without `pip install -e .`; the mpirun lines below pass it on with -x PYTHONPATH
+export OMP_NUM_THREADS=20 PYTHONUNBUFFERED=1     # as recorded; use your number of cores (the `$PY` below is any Python with kidspipe installed, e.g. python3)
+PY=python3
 ```
 
 ### 6.2 Commands in order, with recorded run times
 
 | Step | Command | Time (source) |
 |---|---|---|
-| 1. extract the catalogue to float64 per-bin files in `~/kids_dr5_work/` | `$PY scripts/dr5_extract.py` | 432 s (`~/kids_dr5_work/extract_f64.log`); first float32 version 451 s (`runs/dr5_measure/extract.log`) |
+| 1. extract the catalogue to float64 per-bin files in `~/kids_dr5_work/` (`$KIDSPIPE_DR5_WORK`) | `$PY scripts/dr5_extract.py` | 432 s (`~/kids_dr5_work/extract_f64.log`); first float32 version 451 s (`runs/dr5_measure/extract.log`) |
 | 2. integrity check of the extract | `$PY scripts/dr5_extract_check_f64.py` | not logged here; result `xi_unordered/extract_check_f64.json` |
 | 3. TreeCorr, **one process per pair** (21 processes, loop below the table) | `$PY scripts/dr5_measure_xi_unordered.py run --pairs I-J --bin-slop 1.5 --threads 20` | autos 564 to 683 s, crosses 1170 to 1356 s, total 22,748 s = 6.32 h, 20 threads (`xi_unordered/b1.5/manifest.json`, `run_f64_all.log`) |
 | 4. evaluation of all 21 pairs (writes `EVAL.md`, `eval.json`) | `$PY scripts/dr5_measure_xi_unordered.py eval --pairs all --bin-slop 1.5` | minutes; not timed in the logs |
@@ -374,7 +381,7 @@ done
 
 Notes for anyone repeating this:
 
-* **Use one process per pair.** A single process holding several pairs accumulated about 2.5 GB per pair and was OOM-killed (5.9). A fresh cross pair needs about 4.6 GB; peak was 4.4 to 5.0 GB. Under MPI (5.12) each worker drops the previous pair's bins itself, but every worker needs that memory, so use at most 2 workers on 16 GB.
+* **Use one process per pair.** A single process holding several pairs accumulated about 2.5 GB per pair and was OOM-killed (5.9). A fresh cross pair needs about 4.6 GB; peak was 4.4 to 5.0 GB. Under MPI (5.12) each worker drops the previous pair's bins itself, but every worker needs that memory, so use at most 2 workers on 16 GB. On a free Colab runtime (12.7 GB) run one process per pair and at most one MPI worker; the extraction step needs an estimated 2-3 GB.
 * Do not mix with the float32 outputs in `xi_unordered/b1.5_f32/`. The runner skips existing pair files unless `--force` is given; confirm that none is reused. Never launch `angle_slop/queue4.sh`.
 * `bin_slop` is a command-line option (`--bin-slop`); `angle_slop` is left at TreeCorr's default and recorded as `None` in the manifest.
 * The checks in sections 1 to 4 use: `scripts/dr5_adopt_01.py` (A1b-noise, A3, B1-B3 on theirs; outputs in `runs/dr5_measure/adoption/`), `scripts/dr5_a1_salvage.py` (A1 background), `scripts/dr5_b1_integration.py` (B1 trials), `scripts/dr5_sigma_e.py` (sigma_e), `scripts/dr5_sign_convention.py` (sign), `scripts/dr5_angle_slop_study.py` and `scripts/dr5_angle_slop_fullpair.py` (slop study).

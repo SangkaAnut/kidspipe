@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Is spatial chunking EXACT? Compare patch-chunked accumulation against the single-shot run.
 
 ** CONCLUSION SUPERSEDED — READ THIS BEFORE USING THE OUTPUT **
@@ -24,6 +25,10 @@ Method: bin 1, 5% subsample (cheap), 1000 log bins, 2-300 arcmin, bin_slop=0.
 """
 import numpy as np
 import treecorr
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 
 from kidspipe.measure.xi import load_bin, make_treecorr_cat, treecorr_kwargs
 

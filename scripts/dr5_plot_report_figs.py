@@ -1,17 +1,20 @@
 """Compact figures for docs/PIPELINE_ARCHITECTURE_COMPARISON.tex: xi+/-, COSEBIs and a 21-pair summary,
-ours (exact, bin_slop 1.5) against the official release.  Writes docs/figs/*.pdf.   python scripts/dr5_plot_report_figs.py"""
-import importlib.util, sys
+ours (exact, bin_slop 1.5) against the official release.  Writes docs/figs/*.pdf (or $KIDSPIPE_PLOTS/figs if set).
+Inputs: the exact and bin_slop 1.5 products (<runs>/dr5_measure/..., else the shipped copy).   python scripts/dr5_plot_report_figs.py"""
+import importlib.util, os, sys
 from pathlib import Path
 import numpy as np
 
 sys.dont_write_bytecode = True
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 spec = importlib.util.spec_from_file_location("dr5plots", ROOT / "scripts/dr5_make_plots.py")
 P = importlib.util.module_from_spec(spec); spec.loader.exec_module(P)
 of = P.of
-OUT = ROOT / "docs/figs"; OUT.mkdir(exist_ok=True)
-EXACT = ROOT / "runs/dr5_measure/product_exact/dr5_xipm_cosebis_exact.npz"
+OUT = Path(os.environ["KIDSPIPE_PLOTS"]).expanduser() / "figs" if os.environ.get("KIDSPIPE_PLOTS") else ROOT / "docs/figs"
+OUT.mkdir(parents=True, exist_ok=True)
+EXACT = paths.find_result("dr5_measure/product_exact/dr5_xipm_cosebis_exact.npz")
 C_EX, C_B, C_OFF = "#0072B2", "#6b6b6b", "#D55E00"
 SHOW = [(3, 3), (4, 5), (6, 6)]
 

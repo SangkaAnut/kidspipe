@@ -1,13 +1,18 @@
-"""COSEBIs validation numbers + plots (writes plots/cosebis_*.png and runs/cosebis/validation_numbers.json).
+"""COSEBIs validation numbers + plots (writes cosebis_*.png into $KIDSPIPE_PLOTS, default <root>/plots, and
+<runs>/cosebis/validation_numbers_*.json).
 
-Run:  PYTHONPATH=src OMP_NUM_THREADS=4 python3 scripts/cosebis_validate.py [stage]
+Run (from any directory):  OMP_NUM_THREADS=4 python scripts/cosebis_validate.py [stage]
   stage = main   filters, W_n, routes, data-vs-model, covariance, chi2 (plots 01-05, 07, 08)  [~2 min]
-  stage = post   COSEBIs-only posterior (plot 06) from runs/cosebis/chain_n5_c*.npz (made by runs/cosebis/mcmc.py)
-                 + importance reweighting of the xi+/- chain (runs/cosebis/reweight_n5.npz, computed if missing)
+  stage = post   COSEBIs-only posterior (plot 06) from <runs>/cosebis/chain_n5_c*.npz (made by scripts/cosebis_mcmc.py)
+                 + importance reweighting of the xi+/- chain (<runs>/cosebis/reweight_n5.npz, computed if missing)
   stage = all    both (default)
+
+<runs> = $KIDSPIPE_RUNS (default <root>/runs).  Inputs from the KV450 xi+/- analysis (runs/kv450_final/map_best.json and the production
+chains prod*/prod_c*.npz) and the COSEBIs chains / reweight cache are read from <runs> first, else from the copy shipped in <root>/runs.
 """
 import glob
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -19,24 +24,37 @@ import numpy as np
 from scipy import stats
 from scipy.linalg import solve_triangular
 
-from kidspipe.api import build_model
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
+from kidspipe.api import build_model  # noqa: E402
 from kidspipe.theory import cosebis as C
 from kidspipe.likelihood import cosebis as LC
 from kidspipe.likelihood.data import PAIRS
 
-ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "plots"
-RUN = ROOT / "runs" / "cosebis"
+OUT = Path(os.environ["KIDSPIPE_PLOTS"]).expanduser() if os.environ.get("KIDSPIPE_PLOTS") else ROOT / "plots"
+RUN = paths.runs_dir() / "cosebis"
+
+
+def glob_result(pattern):
+    """Files matching ``pattern`` (relative to <runs>): yours if any, else the copies shipped in <root>/runs."""
+    for base in (paths.runs_dir(), paths.shipped_runs_dir()):
+        fs = sorted(glob.glob(str(base / pattern)))
+        if fs:
+            return fs
+    return []
+
+
 STAGE = sys.argv[1] if len(sys.argv) > 1 else "all"
 plt.rcParams.update({"font.size": 9, "figure.dpi": 110, "axes.grid": True, "grid.alpha": 0.25})
 LAB = [f"{i + 1}-{j + 1}" for (j, i) in PAIRS]          # tomographic bin labels (lower bin first)
-best = json.load(open(ROOT / "runs/kv450_final/map_best.json"))
+best = json.load(open(paths.find_result("kv450_final/map_best.json")))
 th_best = np.array(best["theta"])
 NAMES = best["names"]
 
 
 def xi_chain(step=40):
-    fs = sorted(glob.glob(str(ROOT / "runs/kv450_final/prod*/prod_c*.npz")))
+    fs = glob_result("kv450_final/prod*/prod_c*.npz")
     S, D, LP = [], [], []
     for f in fs:
         z = np.load(f)
@@ -75,7 +93,7 @@ def stage_main():
     for k, (Tc, name) in enumerate(((Tp100, "Tplus"), (Tm100, "Tminus"))):
         a = fig.add_subplot(gs[1, k])
         for c, n in enumerate(ovl):
-            tab = np.loadtxt(ROOT / f"data/cosebis/Tplus_minus/{name}{n}_0.50-100.00.table")
+            tab = np.loadtxt(paths.data_dir() / "cosebis" / "Tplus_minus" / f"{name}{n}_0.50-100.00.table")
             a.plot(th100, Tc[n - 1], "-", color=f"C{c}", lw=2.2, alpha=0.6, label=f"computed n={n}")
             a.plot(tab[::25, 0], tab[::25, 1], "k.", ms=3, label="tabulated" if c == 0 else None)
         a.set_xscale("log"); a.set_xlabel(r"$\theta$ [arcmin]")
@@ -84,7 +102,7 @@ def stage_main():
     for k, (Tc, name) in enumerate(((Tp100, "Tplus"), (Tm100, "Tminus"))):
         a = fig.add_subplot(gs[2, k])
         for n in (1, 2, 5, 10, 20):
-            tab = np.loadtxt(ROOT / f"data/cosebis/Tplus_minus/{name}{n}_0.50-100.00.table")
+            tab = np.loadtxt(paths.data_dir() / "cosebis" / "Tplus_minus" / f"{name}{n}_0.50-100.00.table")
             Tn = (F100.Tplus(tab[:, 0], 20) if k == 0 else F100.Tminus(tab[:, 0], 20))[n - 1]
             r = (Tn - tab[:, 1]) / np.abs(tab[:, 1]).max()
             acc[f"{name}_{n}_maxdiff_over_peak"] = float(np.abs(r).max())
@@ -338,7 +356,7 @@ def stage_post(nm=5, tag="n5", burn_extra=0):
     from kidspipe.inference.mcmc import split_rhat, effective_sample_size
     from kidspipe import params
     res = {}
-    fs = sorted(glob.glob(str(RUN / f"chain_{tag}_c*.npz")))
+    fs = glob_result(f"cosebis/chain_{tag}_c*.npz")
     if not fs:
         print("no COSEBIs chains found"); return
     ch = [np.load(f) for f in fs]
@@ -429,15 +447,18 @@ def stage_post(nm=5, tag="n5", burn_extra=0):
 
 def reweight(nm, tag, m, cm, like, n=4000):
     """Importance weights w = L_cosebis(theta)/L_xi(theta) for a thinned xi+/- chain (prior identical)."""
-    f = RUN / f"reweight_{tag}.npz"
+    f = RUN / f"reweight_{tag}.npz"                                  # where a fresh computation is cached
+    fin = paths.find_result(f"cosebis/reweight_{tag}.npz")           # existing cache: yours, else the shipped one
     S, Dxi, LPxi = xi_chain(step=max(1, 272840 // n))
-    if f.exists():
-        z = np.load(f)
+    cached = False
+    if fin.exists():
+        z = np.load(fin)
         if len(z["lnw"]) == len(S):
             lnw, lcos, lxi = z["lnw"], z["lcos"], z["lxi"]
-        else:
+            cached = True
+        elif fin == f:
             f.unlink()
-    if not f.exists():
+    if not cached:
         from kidspipe.api import build_likelihood
         gl = build_likelihood()
         lcos = np.array([like.log_like(cm.mu(t)) for t in S])
@@ -454,7 +475,7 @@ def reweight(nm, tag, m, cm, like, n=4000):
 
 
 if __name__ == "__main__":
-    RUN.mkdir(parents=True, exist_ok=True)
+    RUN.mkdir(parents=True, exist_ok=True); OUT.mkdir(parents=True, exist_ok=True)
     if STAGE in ("main", "all"):
         stage_main()
     if STAGE in ("post", "all"):

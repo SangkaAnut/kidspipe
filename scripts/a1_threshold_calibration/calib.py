@@ -1,6 +1,10 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... 
+# One-off A1b threshold-calibration study, not part of the Colab chain; see scripts/README.md.
+from pathlib import Path as _P
+_R = _P(__file__).resolve().parents[2]      # repository root
 import numpy as np
 from scipy.optimize import brentq
-d=np.load("/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/a1_salvage/threshold_calibration/z.npz"); z,R,meas=d["z"],d["R"],d["meas"]
+d=np.load(str(_R) + "/runs/dr5_measure/a1_salvage/threshold_calibration/z.npz"); z,R,meas=d["z"],d["R"],d["meas"]
 rng=np.random.default_rng(11)
 # per-curve MA(2) fit from lags 1,2 (method of moments): rho1=(t1+t1 t2)/(1+t1^2+t2^2), rho2=t2/(1+t1^2+t2^2)
 from scipy.optimize import least_squares
@@ -26,4 +30,4 @@ for t in (0.787,1.0,1.33): print(f"false-fail rate of threshold {t}: {(mx>t).mea
 # per-curve standardized alternative: largest per-curve pte deficit
 pc=np.array([(N[:,i]>=meas[i]).mean() for i in range(42)])
 print("per-curve null pte: min %.3f (curve %d), median %.3f"%(pc.min(),pc.argmin(),np.median(pc)))
-np.save("/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/a1_salvage/threshold_calibration/nullmax.npy",mx)
+np.save(str(_R) + "/runs/dr5_measure/a1_salvage/threshold_calibration/nullmax.npy",mx)

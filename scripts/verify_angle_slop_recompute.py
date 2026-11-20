@@ -1,3 +1,5 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 import os
 os.environ["OMP_NUM_THREADS"]="2"
 import sys, json, numpy as np
@@ -5,9 +7,10 @@ from pathlib import Path
 from scipy.integrate import simpson
 from scipy.stats import chi2 as chi2d
 from astropy.io import fits
-R=Path("/mnt/d/cloning_kids_Kappa_pipeline"); sys.path.insert(0,str(R/"src"))
+R=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(R/"src"))
 from kidspipe.theory.cosebis import CosebisFilters
-O=Path("/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/KiDS_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/data")
+from kidspipe import paths
+O=paths.official_dir()
 out={}
 # ---- official 9-bin xipm, own parsing (no official.py)
 with fits.open(O/"KiDS_Legacy_xipm.fits") as h:

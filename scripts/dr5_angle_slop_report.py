@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Reduce runs/dr5_measure/angle_slop/study_grid.json (from `dr5_angle_slop_study.py analyze`) to study.json,
 a generated markdown table (ANGLE_SLOP_generated.md) and plots/dr5_angle_slop_*.png.
 

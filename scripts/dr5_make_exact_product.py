@@ -14,17 +14,21 @@ Conventions handled here (the driver is left unchanged):
 
   python scripts/dr5_make_exact_product.py        # product npz + README + exact_vs_b1p5.json + EXACT_VS_B1P5.md
 
-Outputs: runs/dr5_measure/product_exact/ (written to temporary names, validated, then renamed together).
-Read-only inputs: the chunk and assembled files, the bin_slop 1.5 product, the release.
+Outputs: <runs>/dr5_measure/product_exact/ (written to temporary names, validated, then renamed together), <runs> = $KIDSPIPE_RUNS
+(default <root>/runs).
+Read-only inputs: the chunk and assembled files under <runs>/dr5_measure/xi_chunked/ (your own run: the chunk files are not
+shipped), the bin_slop 1.5 product (yours, else the copy shipped in <root>/runs; kidspipe.paths.find_result), the release
+($KIDSPIPE_OFFICIAL).  The step-D model chi2 uses min(8, os.cpu_count()) threads.
 """
-import hashlib, importlib.util, json, sys, time
+import hashlib, importlib.util, json, os, sys, time
 from pathlib import Path
 import numpy as np
 from scipy.stats import chi2 as chi2dist
 
 sys.dont_write_bytecode = True
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from kidspipe import paths  # noqa: E402
 from kidspipe.measure import official as of  # noqa: E402
 from kidspipe.measure.xi2cosebis import e_from_xi_binned  # noqa: E402
 
@@ -34,11 +38,20 @@ u = mk.u
 _spec = importlib.util.spec_from_file_location("chunked", ROOT / "scripts/dr5_measure_xi_chunked.py")
 ch = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(ch)
 
-CHUNKS = ROOT / "runs/dr5_measure/xi_chunked/chunks"
-ASM = ROOT / "runs/dr5_measure/xi_chunked/assembled/ns"
-OUT = ROOT / "runs/dr5_measure/product_exact"
+RUNS = paths.runs_dir()
+CHUNKS = RUNS / "dr5_measure" / "xi_chunked" / "chunks"
+ASM = RUNS / "dr5_measure" / "xi_chunked" / "assembled" / "ns"
+OUT = RUNS / "dr5_measure" / "product_exact"
 PRODUCT = OUT / "dr5_xipm_cosebis_exact.npz"
-B15 = mk.PRODUCT
+B15 = mk.product_path()                 # input: your bin_slop 1.5 product, else the shipped one
+
+
+def _rel(p):
+    """Path relative to the repository root when inside it (the default layout), else the full path."""
+    try:
+        return Path(p).relative_to(ROOT)
+    except ValueError:
+        return Path(p)
 PAIRS1 = mk.PAIRS1
 NM = of.N_MODES
 NCH = 16
@@ -309,7 +322,7 @@ def stepd(d, b15):
     chain = load_chain()
     post = np.where(np.isfinite(chain[:, 43]), chain[:, 43], -np.inf)
     row = int(np.argmax(post)); s = chain_samples(chain, [row])[0]
-    model = LegacyCosebisModel(nthreads=8, cache_dir=str(ROOT / "runs/legacy/cache"), cache_size=1)
+    model = LegacyCosebisModel(nthreads=min(8, os.cpu_count() or 1), cache_dir=str(RUNS / "legacy" / "cache"), cache_size=1)
     like = LegacyCosebisLikelihood()
     mu = model.mu(s)
     cb = of.load_official_cosebis()
@@ -349,7 +362,7 @@ def md_row(p, r):
 def write_md(res, path):
     per, full, ec, dec, fw = res["per_pair"], res["fullvector"], res["edge"], res["decomposition"], res["filter_weighting"]
     L = ["# Exact run vs bin_slop 1.5 product (all 21 pairs)", "",
-         f"Product: `{PRODUCT.relative_to(ROOT)}` (bin_slop 0, angle_slop 0, unordered convention). Reference: `{B15.relative_to(ROOT)}`.",
+         f"Product: `{_rel(PRODUCT)}` (bin_slop 0, angle_slop 0, unordered convention). Reference: `{_rel(B15)}`.",
          "PI decision (2026-11-02): the exact run is not gated; the differences below are reported, with no pass/fail.",
          "All differences are m-corrected and in units of the release's own sigma (diagonal of the official covariance): 9-bin xi",
          "(npairs-weighted rebin, each run with its own npairs) and COSEBIs modes 1-20.", "",

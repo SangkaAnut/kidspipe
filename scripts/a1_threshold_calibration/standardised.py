@@ -1,7 +1,11 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... 
+# One-off A1b threshold-calibration study, not part of the Colab chain; see scripts/README.md.
 """Per-curve standardised criterion (i): calibration + power study.  Usage: standardised.py <stage>
 stages: nulls | real | power | robust | plots   (each caches to runs/.../standardised/)."""
+from pathlib import Path as _P
+_R = _P(__file__).resolve().parents[2]      # repository root
 import sys, json, time
-sys.path.insert(0, "/mnt/d/cloning_kids_Kappa_pipeline/scripts/a1_threshold_calibration")
+sys.path.insert(0, str(_R) + "/scripts/a1_threshold_calibration")
 import numpy as np
 from stdcommon import *
 

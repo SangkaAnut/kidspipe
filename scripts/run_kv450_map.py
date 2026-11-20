@@ -57,7 +57,7 @@ def run_one(job):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--starts", type=int, default=36)
-    ap.add_argument("--workers", type=int, default=12)
+    ap.add_argument("--workers", type=int, default=C.NCPU, help="worker processes (default os.cpu_count())")
     ap.add_argument("--stage", choices=("explore", "polish"), default="explore",
                     help="explore: all starts on the 41-node z grid (L-BFGS-B only); polish: top --top candidates, spec grid, + Powell/NM")
     ap.add_argument("--top", type=int, default=8)
@@ -70,7 +70,7 @@ if __name__ == "__main__":
         jobs = [(n, x, i, 200, 2, "none") for i, (n, x) in enumerate(starts)]
         zg, outf = "reduced", "map_explore.json"
     else:
-        prev = json.load(open(C.OUT / "map_explore.json"))["results"]
+        prev = json.load(open(C.find("map_explore.json")))["results"]
         jobs = [(r["name"], np.array(r["theta"]), i, 300, 3, a.polish) for i, r in enumerate(prev[: a.top])]
         zg, outf = "spec", "map_starts.json"
     with mp.get_context("spawn").Pool(min(a.workers, len(jobs)), initializer=_init, initargs=(zg,)) as pool:

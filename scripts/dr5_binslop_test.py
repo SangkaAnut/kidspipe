@@ -1,3 +1,4 @@
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Is bin_slop=1.5 usable? The validated sibling task (pipeline/01_lensing_validation) measured all 21
 pairs with bin_slop=1.5 at 1.5-1.7e9 pairs/s and matched the official xi+/- to 0.051 sigma, with a
 bin_slop 1.5 -> 0.75 convergence shift of only 0.096 sigma.
@@ -17,6 +18,10 @@ import time
 
 import numpy as np
 import treecorr
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+from kidspipe import paths  # noqa: E402
 
 from kidspipe.measure.xi import load_bin, make_treecorr_cat, treecorr_kwargs
 from kidspipe.measure.official import PAIRS, load_official_xi
@@ -67,9 +72,7 @@ edges = np.exp(np.linspace(np.log(2.0), np.log(300.0), 10))
 print()
 print("Rebinned to 9 bins, max |ours - official| / sigma_official_diag:")
 from astropy.io import fits
-h = fits.open("/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/"
-              "KiDS_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/"
-              "data/KiDS_Legacy_xipm.fits")
+h = fits.open(paths.official_dir() / "KiDS_Legacy_xipm.fits")
 xp9 = h["xiP"].data
 sel = (xp9["BIN1"] == 1) & (xp9["BIN2"] == 1)
 val9 = xp9["VALUE"][sel]
@@ -84,9 +87,9 @@ for s, v in res.items():
     d9 = np.abs(coarse - val9) / sig9
     print(f"  slop={s:4.2f}: max={np.nanmax(d9):8.4f}  median={np.nanmedian(d9):8.4f}")
 
-np.savez("runs/dr5_measure/binslop_test.npz",
+np.savez(paths.runs_dir() / "dr5_measure" / "binslop_test.npz",
          **{f"np_{k}": v["np"] for k, v in res.items()},
          **{f"xip_{k}": v["xip"] for k, v in res.items()},
          **{f"t_{k}": np.array(v["t"]) for k, v in res.items()},
          rnom=ref["rnom"])
-print("\nwrote runs/dr5_measure/binslop_test.npz")
+print("\nwrote", paths.runs_dir() / "dr5_measure" / "binslop_test.npz")

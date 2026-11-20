@@ -10,7 +10,7 @@ from run_kv450_common import api, params, PARAM_NAMES, IDX
 from kidspipe.likelihood.data import PLUS_MASK, PAIRS, N_PER_PAIR
 
 f = sys.argv[1] if len(sys.argv) > 1 else "map_best.json"
-th = np.array(json.load(open(C.OUT / f))["theta"])
+th = np.array(json.load(open(C.find(f)))["theta"])
 post = C.make_post(linear="camb", threads=2)      # exact CAMB here (single point)
 lik = post.likelihood
 mu = post.model.mu(th)

@@ -1,9 +1,11 @@
+# NEEDS EXTERNAL INPUT (not in this repository): the earlier pipeline's outputs under /mnt/d/HI-gamma-correlation/pipeline/... (override the location where the script allows it).
+# One-off investigation script, not part of the Colab chain; see scripts/README.md.
 """Independent verification of the Bin6_Bin6 pilot (does not import dr5_pilot_bin6*.py)."""
 import sys, json, numpy as np
 from pathlib import Path
 from scipy.stats import chi2 as chi2d
 from astropy.io import fits
-ROOT = Path("/mnt/d/cloning_kids_Kappa_pipeline"); sys.path.insert(0, str(ROOT/"src"))
+ROOT = Path(__file__).resolve().parents[1]; sys.path.insert(0, str(ROOT/"src"))
 from kidspipe.measure import official as O
 from kidspipe.measure.a1check import ratio_of_sums
 from kidspipe.measure.xi2cosebis import e_from_xi_binned
