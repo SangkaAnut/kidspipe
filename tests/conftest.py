@@ -5,10 +5,15 @@
   ``KIDSPIPE_TIMING_TESTS=1`` forces them on, ``KIDSPIPE_TIMING_TESTS=0`` off.  No tolerance is relaxed: the tests either run
   with their original limits or are skipped.
 * ``src`` is put on ``sys.path`` (pyproject also sets ``pythonpath``), so the tests run from any working directory.
+* BLAS threads default to 4, as in the ``kidspipe`` CLI (``OMP_NUM_THREADS``): pip's numpy uses OpenBLAS, which otherwise
+  starts one thread per core for the emulator's small matrix products and is 2-3x slower on many-core machines
+  (docs/COMPATIBILITY.md). An explicit ``OMP_NUM_THREADS`` / ``OPENBLAS_NUM_THREADS`` in the environment wins.
 """
 import os
 import sys
 from pathlib import Path
+
+os.environ.setdefault("OPENBLAS_NUM_THREADS", os.environ.get("OMP_NUM_THREADS", "4"))
 
 import pytest
 

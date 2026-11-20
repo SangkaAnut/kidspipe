@@ -94,4 +94,12 @@ alignment, so results changed by about 1 ulp with the thread count or the order 
 fastmath without `reassoc`. They are again bitwise identical across thread counts, input layout and redshift order, on
 numba 0.59 and 0.64. This changes P_nl by at most 2e-14 relative, with no measurable speed change.
 
+## BLAS threads with pip's numpy (OpenBLAS)
+
+pip's numpy ships OpenBLAS, which by default starts one thread per core even for small matrix products. On a 22-core
+machine this made one emulator evaluation take about 22 ms instead of 3 ms (best of 30). Anaconda's numpy, which uses
+MKL, and 2-8 vCPU Colab runtimes are not affected. The `kidspipe` CLI sets `OMP_NUM_THREADS=4` unless it is already
+set, and OpenBLAS honours that; the tests do the same (`tests/conftest.py`). When calling the Python API on a many-core
+machine, set `OMP_NUM_THREADS` (or `OPENBLAS_NUM_THREADS`) before importing numpy.
+
 ## Test suite
