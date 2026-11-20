@@ -1,0 +1,95 @@
+{
+ "n_test": 256,
+ "meta": {
+  "version": 1,
+  "camb_version": "1.5.8",
+  "box": {
+   "omch2": [
+    0.03,
+    0.34
+   ],
+   "ombh2": [
+    0.019,
+    0.026
+   ],
+   "h": [
+    0.64,
+    0.82
+   ]
+  },
+  "seed_train": 20241101,
+  "seed_test": 20241102,
+  "n_train": 1435,
+  "n_test": 256,
+  "n_train_aug": 384,
+  "coords": "log(omch2, ombh2, h) scaled to [-1,1]",
+  "seed_aug": 20241103,
+  "ln_As_ref": 3.0,
+  "ns_ref": 1.0,
+  "mnu": 0.06,
+  "k_per_logint_train": 40,
+  "kmax_train": 21.0,
+  "created": "2026-10-25 21:25:13",
+  "nk": 199,
+  "nz": 169,
+  "target": "PCA(ln P_Mpc(k,z)) and PCA(ln(P_cb/P_tot)) on fixed k grid [1/Mpc]",
+  "tot_npc": 64,
+  "tot_regressor": "polygp2",
+  "tot_validation_max_err": {
+   "poly8": 0.014101241048535957,
+   "poly10": 0.012365649217693835,
+   "polygp3": 0.001489252614335237,
+   "polygp2": 0.0014523764616481286
+  },
+  "rat_npc": 8,
+  "rat_regressor": "polygp2",
+  "rat_validation_max_err": {
+   "poly8": 3.79153135894476e-05,
+   "poly10": 3.4095030507082976e-05,
+   "polygp3": 2.3254199654593695e-05,
+   "polygp2": 2.2696151239346988e-05
+  }
+ },
+ "vs_dense_truth_excluding_camb_glitch_window": {
+  "P_tot_max": 0.0002301810715094432,
+  "P_tot_p99": 0.0001853093466851428,
+  "P_tot_median": 8.617801317871367e-05,
+  "frac_below_5e-4": 1.0
+ },
+ "vs_dense_truth": {
+  "P_tot_max": 0.0018252614634082626,
+  "P_tot_p99": 0.001084948058237464,
+  "P_tot_median": 9.79310150951574e-05,
+  "P_cb_max": 0.001825473407911694,
+  "P_cb_p99": 0.0010850531934702428,
+  "P_cb_median": 9.812406938403729e-05,
+  "frac_below_5e-4": 0.859375,
+  "frac_below_2e-3": 1.0
+ },
+ "vs_default_native_resampled_excluding_camb_glitch_window": {
+  "P_tot_max": 0.0045517940751628825,
+  "P_tot_p99": 0.0031764518753440545,
+  "P_tot_median": 0.00012112982767339901,
+  "frac_below_5e-4": 0.85546875
+ },
+ "vs_default_native_resampled": {
+  "P_tot_max": 0.0045517940751628825,
+  "P_tot_p99": 0.0031764518753440545,
+  "P_tot_median": 0.00012289001576380203,
+  "P_cb_max": 0.004551580827650979,
+  "P_cb_p99": 0.003176487760793451,
+  "P_cb_median": 0.00012301109808445835,
+  "frac_below_5e-4": 0.77734375,
+  "frac_below_2e-3": 0.9765625
+ },
+ "sigma8_rel_vs_dense_camb": {
+  "max": 7.94031445783272e-06,
+  "rms": 2.9936552543709635e-06
+ },
+ "sigma8_rel_vs_default_camb": {
+  "max": 0.001166278183348024
+ },
+ "sigma8_dense_vs_default_camb": {
+  "max": 0.001168060299492013
+ }
+}

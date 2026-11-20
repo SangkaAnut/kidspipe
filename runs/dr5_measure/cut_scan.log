@@ -1,0 +1,30 @@
+npairs ratio 1.41698 -> implied surviving fraction f = 0.8401
+target: each bin keeps 84.0% of 40,894,394 galaxies
+
+cut                                     bin1   bin2   bin3   bin4   bin5   bin6 
+all rows (reference)                    1.000  1.000  1.000  1.000  1.000  1.000   spread=0.0000  dev_from_f=0.160
+SG2DPHOT != 1 (drop stars)              1.000  1.000  1.000  1.000  1.000  1.000   spread=0.0001  dev_from_f=0.160
+FLUX_RADIUS in (0.0,1.2)                0.000  0.000  0.000  0.000  0.000  0.000   spread=0.0000  dev_from_f=0.840
+FLUX_RADIUS in (0.5,1.2)                0.000  0.000  0.000  0.000  0.000  0.000   spread=0.0000  dev_from_f=0.840
+FLUX_RADIUS in (0.0,1.0)                0.000  0.000  0.000  0.000  0.000  0.000   spread=0.0000  dev_from_f=0.840
+FLUX_RADIUS in (0.3,1.2)                0.000  0.000  0.000  0.000  0.000  0.000   spread=0.0000  dev_from_f=0.840
+model_SNratio > 5.0                     1.000  0.999  1.000  1.000  1.000  1.000   spread=0.0001  dev_from_f=0.160
+model_SNratio > 10.0                    0.915  0.831  0.811  0.779  0.722  0.557   spread=0.1114  dev_from_f=0.284
+model_SNratio > 20.0                    0.659  0.528  0.475  0.348  0.214  0.084   spread=0.1938  dev_from_f=0.756
+n_exposures_used >= 5                   0.457  0.461  0.463  0.467  0.483  0.502   spread=0.0157  dev_from_f=0.383
+n_exposures_used == 5                   0.457  0.461  0.463  0.467  0.483  0.502   spread=0.0157  dev_from_f=0.383
+Z_B > 0.1                               1.000  1.000  1.000  1.000  1.000  1.000   spread=0.0000  dev_from_f=0.160
+Z_B > 0.2                               0.841  1.000  1.000  1.000  1.000  1.000   spread=0.0594  dev_from_f=0.160
+Z_B > 0.3                               0.529  1.000  1.000  1.000  1.000  1.000   spread=0.1756  dev_from_f=0.311
+gold_weight_only > 0                    1.000  1.000  1.000  1.000  1.000  1.000   spread=0.0000  dev_from_f=0.160
+shear_weight_only > 0                   1.000  1.000  1.000  1.000  1.000  1.000   spread=0.0000  dev_from_f=0.160
+weight > 10th pctile                    0.900  0.900  0.900  0.900  0.900  0.900   spread=0.0000  dev_from_f=0.060
+weight > 16th pctile                    0.840  0.840  0.840  0.840  0.840  0.840   spread=0.0000  dev_from_f=0.000
+weight > 20th pctile                    0.800  0.800  0.800  0.800  0.800  0.800   spread=0.0000  dev_from_f=0.040
+MAG_AUTO < 24.0                         0.872  0.766  0.733  0.674  0.600  0.391   spread=0.1510  dev_from_f=0.449
+MAG_AUTO < 24.5                         0.967  0.912  0.895  0.878  0.852  0.722   spread=0.0752  dev_from_f=0.127
+MAG_AUTO < 25.0                         1.000  1.000  1.000  1.000  1.000  1.000   spread=0.0000  dev_from_f=0.160
+
+n_eff / NGAL implied area (deg2), reference vs star-rejected:
+  all         1014.03  1014.03  1014.03  1014.03  1014.03  1014.03
+  no stars    1013.74  1013.86  1013.95  1013.98  1013.98  1013.96

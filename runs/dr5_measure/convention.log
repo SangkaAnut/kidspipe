@@ -1,0 +1,12 @@
+bin1: 370,819 galaxies (stride 20)
+bin2: 367,996 galaxies (stride 20)
+  flip1=0,flip2=0 Bin1_Bin1: r_xip=+0.0196 r_xim=+0.1325 xip/xim ours=+0.0175 off=+0.0211
+  flip1=0,flip2=0 Bin1_Bin2: r_xip=+0.0721 r_xim=+0.0310 xip/xim ours=-0.0504 off=-0.0140
+  flip1=0,flip2=1 Bin1_Bin1: r_xip=+0.0195 r_xim=+0.0043 xip/xim ours=+0.0230 off=+0.0211
+  flip1=0,flip2=1 Bin1_Bin2: r_xip=+0.0719 r_xim=-0.0519 xip/xim ours=+0.0904 off=-0.0140
+  flip1=1,flip2=0 Bin1_Bin1: r_xip=+0.0195 r_xim=+0.0043 xip/xim ours=+0.0230 off=+0.0211
+  flip1=1,flip2=0 Bin1_Bin2: r_xip=+0.0719 r_xim=-0.0519 xip/xim ours=+0.0904 off=-0.0140
+  flip1=1,flip2=1 Bin1_Bin1: r_xip=+0.0196 r_xim=+0.1325 xip/xim ours=+0.0175 off=+0.0211
+  flip1=1,flip2=1 Bin1_Bin2: r_xip=+0.0721 r_xim=+0.0310 xip/xim ours=-0.0504 off=-0.0140
+
+adopted: flip1=1,flip2=1 -> {'flip_g1': True, 'flip_g2': True}  (188s)

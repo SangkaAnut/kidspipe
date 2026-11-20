@@ -1,0 +1,90 @@
+{
+  "mode": "galaxy gate only (no --subsample, no --from-npz)",
+  "seconds": 0.7654662132263184,
+  "subsample": 0.0,
+  "nbins": 1000,
+  "bin_slop": 0.0,
+  "threads": 16,
+  "tolerance_weight_full_sample": 0.001,
+  "min_xip_corr": 0.99,
+  "note": "G1 replaces the original npairs ratio; the official npairs column is a normalised non-integer quantity, see PAPER_SELECTION.md Sect. 6. G1 here is galaxy-level and exact (no pair counting); G2 (pair sum(weight)) and G3 (coarse-binned xi+ shape) are secondary consistency numbers.",
+  "G1_galaxy_identity": {
+    "bin1": {
+      "n_gal": 7416371,
+      "n_gal_paper": 7416371,
+      "n_gal_ratio": 1.0,
+      "neff_ours": 1.769810625492281,
+      "neff_paper": 1.77,
+      "neff_ratio_paper": 0.9998930087527012,
+      "neff_ratio_NGAL": 0.9999997738636128,
+      "sigma_e_ours": 0.27600167906796075,
+      "SIG_E": 0.2771685883725985,
+      "sigma_e_ratio": 0.9957898933948854
+    },
+    "bin2": {
+      "n_gal": 7359911,
+      "n_gal_paper": 7359911,
+      "n_gal_ratio": 1.0,
+      "neff_ours": 1.6494262808965743,
+      "neff_paper": 1.65,
+      "neff_ratio_paper": 0.9996522914524694,
+      "neff_ratio_NGAL": 1.000001360484405,
+      "sigma_e_ours": 0.2765341946442614,
+      "SIG_E": 0.2715552181402893,
+      "sigma_e_ratio": 1.0183350426409403
+    },
+    "bin3": {
+      "n_gal": 6799681,
+      "n_gal_paper": 6799681,
+      "n_gal_ratio": 1.0,
+      "neff_ours": 1.4973747376081568,
+      "neff_paper": 1.5,
+      "neff_ratio_paper": 0.9982498250721045,
+      "neff_ratio_NGAL": 1.0000020352035066,
+      "sigma_e_ours": 0.2941137405384826,
+      "SIG_E": 0.28991066919621655,
+      "sigma_e_ratio": 1.0144978153233173
+    },
+    "bin4": {
+      "n_gal": 6880432,
+      "n_gal_paper": 6880432,
+      "n_gal_ratio": 1.0,
+      "neff_ours": 1.4577950624141616,
+      "neff_paper": 1.46,
+      "neff_ratio_paper": 0.998489768776823,
+      "neff_ratio_NGAL": 1.0000004556770496,
+      "sigma_e_ours": 0.28025559823269763,
+      "SIG_E": 0.26186256298927757,
+      "sigma_e_ratio": 1.070239269918752
+    },
+    "bin5": {
+      "n_gal": 6477538,
+      "n_gal_paper": 6477538,
+      "n_gal_ratio": 1.0,
+      "neff_ours": 1.3450939019835462,
+      "neff_paper": 1.35,
+      "neff_ratio_paper": 0.9963658533211452,
+      "neff_ratio_NGAL": 0.999998821236047,
+      "sigma_e_ours": 0.29745338476434463,
+      "SIG_E": 0.2801700179779923,
+      "sigma_e_ratio": 1.061688852044511
+    },
+    "bin6": {
+      "n_gal": 5960461,
+      "n_gal_paper": 5960461,
+      "n_gal_ratio": 1.0,
+      "neff_ours": 1.0681787480142828,
+      "neff_paper": 1.07,
+      "neff_ratio_paper": 0.9982978953404512,
+      "neff_ratio_NGAL": 0.9999999591153768,
+      "sigma_e_ours": 0.3218598577816687,
+      "SIG_E": 0.3001764848718546,
+      "sigma_e_ratio": 1.0722354148396092
+    }
+  },
+  "G2_pair_sum_weight": {},
+  "G3_xip_shape": {},
+  "g1_pass": true,
+  "g3_pass": null,
+  "overall_pass": true
+}

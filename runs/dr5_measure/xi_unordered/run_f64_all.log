@@ -1,0 +1,45 @@
+bin1: n=7,416,371 ra/dec==ext True f32-rounding(radec,e/w) True,True max dra 1.53e-05 -> OK
+bin2: n=7,359,911 ra/dec==ext True f32-rounding(radec,e/w) True,True max dra 1.53e-05 -> OK
+bin3: n=6,799,681 ra/dec==ext True f32-rounding(radec,e/w) True,True max dra 1.53e-05 -> OK
+bin4: n=6,880,432 ra/dec==ext True f32-rounding(radec,e/w) True,True max dra 1.53e-05 -> OK
+bin5: n=6,477,538 ra/dec==ext True f32-rounding(radec,e/w) True,True max dra 1.53e-05 -> OK
+bin6: n=5,960,461 ra/dec==ext True f32-rounding(radec,e/w) True,True max dra 1.53e-05 -> OK
+ALL_OK
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin1_Bin1', 'Bin2_Bin2', 'Bin3_Bin3', 'Bin4_Bin4', 'Bin5_Bin5', 'Bin6_Bin6']
+  loaded bin1: 7,416,371 galaxies
+[    683s] Bin1_Bin1 683.0s npairs=1.2088e+12 w=1.5014e+14
+  loaded bin2: 7,359,911 galaxies
+[   1357s] Bin2_Bin2 672.9s npairs=1.1830e+12 w=1.1697e+14
+  loaded bin3: 6,799,681 galaxies
+[   1983s] Bin3_Bin3 625.8s npairs=1.0128e+12 w=9.3136e+13
+  loaded bin4: 6,880,432 galaxies
+[   2629s] Bin4_Bin4 640.6s npairs=1.0476e+12 w=7.5303e+13
+  loaded bin5: 6,477,538 galaxies
+[   3231s] Bin5_Bin5 601.9s npairs=9.3846e+11 w=5.7963e+13
+  loaded bin6: 5,960,461 galaxies
+[   3795s] Bin6_Bin6 563.5s npairs=8.0679e+11 w=2.2681e+13
+done 3795s
+| Bin1_Bin1 | 0.787 PASS (boxcar only) | 0.0095 / 0.0097 PASS | 0.007 / 0.007 | 0.000 / 0.000 | 7.9 (off 7.9) / 26.5 (off 26.4) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0095 / 0.0097 | 0.007 |
+| Bin2_Bin2 | 0.306 PASS (boxcar only) | 0.0070 / 0.0105 PASS | 0.009 / 0.009 | 0.000 / 0.000 | 5.7 (off 5.7) / 18.1 (off 18.1) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0070 / 0.0105 | 0.009 |
+| Bin3_Bin3 | 0.358 PASS (boxcar only) | 0.0079 / 0.0140 PASS | 0.007 / 0.015 | 0.000 / 0.001 | 7.7 (off 7.7) / 28.7 (off 28.6) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0079 / 0.0140 | 0.015 |
+| Bin4_Bin4 | 0.322 PASS (boxcar only) | 0.0302 / 0.0306 PASS | 0.020 / 0.034 | 0.001 / 0.005 | 3.3 (off 3.3) / 15.9 (off 15.7) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0302 / 0.0306 | 0.034 |
+| Bin5_Bin5 | 0.354 PASS (boxcar only) | 0.0300 / 0.0315 PASS | 0.023 / 0.046 | 0.001 / 0.007 | 6.4 (off 6.6) / 17.8 (off 18.1) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0300 / 0.0315 | 0.046 |
+| Bin6_Bin6 | 0.453 PASS (boxcar only) | 0.0238 / 0.0438 PASS | 0.041 / 0.043 | 0.004 / 0.008 | 19.1 (off 19.2) / 32.4 (off 32.6) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0238 / 0.0438 | 0.043 |
+wrote /mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/xi_unordered/b1.5/eval.json
+AUTOS_EVAL_EXIT=0
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin1_Bin1', 'Bin1_Bin2', 'Bin1_Bin3', 'Bin1_Bin4', 'Bin1_Bin5', 'Bin1_Bin6', 'Bin2_Bin2', 'Bin2_Bin3', 'Bin2_Bin4', 'Bin2_Bin5', 'Bin2_Bin6', 'Bin3_Bin3', 'Bin3_Bin4', 'Bin3_Bin5', 'Bin3_Bin6', 'Bin4_Bin4', 'Bin4_Bin5', 'Bin4_Bin6', 'Bin5_Bin5', 'Bin5_Bin6', 'Bin6_Bin6']
+[      0s] Bin1_Bin1 exists, skipped
+  loaded bin1: 7,416,371 galaxies
+  loaded bin2: 7,359,911 galaxies
+[   1357s] Bin1_Bin2 1356.3s npairs=2.3891e+12 w=2.6471e+14
+  loaded bin1: 7,416,371 galaxies
+  loaded bin3: 6,799,681 galaxies
+[   2653s] Bin1_Bin3 1291.9s npairs=2.2109e+12 w=2.3625e+14
+  loaded bin1: 7,416,371 galaxies
+  loaded bin4: 6,880,432 galaxies
+[   3962s] Bin1_Bin4 1307.8s npairs=2.2483e+12 w=2.1232e+14
+  loaded bin1: 7,416,371 galaxies
+  loaded bin5: 6,477,538 galaxies
+[   5249s] Bin1_Bin5 1285.1s npairs=2.1257e+12 w=1.8602e+14
+runs/dr5_measure/xi_unordered/run_f64_all.sh: line 13: 18509 Killed                     $PY $R run --pairs all --bin-slop 1.5 --threads 20
+CHAIN_ABORT=run_all

@@ -1,0 +1,7 @@
+bin6: 15001 of 5960461 galaxies (0.252 %) within 1.063 deg of (171.322,3.506)
+bin1: 18001 of 7416371 galaxies (0.243 %) within 1.118 deg of (171.322,3.506)
+Bin6-6 paircount 84s npairs=1.1232e+08
+Bin6-6 done 89s
+Bin1-6 paircount 176s npairs=2.6964e+08
+Bin1-6 done 268s
+wrote /mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/product/a4_recheck.json in 268s

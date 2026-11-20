@@ -1,0 +1,25 @@
+bin1 7,416,371 -> 741,637 (10%), 1000 log bins 2-300 arcmin
+  bin_slop=0.00:    88.2 s   npairs=2.41829e+10  pairs/s=2.741e+08
+  bin_slop=0.05:    91.0 s   npairs=2.41829e+10  pairs/s=2.658e+08
+  bin_slop=0.50:    76.0 s   npairs=2.41829e+10  pairs/s=3.183e+08
+  bin_slop=0.75:    66.9 s   npairs=2.41829e+10  pairs/s=3.614e+08
+  bin_slop=1.50:    49.4 s   npairs=2.41828e+10  pairs/s=4.896e+08
+  bin_slop=3.00:    28.2 s   npairs=2.41823e+10  pairs/s=8.567e+08
+
+  slop     time  speedup  npairs ratio  max|dxip|/sig_own  max|dxip|/sig_off
+  0.00    88.2s      1.0x    1.00000000             0.0000             0.0000
+  0.05    91.0s      1.0x    0.99999994             0.4157             2.3647
+  0.50    76.0s      1.2x    0.99999956             1.7530             9.9885
+  0.75    66.9s      1.3x    0.99999895             2.1055            11.9972
+  1.50    49.4s      1.8x    0.99999454             3.0993            17.6554
+  3.00    28.2s      3.1x    0.99997504             4.0186            22.9067
+
+Rebinned to 9 bins, max |ours - official| / sigma_official_diag:
+  slop=0.00: max= 10.8163  median=  7.5966
+  slop=0.05: max= 10.8163  median=  7.6022
+  slop=0.50: max= 10.8163  median=  7.6581
+  slop=0.75: max= 10.8163  median=  7.5767
+  slop=1.50: max= 11.2072  median=  7.7071
+  slop=3.00: max= 10.7694  median=  8.1158
+
+wrote runs/dr5_measure/binslop_test.npz

@@ -1,0 +1,100 @@
+{
+  "A1_A1b_noise": {
+    "xip": {
+      "max_boxcar_over_white": 0.6061133162451822,
+      "median_boxcar_over_white": 0.3559308266138723,
+      "const_chi2": 12.720024781084822,
+      "const_pte": 0.8890707611709706,
+      "C": 1.173216392515128
+    },
+    "xim": {
+      "max_boxcar_over_white": 0.7870160620467269,
+      "median_boxcar_over_white": 0.34972634211459114,
+      "const_chi2": 19.398598218170957,
+      "const_pte": 0.49606883035352567,
+      "C": 1.1820769800812319
+    },
+    "thresholds": {
+      "boxcar_over_white_max": 1.03,
+      "const_pte_min": 0.01
+    },
+    "pass": true
+  },
+  "A3_xiP": {
+    "chi2": 0.030276418103945234,
+    "dof": 189,
+    "chi2_per_dof": 0.0001601926883806626,
+    "max_abs_over_sigma": 0.05277505040576075,
+    "median_abs_over_sigma": 0.005286754040361592,
+    "threshold_max_abs_over_sigma": 0.1,
+    "pass": true
+  },
+  "A3_xiM": {
+    "chi2": 0.031614963085911586,
+    "dof": 189,
+    "chi2_per_dof": 0.00016727493696249516,
+    "max_abs_over_sigma": 0.04384888779043739,
+    "median_abs_over_sigma": 0.007522978007357025,
+    "threshold_max_abs_over_sigma": 0.1,
+    "pass": true
+  },
+  "B1_En_Bn_vs_official": {
+    "En_6m": {
+      "chi2": 0.024194134677122253,
+      "dof": 126,
+      "chi2_per_dof": 0.00019201694188192265,
+      "max_abs_over_sigma": 0.040783444749941895
+    },
+    "En_20m": {
+      "chi2": 0.06982661724939435,
+      "dof": 420,
+      "chi2_per_dof": 0.00016625385059379605,
+      "max_abs_over_sigma": 0.04551892787609456
+    },
+    "Bn_6m": {
+      "chi2": 0.016876587963400365,
+      "dof": 126,
+      "chi2_per_dof": 0.00013394117431270131,
+      "max_abs_over_sigma": 0.029865204867180244
+    },
+    "Bn_20m": {
+      "chi2": 0.06439062076609778,
+      "dof": 420,
+      "chi2_per_dof": 0.00015331100182404232,
+      "max_abs_over_sigma": 0.05204741509366694
+    }
+  },
+  "B3_Bn_null": {
+    "6m": {
+      "chi2_official": 151.05802772505618,
+      "dof": 126,
+      "pte_official": 0.06351703846523342,
+      "chi2_ours": 150.87564587235596,
+      "pte_ours": 0.06479589855607035
+    },
+    "20m": {
+      "chi2_official": 459.3278909189333,
+      "dof": 420,
+      "pte_official": 0.09018922233241977,
+      "chi2_ours": 458.8033420763549,
+      "pte_ours": 0.09299544780641361
+    }
+  },
+  "m_correction": {
+    "m-corrected": {
+      "En_chi2_6m": 0.024194134677122253,
+      "chi2_per_dof": 0.00019201694188192265
+    },
+    "raw (no m)": {
+      "En_chi2_6m": 4.793254744652447,
+      "chi2_per_dof": 0.038041704322638474
+    }
+  },
+  "provenance": {
+    "their_xi": "/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial",
+    "our_integrator": "kidspipe.measure.xi2cosebis.e_from_xi_binned, scheme=edges, unit=rad",
+    "official": "/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/KiDS_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/data",
+    "n_pairs_loaded": 21,
+    "note": "their npairs/weight are UNORDERED-pair counts (gg.process(cat)); do not compare raw pair counts across projects. xi values are convention-independent here."
+  }
+}

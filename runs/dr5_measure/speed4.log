@@ -1,0 +1,5 @@
+treecorr 5.1.4
+['BootstrapPairIterator', 'JackknifePairIterator', 'MarkedPairIterator', 'PairIterator', 'SamplePairIterator', 'angle_slop', 'b', 'bin_size', 'bin_slop', 'bin_type', 'bottom_edges', 'brute', 'build_cov_design_matrix', 'calculateGamSq', 'calculateMapSq', 'clear', 'config', 'coords', 'copy', 'corr', 'cov', 'cov_diag', 'cross_patch_weight', 'dxnom', 'dynom', 'estimate_cov', 'finalize', 'from_file', 'getStat', 'getWeight', 'left_edges', 'logger', 'logr', 'max_rpar', 'max_sep', 'max_top', 'meanlogr', 'meanr', 'metric', 'min_rpar', 'min_sep', 'min_top', 'nbins', 'nonzero', 'npairs', 'npatch1', 'npatch2', 'num_bootstrap', 'output_dots', 'process', 'process_auto', 'process_cross', 'read', 'results', 'right_edges', 'rng', 'rnom', 'sample_pairs', 'sep_units', 'split_method', 'top_edges', 'var_method', 'varxim', 'varxip', 'weight', 'write', 'writeMapSq', 'xim', 'xim_im', 'xip', 'xip_im', 'xperiod', 'yperiod', 'zperiod']
+npairs type <class 'numpy.ndarray'> (1000,)
+meanr nonnan 1000
+xi nonzero no xi

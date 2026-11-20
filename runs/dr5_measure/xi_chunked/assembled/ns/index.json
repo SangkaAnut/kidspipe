@@ -1,0 +1,5 @@
+{
+  "nchunks": 16,
+  "source": "/mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/xi_chunked/chunks",
+  "note": "assembled by fold-weighted summation; exact to 1e-9 (chunk_verify.log)"
+}

@@ -1,0 +1,101 @@
+PAIR_START 1-6 10:44:43 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin1_Bin6']
+  loaded bin1: 7,416,371 galaxies
+  loaded bin6: 5,960,461 galaxies
+[   1236s] Bin1_Bin6 1234.8s npairs=1.9667e+12 w=1.1604e+14
+done 1236s
+PAIR_RSS 1-6 maxrss_kB=4730284 elapsed=1240.73 exit=0
+PAIR_START 2-3 11:05:23 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin2_Bin3']
+  loaded bin2: 7,359,911 galaxies
+  loaded bin3: 6,799,681 galaxies
+[   1321s] Bin2_Bin3 1319.8s npairs=2.1885e+12 w=2.0866e+14
+done 1321s
+PAIR_RSS 2-3 maxrss_kB=4992956 elapsed=1325.47 exit=0
+PAIR_START 2-4 11:27:29 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin2_Bin4']
+  loaded bin2: 7,359,911 galaxies
+  loaded bin4: 6,880,432 galaxies
+[   1336s] Bin2_Bin4 1334.8s npairs=2.2219e+12 w=1.8718e+14
+done 1336s
+PAIR_RSS 2-4 maxrss_kB=5019820 elapsed=1340.50 exit=0
+PAIR_START 2-5 11:49:49 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin2_Bin5']
+  loaded bin2: 7,359,911 galaxies
+  loaded bin5: 6,477,538 galaxies
+[   1287s] Bin2_Bin5 1285.9s npairs=2.0991e+12 w=1.6385e+14
+done 1287s
+PAIR_RSS 2-5 maxrss_kB=4884264 elapsed=1291.21 exit=0
+PAIR_START 2-6 12:11:21 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin2_Bin6']
+  loaded bin2: 7,359,911 galaxies
+  loaded bin6: 5,960,461 galaxies
+[   1228s] Bin2_Bin6 1227.5s npairs=1.9411e+12 w=1.0214e+14
+done 1228s
+PAIR_RSS 2-6 maxrss_kB=4710884 elapsed=1232.86 exit=0
+PAIR_START 3-4 12:31:54 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin3_Bin4']
+  loaded bin3: 6,799,681 galaxies
+  loaded bin4: 6,880,432 galaxies
+[   1277s] Bin3_Bin4 1276.0s npairs=2.0576e+12 w=1.6717e+14
+done 1277s
+PAIR_RSS 3-4 maxrss_kB=4823324 elapsed=1281.31 exit=0
+PAIR_START 3-5 12:53:15 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin3_Bin5']
+  loaded bin3: 6,799,681 galaxies
+  loaded bin5: 6,477,538 galaxies
+[   1240s] Bin3_Bin5 1239.4s npairs=1.9442e+12 w=1.4633e+14
+done 1240s
+PAIR_RSS 3-5 maxrss_kB=4687464 elapsed=1244.51 exit=0
+PAIR_START 3-6 13:13:59 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin3_Bin6']
+  loaded bin3: 6,799,681 galaxies
+  loaded bin6: 5,960,461 galaxies
+[   1185s] Bin3_Bin6 1184.4s npairs=1.7984e+12 w=9.1247e+13
+done 1185s
+PAIR_RSS 3-6 maxrss_kB=4512888 elapsed=1189.46 exit=0
+PAIR_START 4-5 13:33:49 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin4_Bin5']
+  loaded bin4: 6,880,432 galaxies
+  loaded bin5: 6,477,538 galaxies
+[   1256s] Bin4_Bin5 1254.9s npairs=1.9819e+12 w=1.3205e+14
+done 1256s
+PAIR_RSS 4-5 maxrss_kB=4716100 elapsed=1260.04 exit=0
+PAIR_START 4-6 13:54:49 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin4_Bin6']
+  loaded bin4: 6,880,432 galaxies
+  loaded bin6: 5,960,461 galaxies
+[   1192s] Bin4_Bin6 1191.6s npairs=1.8347e+12 w=8.2448e+13
+done 1192s
+PAIR_RSS 4-6 maxrss_kB=4541760 elapsed=1196.65 exit=0
+PAIR_START 5-6 14:14:46 free=13G
+threads=20 (cpu_count=22) treecorr=5.1.4 pairs=['Bin5_Bin6']
+  loaded bin5: 6,477,538 galaxies
+  loaded bin6: 5,960,461 galaxies
+[   1171s] Bin5_Bin6 1170.1s npairs=1.7388e+12 w=7.2440e+13
+done 1171s
+PAIR_RSS 5-6 maxrss_kB=4399776 elapsed=1175.25 exit=0
+| Bin1_Bin1 | 0.787 PASS (boxcar only) | 0.0095 / 0.0097 PASS | 0.007 / 0.007 | 0.000 / 0.000 | 7.9 (off 7.9) / 26.5 (off 26.4) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0095 / 0.0097 | 0.007 |
+| Bin1_Bin2 | 0.379 PASS (boxcar only) | 0.0101 / 0.0100 PASS | 0.004 / 0.011 | 0.000 / 0.000 | 9.8 (off 9.9) / 34.5 (off 34.5) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0101 / 0.0100 | 0.011 |
+| Bin1_Bin3 | 0.377 PASS (boxcar only) | 0.0094 / 0.0072 PASS | 0.009 / 0.009 | 0.000 / 0.000 | 11.8 (off 11.8) / 18.4 (off 18.4) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0094 / 0.0072 | 0.009 |
+| Bin1_Bin4 | 0.418 PASS (boxcar only) | 0.0212 / 0.0175 PASS | 0.025 / 0.025 | 0.001 / 0.003 | 7.5 (off 7.5) / 20.0 (off 19.9) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0212 / 0.0175 | 0.025 |
+| Bin1_Bin5 | 0.366 PASS (boxcar only) | 0.0275 / 0.0311 PASS | 0.035 / 0.035 | 0.002 / 0.004 | 3.3 (off 3.3) / 15.0 (off 15.0) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0275 / 0.0311 | 0.035 |
+| Bin1_Bin6 | 0.450 PASS (boxcar only) | 0.0260 / 0.0262 PASS | 0.026 / 0.027 | 0.002 / 0.003 | 1.6 (off 1.5) / 15.7 (off 15.8) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0260 / 0.0262 | 0.027 |
+| Bin2_Bin2 | 0.306 PASS (boxcar only) | 0.0070 / 0.0105 PASS | 0.009 / 0.009 | 0.000 / 0.000 | 5.7 (off 5.7) / 18.1 (off 18.1) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0070 / 0.0105 | 0.009 |
+| Bin2_Bin3 | 0.350 PASS (boxcar only) | 0.0097 / 0.0081 PASS | 0.003 / 0.007 | 0.000 / 0.000 | 11.4 (off 11.4) / 24.9 (off 24.9) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0097 / 0.0081 | 0.007 |
+| Bin2_Bin4 | 0.397 PASS (boxcar only) | 0.0140 / 0.0124 PASS | 0.017 / 0.017 | 0.000 / 0.001 | 5.0 (off 5.0) / 16.2 (off 16.3) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0140 / 0.0124 | 0.017 |
+| Bin2_Bin5 | 0.326 PASS (boxcar only) | 0.0227 / 0.0119 PASS | 0.011 / 0.022 | 0.001 / 0.003 | 6.3 (off 6.3) / 24.1 (off 24.0) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0227 / 0.0119 | 0.022 |
+| Bin2_Bin6 | 0.449 PASS (boxcar only) | 0.0133 / 0.0144 PASS | 0.016 / 0.026 | 0.001 / 0.004 | 10.0 (off 9.9) / 20.0 (off 19.9) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0133 / 0.0144 | 0.026 |
+| Bin3_Bin3 | 0.358 PASS (boxcar only) | 0.0079 / 0.0140 PASS | 0.007 / 0.015 | 0.000 / 0.001 | 7.7 (off 7.7) / 28.7 (off 28.6) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0079 / 0.0140 | 0.015 |
+| Bin3_Bin4 | 0.404 PASS (boxcar only) | 0.0143 / 0.0145 PASS | 0.019 / 0.029 | 0.001 / 0.003 | 2.5 (off 2.5) / 14.5 (off 14.6) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0143 / 0.0145 | 0.029 |
+| Bin3_Bin5 | 0.348 PASS (boxcar only) | 0.0241 / 0.0337 PASS | 0.034 / 0.034 | 0.003 / 0.005 | 10.3 (off 10.3) / 18.7 (off 18.8) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0241 / 0.0337 | 0.034 |
+| Bin3_Bin6 | 0.606 PASS (boxcar only) | 0.0216 / 0.0184 PASS | 0.024 / 0.037 | 0.001 / 0.006 | 1.1 (off 1.1) / 28.7 (off 28.7) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0216 / 0.0184 | 0.037 |
+| Bin4_Bin4 | 0.322 PASS (boxcar only) | 0.0302 / 0.0306 PASS | 0.020 / 0.034 | 0.001 / 0.005 | 3.3 (off 3.3) / 15.9 (off 15.7) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0302 / 0.0306 | 0.034 |
+| Bin4_Bin5 | 0.408 PASS (boxcar only) | 0.0420 / 0.0346 PASS | 0.032 / 0.044 | 0.003 / 0.008 | 11.8 (off 11.7) / 29.9 (off 29.9) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0420 / 0.0346 | 0.044 |
+| Bin4_Bin6 | 0.381 PASS (boxcar only) | 0.0362 / 0.0178 PASS | 0.017 / 0.036 | 0.001 / 0.005 | 6.6 (off 6.5) / 24.1 (off 24.0) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0362 / 0.0178 | 0.036 |
+| Bin5_Bin5 | 0.354 PASS (boxcar only) | 0.0300 / 0.0315 PASS | 0.023 / 0.046 | 0.001 / 0.007 | 6.4 (off 6.6) / 17.8 (off 18.1) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0300 / 0.0315 | 0.046 |
+| Bin5_Bin6 | 0.439 PASS (boxcar only) | 0.0528 / 0.0310 PASS | 0.030 / 0.032 | 0.002 / 0.006 | 1.8 (off 1.7) / 14.8 (off 15.2) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0528 / 0.0310 | 0.032 |
+| Bin6_Bin6 | 0.453 PASS (boxcar only) | 0.0238 / 0.0438 PASS | 0.041 / 0.043 | 0.004 / 0.008 | 19.1 (off 19.2) / 32.4 (off 32.6) | 0.000, 0.000 / 0.000, 0.000 | 1.0000 | 0.0238 / 0.0438 | 0.043 |
+wrote /mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/xi_unordered/b1.5/eval.json
+ALL_EVAL_EXIT=0
+CHAIN_DONE

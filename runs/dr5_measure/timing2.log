@@ -1,0 +1,5 @@
+n=367996 slop=1.0  32.17s  npairs=5.9117e+09
+n=367996 slop=3.0  19.66s  npairs=5.9116e+09
+   npairs vs slop=1 maxfrac 3.85e-03
+n=367996 slop=10.0  5.03s  npairs=5.9106e+09
+   npairs vs slop=1 maxfrac 1.09e-02

@@ -1,0 +1,5 @@
+391s
+n=1471983 rho=5  npairs_sum=9.4611e+10  official/rho^2=6.8349e+10  ratio=1.3842
+ratio per bin: median 0.0563  std 0.0006  min 0.0551 max 0.0581
+corr of shape (npairs vs ref): 0.999998
+done

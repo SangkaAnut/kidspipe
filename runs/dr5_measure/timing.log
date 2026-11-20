@@ -1,0 +1,4 @@
+frac 0.05 n=367996 slop=0.05  19.2s  npairs=5.912e+09
+frac 0.05 n=367996 slop=0.20  22.2s  npairs=5.912e+09
+frac 0.20 n=1471983 slop=0.05  354.8s  npairs=9.461e+10
+frac 0.20 n=1471983 slop=0.20  394.8s  npairs=9.461e+10

@@ -1,0 +1,12 @@
+MPI: 2 worker ranks x 8 threads; rank 0 schedules. Peak memory per worker is about 2.5 GB (auto pair) to 5 GB (cross pair): keep workers x that below the free memory.
+  loaded bin6: 5,960,461 galaxies in 16 chunks (372,529 .. 372,529 per chunk)
+  loaded bin6: 5,960,461 galaxies in 16 chunks (372,529 .. 372,529 per chunk)
+[     136s] Bin6_Bin6 c00_01:  133.3s npairs=1.504e+10 w=4.255e+11 (rank 2)
+[     170s] Bin6_Bin6 c05_06:   34.0s npairs=3.490e+09 w=9.384e+10 (rank 2)
+[     170s] Bin6_Bin6 c00_02:    0.3s npairs=0.000e+00 w=0.000e+00 (rank 2)
+[     170s] Bin6_Bin6 c00_07:    0.1s npairs=0.000e+00 w=0.000e+00 (rank 2)
+[     170s] Bin6_Bin6 c03_15:    0.4s npairs=0.000e+00 w=0.000e+00 (rank 2)
+[     598s] Bin6_Bin6 c00_00:  595.0s npairs=8.586e+10 w=2.525e+12 (rank 1)
+
+6 chunk-pairs written, 130 already present, 598s
+DR5 MPI wall 599.19 s maxrss 1216192 kB

@@ -1,0 +1,21 @@
+occupied pixels 24950 area deg2 1308.7735280011632
+Using the default cross_patch_weight='simple' may be less accurate than using cross_patch_weight='match'.  See the docs for details about this option.  It may become the new default value in a future version.
+Set cross_patch_weight='simple' explicitly to suppress this message.
+Using the default cross_patch_weight='simple' may be less accurate than using cross_patch_weight='match'.  See the docs for details about this option.  It may become the new default value in a future version.
+Set cross_patch_weight='simple' explicitly to suppress this message.
+a (as is) gt chi2 328.9/15 gx chi2 15.0/15 amp 3.220e-03+-2.069e-04 S/N 15.56  t=25s
+Using the default cross_patch_weight='simple' may be less accurate than using cross_patch_weight='match'.  See the docs for details about this option.  It may become the new default value in a future version.
+Set cross_patch_weight='simple' explicitly to suppress this message.
+Using the default cross_patch_weight='simple' may be less accurate than using cross_patch_weight='match'.  See the docs for details about this option.  It may become the new default value in a future version.
+Set cross_patch_weight='simple' explicitly to suppress this message.
+b (flip_g2) gt chi2 5.4/15 gx chi2 5.9/15 amp 2.596e-04+-2.555e-04 S/N 1.02  t=48s
+Using the default cross_patch_weight='simple' may be less accurate than using cross_patch_weight='match'.  See the docs for details about this option.  It may become the new default value in a future version.
+Set cross_patch_weight='simple' explicitly to suppress this message.
+Using the default cross_patch_weight='simple' may be less accurate than using cross_patch_weight='match'.  See the docs for details about this option.  It may become the new default value in a future version.
+Set cross_patch_weight='simple' explicitly to suppress this message.
+c (flip_g1) gt chi2 5.4/15 gx chi2 5.9/15 amp -2.596e-04+-2.555e-04 S/N -1.02  t=70s
+Using the default cross_patch_weight='simple' may be less accurate than using cross_patch_weight='match'.  See the docs for details about this option.  It may become the new default value in a future version.
+Set cross_patch_weight='simple' explicitly to suppress this message.
+Using the default cross_patch_weight='simple' may be less accurate than using cross_patch_weight='match'.  See the docs for details about this option.  It may become the new default value in a future version.
+Set cross_patch_weight='simple' explicitly to suppress this message.
+d (both) gt chi2 328.9/15 gx chi2 15.0/15 amp -3.220e-03+-2.069e-04 S/N -15.56  t=88s

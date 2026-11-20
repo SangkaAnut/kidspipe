@@ -1,0 +1,70 @@
+# ---- Python / tooling -------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.nbi
+*.nbc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
+
+# ---- third-party reference code (kcap, has its own .git; see README) ----------
+/reference/
+
+# ---- run outputs: ignored by default, a curated set of results is kept -------
+/runs/**
+!/runs/**/
+*.hdf5
+*.part
+.*.part
+
+# small top-level result files (benchmarks, emulator validation)
+!/runs/*.json
+
+# KV450 xi+- analysis (docs/RESULTS.md): numbers, MAP, production chains (41 MB)
+!/runs/kv450_final/*.json
+!/runs/kv450_final/*.txt
+!/runs/kv450_final/*.log
+!/runs/kv450_final/combined_prod1_prod2/**
+!/runs/kv450_final/prod1/**
+!/runs/kv450_final/prod2/**
+!/runs/kv450_final/pilot1/pilot.npz
+!/runs/kv450_final/sens/*.json
+!/runs/kv450_final/nautilus*/nested_summary.json
+!/runs/kv450_final/nautilus3/nested.npz
+!/runs/kv450_blocked*/mcmc_summary.json
+!/runs/kv450_blocked*/summary_blocked.txt
+!/runs/kv450_blocked*/chain.npz
+
+# COSEBIs and KiDS-Legacy validation
+!/runs/cosebis/**
+!/runs/legacy_val/**
+!/runs/legacy/*.json
+!/runs/emulator_train/validation.json
+!/runs/emulator_train/kgrid.npy
+!/runs/emulator_train/zgrid.npy
+
+# DR5 measurement record (docs/DR5_MEASUREMENT_REPORT.md) and products
+!/runs/dr5_measure/*.md
+!/runs/dr5_measure/*.json
+!/runs/dr5_measure/*.log
+!/runs/dr5_measure/adoption/**
+!/runs/dr5_measure/sign_convention/**
+!/runs/dr5_measure/sigma_e/**
+!/runs/dr5_measure/product/**
+!/runs/dr5_measure/product_exact/**
+!/runs/dr5_measure/xi_unordered/**
+!/runs/dr5_measure/angle_slop/**/*.md
+!/runs/dr5_measure/angle_slop/**/*.json
+!/runs/dr5_measure/a1_salvage/*.json
+!/runs/dr5_measure/a1_salvage/*.md
+!/runs/dr5_measure/xi_chunked/*.md
+!/runs/dr5_measure/xi_chunked/*.json
+!/runs/dr5_measure/xi_chunked/*.log
+!/runs/dr5_measure/xi_chunked/assembled/**
+!/runs/dr5_measure/xi_chunked/mpi_check_20261120/**
+/runs/dr5_measure/xi_unordered/b1.5_f32/

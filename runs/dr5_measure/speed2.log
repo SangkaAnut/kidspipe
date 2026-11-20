@@ -1,0 +1,9 @@
+slop 0.05 5.2s
+npairs nonzero bins: 0 of 1000
+npairs[0:3] [0. 0. 0.] [500] 0.0 [-3:] [0. 0. 0.]
+rnom[0:3] [2.00501692 2.01508854 2.02521075]
+meanr[500] 24.55634186339613 xip[500] 0.0 xim[500] 0.0
+total npairs 0.0000e+00 weight 0.0000e+00
+Traceback (most recent call last):
+  File "<stdin>", line 14, in <module>
+AttributeError: 'GGCorrelation' object has no attribute 'sigma_xi'

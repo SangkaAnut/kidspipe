@@ -1,0 +1,4 @@
+random16       chi2=181.877 lnP=-63.969 S8=0.783 Om=0.107 s8=1.310 evals=6755 t=924s
+random07       chi2=181.874 lnP=-63.969 S8=0.783 Om=0.110 s8=1.294 evals=10610 t=1430s
+boundary_prev  chi2=181.875 lnP=-63.969 S8=0.783 Om=0.111 s8=1.290 evals=13456 t=1731s
+wall 1732.710444688797

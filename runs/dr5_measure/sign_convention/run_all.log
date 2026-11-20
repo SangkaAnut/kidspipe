@@ -1,0 +1,13 @@
+loaded: lenses 300000, randoms 600000, sources 5960461 in 0s
+  variant a: catalogue e1,e2 as is
+    process lens 14s (incl. cat build), randoms 13s
+    gt chi2 88.8/15 (pte 1.6e-12)  gx chi2 14.9/15 (pte 0.46)  template amp 0.00215+-0.00025
+  variant b: flip_g2
+    process lens 13s (incl. cat build), randoms 13s
+    gt chi2 7.7/15 (pte 0.93)  gx chi2 6.5/15 (pte 0.97)  template amp -0.000437+-0.00029
+  variant c: flip_g1
+    process lens 14s (incl. cat build), randoms 20s
+    gt chi2 7.7/15 (pte 0.93)  gx chi2 6.5/15 (pte 0.97)  template amp 0.000437+-0.00029
+  variant d: flip_g1+flip_g2
+    process lens 18s (incl. cat build), randoms 13s
+    gt chi2 88.8/15 (pte 1.6e-12)  gx chi2 14.9/15 (pte 0.46)  template amp -0.00215+-0.00025

@@ -1,0 +1,11 @@
+n=1483275 north=747829 south=735446
+no patches  354.9s npairs=9.6691e+10
+Traceback (most recent call last):
+  File "<stdin>", line 13, in <module>
+  File "/home/anut/.local/lib/python3.12/site-packages/treecorr/catalog.py", line 986, in __init__
+    self._patch = self.makeArray(patch,'patch',int)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/anut/.local/lib/python3.12/site-packages/treecorr/catalog.py", line 1675, in makeArray
+    col = np.array(col,dtype=dtype)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'S'

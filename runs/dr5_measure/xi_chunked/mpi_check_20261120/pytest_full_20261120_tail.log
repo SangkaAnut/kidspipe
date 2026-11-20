@@ -1,0 +1,17 @@
+    the requested tolerance from being achieved.  The error may be 
+    underestimated.
+    ref = np.array([quad(lambda t: t * jv(mu, t), 0, xx, epsabs=0, epsrel=1e-12, limit=2000)[0] for xx in x])
+
+tests/test_measure_unordered.py::test_eval_scale_invariant_and_ordered_normalisation
+  /home/anut/anaconda3/lib/python3.12/site-packages/numpy/lib/function_base.py:2897: RuntimeWarning: invalid value encountered in divide
+    c /= stddev[:, None]
+
+tests/test_mpi.py::test_pool_adapter_on_local_executor
+tests/test_mpi.py::test_pool_adapter_on_local_executor
+  /home/anut/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=123046) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+400 passed, 4 warnings in 723.61s (0:12:03)
+
+[exited with code 0]

@@ -1,0 +1,4 @@
+n=1471983
+slop=0.05    382.1s  npairs=9.4611e+10  rate=2.48e+08/s
+slop=0.30    312.9s  npairs=9.4611e+10  rate=3.02e+08/s
+slop=1.00    235.6s  npairs=9.4610e+10  rate=4.01e+08/s

@@ -1,0 +1,21 @@
+chain 4 cycles 500 t=1478s fallback=0 box_rejects=449
+chain 0 cycles 500 t=1509s fallback=0 box_rejects=368
+chain 2 cycles 500 t=1510s fallback=0 box_rejects=416
+(0, 1511.280300617218, 500, 368, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4089.0, 'resync_seconds': 0.0, 'emu_evals': 1230.0, 'emu_cache_hits': 2859.0, 'fallback': 0.0, 'emu_seconds': 39.31068526007584})
+(2, 1512.3742713928223, 500, 416, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4086.0, 'resync_seconds': 0.0, 'emu_evals': 1231.0, 'emu_cache_hits': 2855.0, 'fallback': 0.0, 'emu_seconds': 38.68687530323223})
+chain 1 cycles 500 t=1532s fallback=0 box_rejects=464
+(1, 1534.6613745689392, 500, 464, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4128.0, 'resync_seconds': 0.0, 'emu_evals': 1291.0, 'emu_cache_hits': 2837.0, 'fallback': 0.0, 'emu_seconds': 40.719476897938875})
+chain 7 cycles 500 t=1540s fallback=0 box_rejects=448
+(7, 1541.3278279304504, 500, 448, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4125.0, 'resync_seconds': 0.0, 'emu_evals': 1260.0, 'emu_cache_hits': 2865.0, 'fallback': 0.0, 'emu_seconds': 39.36950695620908})
+chain 9 cycles 500 t=1556s fallback=0 box_rejects=428
+chain 3 cycles 500 t=1557s fallback=0 box_rejects=430
+(9, 1557.3237617015839, 500, 428, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4225.0, 'resync_seconds': 0.0, 'emu_evals': 1272.0, 'emu_cache_hits': 2953.0, 'fallback': 0.0, 'emu_seconds': 39.51974736667762})
+(3, 1558.1724872589111, 500, 430, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4183.0, 'resync_seconds': 0.0, 'emu_evals': 1321.0, 'emu_cache_hits': 2862.0, 'fallback': 0.0, 'emu_seconds': 41.03249537407828})
+chain 8 cycles 500 t=1561s fallback=0 box_rejects=313
+(8, 1562.1057441234589, 500, 313, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4231.0, 'resync_seconds': 0.0, 'emu_evals': 1313.0, 'emu_cache_hits': 2918.0, 'fallback': 0.0, 'emu_seconds': 39.902173724753084})
+chain 6 cycles 500 t=1573s fallback=0 box_rejects=386
+(6, 1573.0984816551208, 500, 386, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4289.0, 'resync_seconds': 0.0, 'emu_evals': 1359.0, 'emu_cache_hits': 2930.0, 'fallback': 0.0, 'emu_seconds': 40.00053608295275})
+chain 5 cycles 500 t=1577s fallback=0 box_rejects=241
+(5, 1577.629808664322, 500, 241, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4403.0, 'resync_seconds': 0.0, 'emu_evals': 1369.0, 'emu_cache_hits': 3034.0, 'fallback': 0.0, 'emu_seconds': 40.21205651026685})
+chain 4 cycles 1000 t=1598s fallback=0 box_rejects=610
+(4, 1598.9111738204956, 1000, 610, {'camb_runs': 0.0, 'cache_hits': 0.0, 'camb_seconds': 0.0, 'compute_calls': 4810.0, 'resync_seconds': 0.0, 'emu_evals': 1440.0, 'emu_cache_hits': 3370.0, 'fallback': 0.0, 'emu_seconds': 38.96512271100073})

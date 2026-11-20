@@ -1,0 +1,17 @@
+rows=40,894,394
+  read 5,000,000/40,894,394  208s
+  read 10,000,000/40,894,394  404s
+  read 15,000,000/40,894,394  569s
+  read 20,000,000/40,894,394  655s
+  read 25,000,000/40,894,394  730s
+  read 30,000,000/40,894,394  803s
+  read 35,000,000/40,894,394  877s
+  read 40,000,000/40,894,394  950s
+  read 40,894,394/40,894,394  963s
+bin1: n=7,416,371 SG2DPHOT==1 0.00024 weight==shearw 0.692
+bin2: n=7,359,911 SG2DPHOT==1 0.00014 weight==shearw 0.814
+bin3: n=6,799,681 SG2DPHOT==1 0.00006 weight==shearw 0.845
+bin4: n=6,880,432 SG2DPHOT==1 0.00004 weight==shearw 0.913
+bin5: n=6,477,538 SG2DPHOT==1 0.00004 weight==shearw 0.964
+bin6: n=5,960,461 SG2DPHOT==1 0.00009 weight==shearw 0.557
+done in 973s

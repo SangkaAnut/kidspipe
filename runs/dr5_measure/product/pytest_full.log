@@ -1,0 +1,104 @@
+........................................................................ [ 18%]
+................F..........................F............................ [ 37%]
+........................................................................ [ 56%]
+........................................................................ [ 75%]
+........................................................................ [ 94%]
+...................                                                      [100%]
+=================================== FAILURES ===================================
+____________ test_shared_model_threads_last_derived_is_thread_local ____________
+
+    def test_shared_model_threads_last_derived_is_thread_local():
+        """Review fix: ``CosmicShearModel.last_derived`` used to be one attribute shared by all threads (6 % wrong values
+        in a 4-thread stress test, which would corrupt ``DerivedRecorder``); it is thread-local now and the stage caches
+        are locked.  ``mu`` itself must be identical to a serial evaluation."""
+        import sys
+        import threading
+    
+        from kidspipe import api
+        from kidspipe.theory.model import CosmicShearModel
+    
+        def mk():
+            return CosmicShearModel(linear_backend="emulator", z_grid="reduced", n_ell=100, n_nodes=300, nthreads=1, cache_size=2)
+    
+        base = api.preset("scan")
+        ths = []
+        for k in range(4):
+            t = base.copy()
+            t[0], t[2], t[6] = 0.10 + 0.04 * k, 0.66 + 0.04 * k, 0.5 * k - 0.7
+            ths.append(t)
+        ref_mu, ref_s8 = [], []
+        for t in ths:
+            m = mk()
+            ref_mu.append(m.mu(t))
+            ref_s8.append(m.last_derived["sigma8"])
+        shared = mk()
+        bad, errs = [], []
+    
+        def work(seed):
+            r = np.random.default_rng(seed)
+            for _ in range(40):
+                i = int(r.integers(len(ths)))
+                try:
+                    mu = shared.mu(ths[i])
+                    # mu: equal up to BLAS summation order (multi-threaded OpenBLAS may split a matmul differently under
+                    # contention: ~1e-16); sigma8 is BLAS-free and must be exactly the serial value of ITS OWN cosmology
+                    if not np.allclose(mu, ref_mu[i], rtol=1e-10, atol=0.0) or shared.last_derived["sigma8"] != ref_s8[i]:
+                        bad.append(i)
+                except Exception as e:      # noqa: BLE001
+                    errs.append(repr(e))
+    
+        old = sys.getswitchinterval()
+        sys.setswitchinterval(1e-6)
+        try:
+            ts = [threading.Thread(target=work, args=(s,)) for s in range(4)]
+            [t.start() for t in ts]
+            [t.join() for t in ts]
+        finally:
+            sys.setswitchinterval(old)
+>       assert not errs and not bad, (errs[:2], len(bad))
+E       AssertionError: ([], 81)
+E       assert (not [] and not [1, 0, 1, 0, 0, 1, ...])
+
+tests/test_emulator.py:374: AssertionError
+______________________ test_timing_fast_operator_and_fft _______________________
+
+    def test_timing_fast_operator_and_fft():
+        C, _ = realistic_spectra()
+        fast = H.HankelBinner(ELL)
+        kc = H.HankelBinner(ELL, fidelity="kcap")
+        fast.xi_binned(C)
+        kc.xi_binned(C)
+        n = 200
+        t0 = time.perf_counter()
+        for _ in range(n):
+            fast.xi_binned(C)
+        t_fast = (time.perf_counter() - t0) / n
+        n2 = 20
+        t0 = time.perf_counter()
+        for _ in range(n2):
+            kc.xi_binned(C)
+        t_fft = (time.perf_counter() - t0) / n2
+        print(f"[hankel] timing: fast operator {t_fast * 1e6:.0f} us, FFT+trapezoid {t_fft * 1e3:.2f} ms")
+>       assert t_fast < 2e-3
+E       assert 0.0020749870200006625 < 0.002
+
+tests/test_hankel.py:465: AssertionError
+----------------------------- Captured stdout call -----------------------------
+[hankel] timing: fast operator 2075 us, FFT+trapezoid 1.38 ms
+=============================== warnings summary ===============================
+tests/test_hankel.py::test_bessel_antiderivative_vs_quad
+  /mnt/d/cloning_kids_Kappa_pipeline/tests/test_hankel.py:299: IntegrationWarning: The occurrence of roundoff error is detected, which prevents 
+    the requested tolerance from being achieved.  The error may be 
+    underestimated.
+    ref = np.array([quad(lambda t: t * jv(mu, t), 0, xx, epsabs=0, epsrel=1e-12, limit=2000)[0] for xx in x])
+
+tests/test_measure_unordered.py::test_eval_scale_invariant_and_ordered_normalisation
+  /home/anut/anaconda3/lib/python3.12/site-packages/numpy/lib/function_base.py:2897: RuntimeWarning: invalid value encountered in divide
+    c /= stddev[:, None]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_emulator.py::test_shared_model_threads_last_derived_is_thread_local
+FAILED tests/test_hankel.py::test_timing_fast_operator_and_fft - assert 0.002...
+2 failed, 377 passed, 2 warnings in 1231.60s (0:20:31)
+EXIT=1

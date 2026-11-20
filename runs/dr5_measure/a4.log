@@ -1,0 +1,7 @@
+paircount: npairs=4494658  |xi_x|max=1.344e-03
+  flip1=0,flip2=0: npairs ratio=0.500000+-4.4e-04 | xip r=+1.00000 ratio=+1.0000 | xim r=+0.80399 ratio=+0.3863 | xim high-SNR r=+0.83297 ratio=+0.3870
+  flip1=0,flip2=1: npairs ratio=0.500000+-4.4e-04 | xip r=+1.00000 ratio=+1.0000 | xim r=+0.99999 ratio=+1.0000 | xim high-SNR r=+0.99999 ratio=+1.0000
+  flip1=1,flip2=0: npairs ratio=0.500000+-4.4e-04 | xip r=+1.00000 ratio=+1.0000 | xim r=+0.99999 ratio=+1.0000 | xim high-SNR r=+0.99999 ratio=+1.0000
+  flip1=1,flip2=1: npairs ratio=0.500000+-4.4e-04 | xip r=+1.00000 ratio=+1.0000 | xim r=+0.80399 ratio=+0.3863 | xim high-SNR r=+0.83297 ratio=+0.3870
+
+best by xi agreement: flip1=0,flip2=1

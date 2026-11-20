@@ -1,0 +1,117 @@
+{
+ "bin1": {
+  "n_new": 7416371,
+  "n_old": 7416371,
+  "n_ext": 7416371,
+  "dtypes_new": {
+   "ra": "float64",
+   "dec": "float64",
+   "e1": "float64",
+   "e2": "float64",
+   "w": "float64"
+  },
+  "ra_dec_equal_ext": true,
+  "max_dra_vs_old_deg": 1.5257812492563971e-05,
+  "max_ddec_vs_old_deg": 1.9072265615704964e-06,
+  "radec_old_is_f32_rounding": true,
+  "e_w_old_is_f32_rounding": true,
+  "north_equal": true,
+  "ok": true
+ },
+ "bin2": {
+  "n_new": 7359911,
+  "n_old": 7359911,
+  "n_ext": 7359911,
+  "dtypes_new": {
+   "ra": "float64",
+   "dec": "float64",
+   "e1": "float64",
+   "e2": "float64",
+   "w": "float64"
+  },
+  "ra_dec_equal_ext": true,
+  "max_dra_vs_old_deg": 1.5257812492563971e-05,
+  "max_ddec_vs_old_deg": 1.9072265615704964e-06,
+  "radec_old_is_f32_rounding": true,
+  "e_w_old_is_f32_rounding": true,
+  "north_equal": true,
+  "ok": true
+ },
+ "bin3": {
+  "n_new": 6799681,
+  "n_old": 6799681,
+  "n_ext": 6799681,
+  "dtypes_new": {
+   "ra": "float64",
+   "dec": "float64",
+   "e1": "float64",
+   "e2": "float64",
+   "w": "float64"
+  },
+  "ra_dec_equal_ext": true,
+  "max_dra_vs_old_deg": 1.5257812492563971e-05,
+  "max_ddec_vs_old_deg": 1.9072265615704964e-06,
+  "radec_old_is_f32_rounding": true,
+  "e_w_old_is_f32_rounding": true,
+  "north_equal": true,
+  "ok": true
+ },
+ "bin4": {
+  "n_new": 6880432,
+  "n_old": 6880432,
+  "n_ext": 6880432,
+  "dtypes_new": {
+   "ra": "float64",
+   "dec": "float64",
+   "e1": "float64",
+   "e2": "float64",
+   "w": "float64"
+  },
+  "ra_dec_equal_ext": true,
+  "max_dra_vs_old_deg": 1.5257812492563971e-05,
+  "max_ddec_vs_old_deg": 1.9072265615704964e-06,
+  "radec_old_is_f32_rounding": true,
+  "e_w_old_is_f32_rounding": true,
+  "north_equal": true,
+  "ok": true
+ },
+ "bin5": {
+  "n_new": 6477538,
+  "n_old": 6477538,
+  "n_ext": 6477538,
+  "dtypes_new": {
+   "ra": "float64",
+   "dec": "float64",
+   "e1": "float64",
+   "e2": "float64",
+   "w": "float64"
+  },
+  "ra_dec_equal_ext": true,
+  "max_dra_vs_old_deg": 1.5257812492563971e-05,
+  "max_ddec_vs_old_deg": 1.9072265615704964e-06,
+  "radec_old_is_f32_rounding": true,
+  "e_w_old_is_f32_rounding": true,
+  "north_equal": true,
+  "ok": true
+ },
+ "bin6": {
+  "n_new": 5960461,
+  "n_old": 5960461,
+  "n_ext": 5960461,
+  "dtypes_new": {
+   "ra": "float64",
+   "dec": "float64",
+   "e1": "float64",
+   "e2": "float64",
+   "w": "float64"
+  },
+  "ra_dec_equal_ext": true,
+  "max_dra_vs_old_deg": 1.5257812492563971e-05,
+  "max_ddec_vs_old_deg": 1.9072265615704964e-06,
+  "radec_old_is_f32_rounding": true,
+  "e_w_old_is_f32_rounding": true,
+  "north_equal": true,
+  "ok": true
+ },
+ "all_ok": true
+}

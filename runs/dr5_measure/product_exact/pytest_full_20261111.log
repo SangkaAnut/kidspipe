@@ -1,0 +1,20 @@
+........................................................................ [ 18%]
+........................................................................ [ 36%]
+........................................................................ [ 55%]
+........................................................................ [ 73%]
+........................................................................ [ 92%]
+...............................                                          [100%]
+=============================== warnings summary ===============================
+tests/test_hankel.py::test_bessel_antiderivative_vs_quad
+  /mnt/d/cloning_kids_Kappa_pipeline/tests/test_hankel.py:299: IntegrationWarning: The occurrence of roundoff error is detected, which prevents 
+    the requested tolerance from being achieved.  The error may be 
+    underestimated.
+    ref = np.array([quad(lambda t: t * jv(mu, t), 0, xx, epsabs=0, epsrel=1e-12, limit=2000)[0] for xx in x])
+
+tests/test_measure_unordered.py::test_eval_scale_invariant_and_ordered_normalisation
+  /home/anut/anaconda3/lib/python3.12/site-packages/numpy/lib/function_base.py:2897: RuntimeWarning: invalid value encountered in divide
+    c /= stddev[:, None]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+391 passed, 2 warnings in 608.60s (0:10:08)
+WALL 609.23 s

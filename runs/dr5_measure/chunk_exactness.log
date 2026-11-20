@@ -1,0 +1,16 @@
+bin1 7,416,371 -> 370,818
+single: npairs=6.043768e+09  sum(weight)=7.513397e+11
+  chunk 0: 92,705 galaxies
+  chunk 1: 92,704 galaxies
+  chunk 2: 92,704 galaxies
+  chunk 3: 92,705 galaxies
+chunked: npairs=5.845268e+09  sum(weight)=7.265534e+11
+
+=== agreement ===
+npairs  : max |diff| = 2.650876e+06   total ratio = 0.967156198630
+weight  : max |diff| = 3.309435e+08   total ratio = 0.967010600972
+xip     : max |rel diff| = 1.850377e+01
+          corr = 0.999780403017
+          max |pull| in sigma units = 0.5369
+
+VERDICT: NOT exact -> chunking changes the answer

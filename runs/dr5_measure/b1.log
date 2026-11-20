@@ -1,0 +1,15 @@
+meanr  edges   arcmin  chi2/420=304337454864757.438 chi2/126=743624314913206.250  max|dE|/sig=157272302.057 rmsB/sig=9215873.664
+meanr  edges   rad     chi2/420=     0.054 chi2/126=    0.098  max|dE|/sig=    1.577 rmsB/sig=    0.194
+meanr  centre  arcmin  chi2/420=304275238042646.125 chi2/126=743475447462711.750  max|dE|/sig=157249909.787 rmsB/sig=9214885.412
+meanr  centre  rad     chi2/420=     0.054 chi2/126=    0.098  max|dE|/sig=    1.578 rmsB/sig=    0.194
+meanr  trapz   arcmin  chi2/420=13845573167534.281 chi2/126=37116091920281.016  max|dE|/sig=10202369.119 rmsB/sig=1479065.856
+meanr  trapz   rad     chi2/420=     2.057 chi2/126=    4.841  max|dE|/sig=   13.564 rmsB/sig=    0.870
+r_nom  edges   arcmin  chi2/420=303943867815064.938 chi2/126=743091225197847.000  max|dE|/sig=157211594.514 rmsB/sig=9188360.432
+r_nom  edges   rad     chi2/420=     0.054 chi2/126=    0.098  max|dE|/sig=    1.582 rmsB/sig=    0.195
+r_nom  centre  arcmin  chi2/420=303941960083709.875 chi2/126=743086561118103.500  max|dE|/sig=157211101.137 rmsB/sig=9188331.596
+r_nom  centre  rad     chi2/420=     0.054 chi2/126=    0.098  max|dE|/sig=    1.582 rmsB/sig=    0.195
+r_nom  trapz   arcmin  chi2/420=13846262044495.852 chi2/126=37117565014165.820  max|dE|/sig=10202248.213 rmsB/sig=1479061.569
+r_nom  trapz   rad     chi2/420=     2.057 chi2/126=    4.841  max|dE|/sig=   13.564 rmsB/sig=    0.870
+
+best: meanr|edges|rad  chi2/126 = 0.0977
+wrote /mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/b1_integration.json in 2s

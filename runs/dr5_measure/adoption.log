@@ -1,0 +1,25 @@
+loaded 21/21 of their pairs
+
+=== A1: their xi+ vs official ascii, 1000 fine bins ===
+  correlation: min=0.97720 median=0.98752 max=0.99569
+  -> SHAPE PROBLEM
+
+=== A3: their xi rebinned to 9 bins vs official xipm FITS (378 pts) ===
+  xiP: chi2=0.0303 / dof=189 = 0.0002   max|d|/sig=0.0528  median=0.0053
+  xiM: chi2=0.0316 / dof=189 = 0.0002   max|d|/sig=0.0438  median=0.0075
+
+=== B1: their xi -> OUR COSEBIs integrator vs official COSEBIs ===
+  En  6 modes: chi2=   0.024/126 = 0.0002  max|d|/sig=0.0408
+  En 20 modes: chi2=   0.070/420 = 0.0002  max|d|/sig=0.0455
+  Bn  6 modes: chi2=   0.017/126 = 0.0001  max|d|/sig=0.0299
+  Bn 20 modes: chi2=   0.064/420 = 0.0002  max|d|/sig=0.0520
+
+=== B3: B_n null test vs zero (official Bn covariance block) ===
+   6 modes: official chi2= 151.058 pte=0.0635 | ours chi2= 150.876 pte=0.0648
+  20 modes: official chi2= 459.328 pte=0.0902 | ours chi2= 458.803 pte=0.0930
+
+=== m-correction: their m-corrected vs raw xi ===
+  En m-corrected : chi2=   0.024/126 = 0.0002
+  En raw (no m)  : chi2=   4.793/126 = 0.0380
+
+wrote /mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/adoption/adoption.json

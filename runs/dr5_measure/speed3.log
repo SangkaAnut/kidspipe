@@ -1,0 +1,13 @@
+ranges ra 0.0036929999478161335 359.99432373046875 dec -35.60990905761719 3.9587550163269043 w 0.01240096427500248 15.562917709350586
+catalog n 7360 nfield <treecorr.util.LRU_Cache object at 0x728489de2a80>
+nbins = 1000, min,max sep = 2..300, bin_size = 0.00501064
+Starting process GG cross-correlations
+Using 4 threads.
+Starting 64 jobs.
+................................................................
+varG1 = 0.861452: sig_sn (per component) = 0.928144
+varG2 = 0.861452: sig_sn (per component) = 0.928144
+npairs sum 0.0 nonzero 0
+Traceback (most recent call last):
+  File "<stdin>", line 13, in <module>
+AttributeError: 'GGCorrelation' object has no attribute 'varg1'

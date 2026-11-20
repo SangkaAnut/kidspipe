@@ -1,0 +1,82 @@
+{
+  "pairing": "unordered (auto: gg.process(cat); cross: gg.process(cat1, cat2)), whole-catalogue, no chunking",
+  "binning": "Log, 1000 bins, 2-300 arcmin, sep_units='arcmin'",
+  "weight": "catalogue w",
+  "flip": "none",
+  "bin_slop": 1.5,
+  "angle_slop": "TreeCorr default (None)",
+  "subsample": 50000,
+  "git_head": null,
+  "pairs": {
+    "Bin6_Bin6": {
+      "seconds": 0.33693861961364746,
+      "npairs": 56976287.0,
+      "weight": 1592654913.1695592,
+      "threads": 8,
+      "treecorr": "5.1.4",
+      "nobj1": 50000,
+      "nobj2": 50000,
+      "catalogues": {
+        "6": {
+          "file": "/home/anut/kids_dr5_work/bin5.npz",
+          "size": 125171125,
+          "mtime": 1793105625.3289557
+        }
+      }
+    },
+    "Bin1_Bin6": {
+      "seconds": 0.6093759536743164,
+      "npairs": 111702971.0,
+      "weight": 6556799130.738748,
+      "threads": 8,
+      "treecorr": "5.1.4",
+      "nobj1": 50000,
+      "nobj2": 50000,
+      "catalogues": {
+        "1": {
+          "file": "/home/anut/kids_dr5_work/bin0.npz",
+          "size": 155745235,
+          "mtime": 1793105623.3649557
+        },
+        "6": {
+          "file": "/home/anut/kids_dr5_work/bin5.npz",
+          "size": 125171125,
+          "mtime": 1793105625.3289557
+        }
+      }
+    }
+  },
+  "calls": [
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "6-6,1-6",
+        "--threads",
+        "8",
+        "--subsample",
+        "50000"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 8,
+      "start": "2026-10-31 17:32:55",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "6-6",
+        "--threads",
+        "8",
+        "--subsample",
+        "50000"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 8,
+      "start": "2026-10-31 17:32:57",
+      "cpu_count": 22
+    }
+  ],
+  "last_call_seconds": 0.02429342269897461
+}

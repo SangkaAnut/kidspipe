@@ -1,0 +1,7 @@
+______________________ test_timing_fast_operator_and_fft _______________________
+    def test_timing_fast_operator_and_fft():
+        print(f"[hankel] timing: fast operator {t_fast * 1e6:.0f} us, FFT+trapezoid {t_fft * 1e3:.2f} ms")
+E       assert 0.0035475006900014703 < 0.002
+[hankel] timing: fast operator 3548 us, FFT+trapezoid 1.75 ms
+FAILED tests/test_hankel.py::test_timing_fast_operator_and_fft - assert 0.003...
+1 failed, 1 passed in 15.53s

@@ -1,0 +1,162 @@
+  loaded bin6: 5,960,461 galaxies in 16 chunks (372,529 .. 372,530 per chunk)
+[     342s] Bin6_Bin6 c00_00:  339.9s npairs=8.586e+10 w=2.525e+12
+[     400s] Bin6_Bin6 c00_01:   58.3s npairs=1.504e+10 w=4.255e+11
+[     400s] Bin6_Bin6 c00_02:    0.2s npairs=0.000e+00 w=0.000e+00
+[     400s] Bin6_Bin6 c00_03:    0.1s npairs=0.000e+00 w=0.000e+00
+[     400s] Bin6_Bin6 c00_04:    0.1s npairs=0.000e+00 w=0.000e+00
+[     400s] Bin6_Bin6 c00_05:    0.1s npairs=0.000e+00 w=0.000e+00
+[     400s] Bin6_Bin6 c00_06:    0.1s npairs=0.000e+00 w=0.000e+00
+[     401s] Bin6_Bin6 c00_07:    0.1s npairs=0.000e+00 w=0.000e+00
+[     401s] Bin6_Bin6 c00_08:    0.1s npairs=0.000e+00 w=0.000e+00
+[     401s] Bin6_Bin6 c00_09:    0.1s npairs=0.000e+00 w=0.000e+00
+[     401s] Bin6_Bin6 c00_10:    0.1s npairs=0.000e+00 w=0.000e+00
+[     401s] Bin6_Bin6 c00_11:    0.1s npairs=0.000e+00 w=0.000e+00
+[     401s] Bin6_Bin6 c00_12:    0.1s npairs=0.000e+00 w=0.000e+00
+[     401s] Bin6_Bin6 c00_13:    0.3s npairs=0.000e+00 w=0.000e+00
+[     401s] Bin6_Bin6 c00_14:    0.3s npairs=0.000e+00 w=0.000e+00
+[     470s] Bin6_Bin6 c00_15:   68.9s npairs=1.786e+10 w=5.176e+11
+[     845s] Bin6_Bin6 c01_01:  375.1s npairs=8.783e+10 w=2.561e+12
+[     928s] Bin6_Bin6 c01_02:   83.0s npairs=1.780e+10 w=5.366e+11
+[     929s] Bin6_Bin6 c01_03:    0.2s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_04:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_05:    0.1s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_06:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_07:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_08:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_09:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_10:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_11:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[     929s] Bin6_Bin6 c01_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1305s] Bin6_Bin6 c02_02:  376.2s npairs=8.961e+10 w=2.722e+12
+[    1365s] Bin6_Bin6 c02_03:   59.5s npairs=1.382e+10 w=4.163e+11
+[    1365s] Bin6_Bin6 c02_04:    0.2s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_05:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_06:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_07:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_08:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_09:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_10:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_11:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1365s] Bin6_Bin6 c02_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1772s] Bin6_Bin6 c03_03:  406.6s npairs=8.694e+10 w=2.603e+12
+[    1838s] Bin6_Bin6 c03_04:   66.3s npairs=1.582e+10 w=4.841e+11
+[    1838s] Bin6_Bin6 c03_05:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1838s] Bin6_Bin6 c03_06:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1838s] Bin6_Bin6 c03_07:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1838s] Bin6_Bin6 c03_08:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1838s] Bin6_Bin6 c03_09:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1838s] Bin6_Bin6 c03_10:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1838s] Bin6_Bin6 c03_11:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1838s] Bin6_Bin6 c03_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1838s] Bin6_Bin6 c03_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1838s] Bin6_Bin6 c03_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    1839s] Bin6_Bin6 c03_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2198s] Bin6_Bin6 c04_04:  359.1s npairs=8.465e+10 w=2.537e+12
+[    2262s] Bin6_Bin6 c04_05:   64.1s npairs=1.502e+10 w=4.399e+11
+[    2262s] Bin6_Bin6 c04_06:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2262s] Bin6_Bin6 c04_07:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2262s] Bin6_Bin6 c04_08:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2262s] Bin6_Bin6 c04_09:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2262s] Bin6_Bin6 c04_10:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2262s] Bin6_Bin6 c04_11:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2262s] Bin6_Bin6 c04_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2262s] Bin6_Bin6 c04_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2262s] Bin6_Bin6 c04_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2262s] Bin6_Bin6 c04_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2523s] Bin6_Bin6 c05_05:  261.0s npairs=5.372e+10 w=1.523e+12
+[    2539s] Bin6_Bin6 c05_06:   16.2s npairs=3.490e+09 w=9.384e+10
+[    2539s] Bin6_Bin6 c05_07:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2539s] Bin6_Bin6 c05_08:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2539s] Bin6_Bin6 c05_09:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2539s] Bin6_Bin6 c05_10:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2539s] Bin6_Bin6 c05_11:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2539s] Bin6_Bin6 c05_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2539s] Bin6_Bin6 c05_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2539s] Bin6_Bin6 c05_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2539s] Bin6_Bin6 c05_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2769s] Bin6_Bin6 c06_06:  229.8s npairs=5.575e+10 w=1.463e+12
+[    2799s] Bin6_Bin6 c06_07:   29.9s npairs=7.458e+09 w=1.899e+11
+[    2799s] Bin6_Bin6 c06_08:    0.2s npairs=0.000e+00 w=0.000e+00
+[    2799s] Bin6_Bin6 c06_09:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2799s] Bin6_Bin6 c06_10:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2799s] Bin6_Bin6 c06_11:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2799s] Bin6_Bin6 c06_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2799s] Bin6_Bin6 c06_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2800s] Bin6_Bin6 c06_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    2800s] Bin6_Bin6 c06_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3085s] Bin6_Bin6 c07_07:  285.7s npairs=6.906e+10 w=1.828e+12
+[    3126s] Bin6_Bin6 c07_08:   40.9s npairs=1.037e+10 w=2.620e+11
+[    3126s] Bin6_Bin6 c07_09:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3126s] Bin6_Bin6 c07_10:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3126s] Bin6_Bin6 c07_11:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3126s] Bin6_Bin6 c07_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3126s] Bin6_Bin6 c07_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3126s] Bin6_Bin6 c07_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3126s] Bin6_Bin6 c07_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3457s] Bin6_Bin6 c08_08:  330.7s npairs=8.278e+10 w=2.195e+12
+[    3495s] Bin6_Bin6 c08_09:   38.1s npairs=9.726e+09 w=2.469e+11
+[    3495s] Bin6_Bin6 c08_10:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3495s] Bin6_Bin6 c08_11:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3495s] Bin6_Bin6 c08_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3495s] Bin6_Bin6 c08_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3495s] Bin6_Bin6 c08_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3495s] Bin6_Bin6 c08_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3821s] Bin6_Bin6 c09_09:  326.1s npairs=8.133e+10 w=2.303e+12
+[    3873s] Bin6_Bin6 c09_10:   51.7s npairs=1.323e+10 w=3.688e+11
+[    3873s] Bin6_Bin6 c09_11:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3873s] Bin6_Bin6 c09_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3873s] Bin6_Bin6 c09_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3873s] Bin6_Bin6 c09_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    3873s] Bin6_Bin6 c09_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    4220s] Bin6_Bin6 c10_10:  347.0s npairs=8.684e+10 w=2.547e+12
+[    4272s] Bin6_Bin6 c10_11:   51.2s npairs=1.310e+10 w=3.690e+11
+[    4272s] Bin6_Bin6 c10_12:    0.0s npairs=0.000e+00 w=0.000e+00
+[    4272s] Bin6_Bin6 c10_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    4272s] Bin6_Bin6 c10_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    4272s] Bin6_Bin6 c10_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    4566s] Bin6_Bin6 c11_11:  294.8s npairs=7.261e+10 w=1.899e+12
+[    4608s] Bin6_Bin6 c11_12:   42.0s npairs=1.056e+10 w=2.799e+11
+[    4608s] Bin6_Bin6 c11_13:    0.0s npairs=0.000e+00 w=0.000e+00
+[    4609s] Bin6_Bin6 c11_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    4609s] Bin6_Bin6 c11_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    4876s] Bin6_Bin6 c12_12:  267.0s npairs=6.497e+10 w=1.678e+12
+[    4883s] Bin6_Bin6 c12_13:    7.5s npairs=1.794e+09 w=4.609e+10
+[    4883s] Bin6_Bin6 c12_14:    0.0s npairs=0.000e+00 w=0.000e+00
+[    4883s] Bin6_Bin6 c12_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    5140s] Bin6_Bin6 c13_13:  256.6s npairs=6.306e+10 w=1.686e+12
+[    5190s] Bin6_Bin6 c13_14:   50.5s npairs=1.271e+10 w=3.304e+11
+[    5190s] Bin6_Bin6 c13_15:    0.0s npairs=0.000e+00 w=0.000e+00
+[    5508s] Bin6_Bin6 c14_14:  317.3s npairs=7.868e+10 w=2.115e+12
+[    5563s] Bin6_Bin6 c14_15:   55.3s npairs=1.398e+10 w=3.760e+11
+[    5909s] Bin6_Bin6 c15_15:  346.5s npairs=8.631e+10 w=2.411e+12
+
+136 chunk-pairs written, 0 already present, 5909s
+exit=0
+assembling with nchunks=16 -> /mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/xi_chunked/assembled/ns
+Bin1_Bin1: INCOMPLETE 1/136 chunk-pairs, skipping
+Bin1_Bin2: no chunk directory, skipping
+Bin1_Bin3: no chunk directory, skipping
+Bin1_Bin4: no chunk directory, skipping
+Bin1_Bin5: no chunk directory, skipping
+Bin1_Bin6: no chunk directory, skipping
+Bin2_Bin2: no chunk directory, skipping
+Bin2_Bin3: no chunk directory, skipping
+Bin2_Bin4: no chunk directory, skipping
+Bin2_Bin5: no chunk directory, skipping
+Bin2_Bin6: no chunk directory, skipping
+Bin3_Bin3: no chunk directory, skipping
+Bin3_Bin4: no chunk directory, skipping
+Bin3_Bin5: no chunk directory, skipping
+Bin3_Bin6: no chunk directory, skipping
+Bin4_Bin4: no chunk directory, skipping
+Bin4_Bin5: no chunk directory, skipping
+Bin4_Bin6: no chunk directory, skipping
+Bin5_Bin5: no chunk directory, skipping
+Bin5_Bin6: no chunk directory, skipping
+Bin6_Bin6: assembled from 136 chunk-pairs  npairs=1.6136e+12 w=4.5363e+13

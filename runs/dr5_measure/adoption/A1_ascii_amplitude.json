@@ -1,0 +1,254 @@
+{
+  "1-1_xip": {
+    "median_ratio": 1.0704738746040108,
+    "expect_1_over_AMP": 1.1198208286674132,
+    "frac_scatter_raw": 0.15524130390794377,
+    "frac_scatter_after_amp": 0.13863048438979378
+  },
+  "1-1_xim": {
+    "median_ratio": 1.1309406507328572,
+    "expect_1_over_AMP": 1.1198208286674132,
+    "frac_scatter_raw": 0.20108893657251378,
+    "frac_scatter_after_amp": 0.17957242035925483
+  },
+  "1-2_xip": {
+    "median_ratio": 1.089677886989944,
+    "expect_1_over_AMP": 1.095290251916758,
+    "frac_scatter_raw": 0.18641147142374856,
+    "frac_scatter_after_amp": 0.17019367340988242
+  },
+  "1-2_xim": {
+    "median_ratio": 1.1101091888765562,
+    "expect_1_over_AMP": 1.095290251916758,
+    "frac_scatter_raw": 0.14234328626888937,
+    "frac_scatter_after_amp": 0.12995942036349598
+  },
+  "1-3_xip": {
+    "median_ratio": 1.1387495356950006,
+    "expect_1_over_AMP": 1.0905125408942202,
+    "frac_scatter_raw": 0.13357492943892982,
+    "frac_scatter_after_amp": 0.12248821029549865
+  },
+  "1-3_xim": {
+    "median_ratio": 1.1108834692807696,
+    "expect_1_over_AMP": 1.0905125408942202,
+    "frac_scatter_raw": 0.164753373652673,
+    "frac_scatter_after_amp": 0.15107884363950116
+  },
+  "1-4_xip": {
+    "median_ratio": 1.0926935824365915,
+    "expect_1_over_AMP": 1.0729613733905579,
+    "frac_scatter_raw": 0.1276194541678149,
+    "frac_scatter_after_amp": 0.11894133128440347
+  },
+  "1-4_xim": {
+    "median_ratio": 1.0778856799285488,
+    "expect_1_over_AMP": 1.0729613733905579,
+    "frac_scatter_raw": 0.17106733512507113,
+    "frac_scatter_after_amp": 0.1594347563365663
+  },
+  "1-5_xip": {
+    "median_ratio": 1.0655295310538202,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.1379883937004058,
+    "frac_scatter_after_amp": 0.1309509856216851
+  },
+  "1-5_xim": {
+    "median_ratio": 1.0693242191136427,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.12416118012170704,
+    "frac_scatter_after_amp": 0.11782895993549998
+  },
+  "1-6_xip": {
+    "median_ratio": 0.9880975158898656,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.15499973286375965,
+    "frac_scatter_after_amp": 0.1505047406107106
+  },
+  "1-6_xim": {
+    "median_ratio": 0.9950593889201509,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.20457068059435557,
+    "frac_scatter_after_amp": 0.19863813085711926
+  },
+  "2-2_xip": {
+    "median_ratio": 1.0848543636551948,
+    "expect_1_over_AMP": 1.095290251916758,
+    "frac_scatter_raw": 0.11915634154686133,
+    "frac_scatter_after_amp": 0.10878973983228439
+  },
+  "2-2_xim": {
+    "median_ratio": 1.0989155596690412,
+    "expect_1_over_AMP": 1.095290251916758,
+    "frac_scatter_raw": 0.12663710184693708,
+    "frac_scatter_after_amp": 0.11561967398625354
+  },
+  "2-3_xip": {
+    "median_ratio": 1.090702886136234,
+    "expect_1_over_AMP": 1.0905125408942202,
+    "frac_scatter_raw": 0.12233345960567851,
+    "frac_scatter_after_amp": 0.1121797824584072
+  },
+  "2-3_xim": {
+    "median_ratio": 1.0873155583868028,
+    "expect_1_over_AMP": 1.0905125408942202,
+    "frac_scatter_raw": 0.13323814614365972,
+    "frac_scatter_after_amp": 0.12217938001373596
+  },
+  "2-4_xip": {
+    "median_ratio": 1.0791680494688047,
+    "expect_1_over_AMP": 1.0729613733905579,
+    "frac_scatter_raw": 0.1290646251996226,
+    "frac_scatter_after_amp": 0.12028823068604827
+  },
+  "2-4_xim": {
+    "median_ratio": 1.0760062737068887,
+    "expect_1_over_AMP": 1.0729613733905579,
+    "frac_scatter_raw": 0.1562345646610701,
+    "frac_scatter_after_amp": 0.14561061426411734
+  },
+  "2-5_xip": {
+    "median_ratio": 1.0885595792823297,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.08629347716880623,
+    "frac_scatter_after_amp": 0.08189250983319711
+  },
+  "2-5_xim": {
+    "median_ratio": 1.0959780630735927,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.13343132560210422,
+    "frac_scatter_after_amp": 0.12662632799639692
+  },
+  "2-6_xip": {
+    "median_ratio": 1.0513946795163418,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.15940322854785655,
+    "frac_scatter_after_amp": 0.1547805349199687
+  },
+  "2-6_xim": {
+    "median_ratio": 0.991976961873091,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.16865752713177912,
+    "frac_scatter_after_amp": 0.16376645884495747
+  },
+  "3-3_xip": {
+    "median_ratio": 1.1240320129513834,
+    "expect_1_over_AMP": 1.0905125408942202,
+    "frac_scatter_raw": 0.12521073607633468,
+    "frac_scatter_after_amp": 0.11481824498199891
+  },
+  "3-3_xim": {
+    "median_ratio": 1.1167392498133721,
+    "expect_1_over_AMP": 1.0905125408942202,
+    "frac_scatter_raw": 0.15917176179225206,
+    "frac_scatter_after_amp": 0.14596050556349513
+  },
+  "3-4_xip": {
+    "median_ratio": 1.091019654769843,
+    "expect_1_over_AMP": 1.0729613733905579,
+    "frac_scatter_raw": 0.11376173294185571,
+    "frac_scatter_after_amp": 0.10602593510180951
+  },
+  "3-4_xim": {
+    "median_ratio": 1.0618814505055667,
+    "expect_1_over_AMP": 1.0729613733905579,
+    "frac_scatter_raw": 0.1369866459784916,
+    "frac_scatter_after_amp": 0.1276715540519542
+  },
+  "3-5_xip": {
+    "median_ratio": 1.078567104169034,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.09083258544910272,
+    "frac_scatter_after_amp": 0.08620012359119848
+  },
+  "3-5_xim": {
+    "median_ratio": 1.0704148074822792,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.09781125374513043,
+    "frac_scatter_after_amp": 0.0928228798041288
+  },
+  "3-6_xip": {
+    "median_ratio": 1.0051001465816636,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.14858875437471988,
+    "frac_scatter_after_amp": 0.14427968049785303
+  },
+  "3-6_xim": {
+    "median_ratio": 1.0094190917426529,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.2231920254382029,
+    "frac_scatter_after_amp": 0.216719456700495
+  },
+  "4-4_xip": {
+    "median_ratio": 1.0615759979400017,
+    "expect_1_over_AMP": 1.0729613733905579,
+    "frac_scatter_raw": 0.12446368968798281,
+    "frac_scatter_after_amp": 0.11600015878919999
+  },
+  "4-4_xim": {
+    "median_ratio": 1.0296639906884397,
+    "expect_1_over_AMP": 1.0729613733905579,
+    "frac_scatter_raw": 0.09618283439394548,
+    "frac_scatter_after_amp": 0.0896424016551572
+  },
+  "4-5_xip": {
+    "median_ratio": 1.0928696255969839,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.07792447027664955,
+    "frac_scatter_after_amp": 0.07395032229254041
+  },
+  "4-5_xim": {
+    "median_ratio": 1.0597896728397946,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.11772023218608965,
+    "frac_scatter_after_amp": 0.11171650034459907
+  },
+  "4-6_xip": {
+    "median_ratio": 1.0409644225079258,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.11214554708595235,
+    "frac_scatter_after_amp": 0.10889332622045973
+  },
+  "4-6_xim": {
+    "median_ratio": 1.0104980160420167,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.16598637334426236,
+    "frac_scatter_after_amp": 0.16117276851727874
+  },
+  "5-5_xip": {
+    "median_ratio": 1.0764328738403066,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.0865432656117246,
+    "frac_scatter_after_amp": 0.08212955906552664
+  },
+  "5-5_xim": {
+    "median_ratio": 1.0505440594640167,
+    "expect_1_over_AMP": 1.053740779768177,
+    "frac_scatter_raw": 0.08896448964841798,
+    "frac_scatter_after_amp": 0.08442730067634867
+  },
+  "5-6_xip": {
+    "median_ratio": 1.0405269651231035,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.11403807224874218,
+    "frac_scatter_after_amp": 0.11073096815352865
+  },
+  "5-6_xim": {
+    "median_ratio": 1.0074975059163251,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.12012408081193122,
+    "frac_scatter_after_amp": 0.11664048246838524
+  },
+  "6-6_xip": {
+    "median_ratio": 0.9887764016308256,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.17011802588418287,
+    "frac_scatter_after_amp": 0.16518460313354155
+  },
+  "6-6_xim": {
+    "median_ratio": 0.9760362092292955,
+    "expect_1_over_AMP": 1.0298661174047374,
+    "frac_scatter_raw": 0.16399512703108293,
+    "frac_scatter_after_amp": 0.15923926834718155
+  }
+}

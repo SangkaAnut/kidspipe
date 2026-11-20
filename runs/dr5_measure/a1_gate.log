@@ -1,0 +1,17 @@
+  bin1: 741,637 of 7,416,371 (10%)
+  bin2: 735,991 of 7,359,911 (10%)
+  Bin1_Bin1: sum(weight)/scale=3.00845e+14
+  Bin1_Bin2: sum(weight)/scale=2.64789e+14
+  Bin2_Bin2: sum(weight)/scale=2.33703e+14
+
+A1 gate (subsample 10%), 272s
+        pair  sum(w) ratio    G1  xip corr    G3
+   Bin1_Bin1      1.004725  FAIL   0.12334  FAIL
+   Bin1_Bin2      1.002855  FAIL   0.03688  FAIL
+   Bin2_Bin2      1.001300  FAIL   0.14642  FAIL
+
+n_pairs tested=3  worst |sum(weight) ratio - 1| = 4.73e-03 (tol 1e-03)
+G1 (sample identity): FAIL
+G3 (xi+ shape)      : FAIL
+OVERALL             : FAIL
+wrote /mnt/d/cloning_kids_Kappa_pipeline/runs/dr5_measure/a1_gate.json

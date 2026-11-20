@@ -1,0 +1,10 @@
+1000 bins vs Bin2_Bin2 (correct)        median=1.40614 std=0.00255 [1.3915, 1.4271]
+1000 bins vs Bin1_Bin1 (what I reported) median=1.40663 std=0.01601 [1.3786, 1.4529]
+
+20 bins   vs Bin2_Bin2 (correct)        median=1.41635 std=0.01613 per-bin: 1.394 1.397 1.399 1.402 1.404 1.406 1.408 1.410 1.411 1.414 1.419 1.424 1.431 1.435 1.437 1.440 1.438 1.438 1.438 1.440
+20 bins   vs Bin1_Bin1 (what I reported) median=1.41698 std=0.00094 per-bin: 1.418 1.417 1.417 1.417 1.417 1.417 1.417 1.417 1.417 1.417 1.417 1.417 1.417 1.417 1.416 1.416 1.416 1.416 1.415 1.413
+
+CORRECTED headline ratio (tomo bin 2 vs official Bin2_Bin2): 1.40614
+implied surviving fraction f = 1/sqrt(ratio) = 0.8433
+previously reported (mismatched pairing):      1.41698
+difference: 0.77% -> does not change the conclusion, but the number must be quoted correctly.

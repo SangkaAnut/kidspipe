@@ -1,0 +1,657 @@
+{
+  "pairing": "unordered (auto: gg.process(cat); cross: gg.process(cat1, cat2)), whole-catalogue, no chunking",
+  "binning": "Log, 1000 bins, 2-300 arcmin, sep_units='arcmin'",
+  "weight": "catalogue w",
+  "flip": "none",
+  "bin_slop": 1.5,
+  "angle_slop": "TreeCorr default (None)",
+  "subsample": null,
+  "git_head": null,
+  "pairs": {
+    "Bin1_Bin1": {
+      "seconds": 682.9874930381775,
+      "npairs": 1208780001485.0,
+      "weight": 150136960402604.03,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7416371,
+      "nobj2": 7416371,
+      "catalogues": {
+        "1": {
+          "file": "/home/anut/kids_dr5_work/bin0.npz",
+          "size": 304072655,
+          "mtime": 1793495468.5519564,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin2_Bin2": {
+      "seconds": 672.9411509037018,
+      "npairs": 1183032057750.0,
+      "weight": 116971410819028.69,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7359911,
+      "nobj2": 7359911,
+      "catalogues": {
+        "2": {
+          "file": "/home/anut/kids_dr5_work/bin1.npz",
+          "size": 301757795,
+          "mtime": 1793495469.0919566,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin3_Bin3": {
+      "seconds": 625.7876884937286,
+      "npairs": 1012759274792.0,
+      "weight": 93136073782462.83,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 6799681,
+      "nobj2": 6799681,
+      "catalogues": {
+        "3": {
+          "file": "/home/anut/kids_dr5_work/bin2.npz",
+          "size": 278788365,
+          "mtime": 1793495469.5719566,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin4_Bin4": {
+      "seconds": 640.605220079422,
+      "npairs": 1047621988773.0,
+      "weight": 75302937783857.92,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 6880432,
+      "nobj2": 6880432,
+      "catalogues": {
+        "4": {
+          "file": "/home/anut/kids_dr5_work/bin3.npz",
+          "size": 282099156,
+          "mtime": 1793495470.0639567,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin5_Bin5": {
+      "seconds": 601.8899903297424,
+      "npairs": 938463702914.0,
+      "weight": 57962863914181.66,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 6477538,
+      "nobj2": 6477538,
+      "catalogues": {
+        "5": {
+          "file": "/home/anut/kids_dr5_work/bin4.npz",
+          "size": 265580502,
+          "mtime": 1793495470.6079571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin6_Bin6": {
+      "seconds": 563.5253522396088,
+      "npairs": 806793656543.0,
+      "weight": 22681376396870.613,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 5960461,
+      "nobj2": 5960461,
+      "catalogues": {
+        "6": {
+          "file": "/home/anut/kids_dr5_work/bin5.npz",
+          "size": 244380345,
+          "mtime": 1793495471.0519571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin1_Bin2": {
+      "seconds": 1356.280338048935,
+      "npairs": 2389091083677.0,
+      "weight": 264714928057562.16,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7416371,
+      "nobj2": 7359911,
+      "catalogues": {
+        "1": {
+          "file": "/home/anut/kids_dr5_work/bin0.npz",
+          "size": 304072655,
+          "mtime": 1793495468.5519564,
+          "radec_dtype": "float64"
+        },
+        "2": {
+          "file": "/home/anut/kids_dr5_work/bin1.npz",
+          "size": 301757795,
+          "mtime": 1793495469.0919566,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin1_Bin3": {
+      "seconds": 1291.9469978809357,
+      "npairs": 2210925137863.0,
+      "weight": 236245226457707.72,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7416371,
+      "nobj2": 6799681,
+      "catalogues": {
+        "1": {
+          "file": "/home/anut/kids_dr5_work/bin0.npz",
+          "size": 304072655,
+          "mtime": 1793495468.5519564,
+          "radec_dtype": "float64"
+        },
+        "3": {
+          "file": "/home/anut/kids_dr5_work/bin2.npz",
+          "size": 278788365,
+          "mtime": 1793495469.5719566,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin1_Bin4": {
+      "seconds": 1307.784749507904,
+      "npairs": 2248339225971.0,
+      "weight": 212318684272886.03,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7416371,
+      "nobj2": 6880432,
+      "catalogues": {
+        "1": {
+          "file": "/home/anut/kids_dr5_work/bin0.npz",
+          "size": 304072655,
+          "mtime": 1793495468.5519564,
+          "radec_dtype": "float64"
+        },
+        "4": {
+          "file": "/home/anut/kids_dr5_work/bin3.npz",
+          "size": 282099156,
+          "mtime": 1793495470.0639567,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin1_Bin5": {
+      "seconds": 1285.0644137859344,
+      "npairs": 2125699698181.0,
+      "weight": 186024435111112.72,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7416371,
+      "nobj2": 6477538,
+      "catalogues": {
+        "1": {
+          "file": "/home/anut/kids_dr5_work/bin0.npz",
+          "size": 304072655,
+          "mtime": 1793495468.5519564,
+          "radec_dtype": "float64"
+        },
+        "5": {
+          "file": "/home/anut/kids_dr5_work/bin4.npz",
+          "size": 265580502,
+          "mtime": 1793495470.6079571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin1_Bin6": {
+      "seconds": 1234.8250606060028,
+      "npairs": 1966734781204.0,
+      "weight": 116035065777496.62,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7416371,
+      "nobj2": 5960461,
+      "catalogues": {
+        "1": {
+          "file": "/home/anut/kids_dr5_work/bin0.npz",
+          "size": 304072655,
+          "mtime": 1793495468.5519564,
+          "radec_dtype": "float64"
+        },
+        "6": {
+          "file": "/home/anut/kids_dr5_work/bin5.npz",
+          "size": 244380345,
+          "mtime": 1793495471.0519571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin2_Bin3": {
+      "seconds": 1319.781413078308,
+      "npairs": 2188457611501.0,
+      "weight": 208657784430057.72,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7359911,
+      "nobj2": 6799681,
+      "catalogues": {
+        "2": {
+          "file": "/home/anut/kids_dr5_work/bin1.npz",
+          "size": 301757795,
+          "mtime": 1793495469.0919566,
+          "radec_dtype": "float64"
+        },
+        "3": {
+          "file": "/home/anut/kids_dr5_work/bin2.npz",
+          "size": 278788365,
+          "mtime": 1793495469.5719566,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin2_Bin4": {
+      "seconds": 1334.8383147716522,
+      "npairs": 2221907123548.0,
+      "weight": 187178564581852.6,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7359911,
+      "nobj2": 6880432,
+      "catalogues": {
+        "2": {
+          "file": "/home/anut/kids_dr5_work/bin1.npz",
+          "size": 301757795,
+          "mtime": 1793495469.0919566,
+          "radec_dtype": "float64"
+        },
+        "4": {
+          "file": "/home/anut/kids_dr5_work/bin3.npz",
+          "size": 282099156,
+          "mtime": 1793495470.0639567,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin2_Bin5": {
+      "seconds": 1285.9079382419586,
+      "npairs": 2099117709287.0,
+      "weight": 163846993773381.16,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7359911,
+      "nobj2": 6477538,
+      "catalogues": {
+        "2": {
+          "file": "/home/anut/kids_dr5_work/bin1.npz",
+          "size": 301757795,
+          "mtime": 1793495469.0919566,
+          "radec_dtype": "float64"
+        },
+        "5": {
+          "file": "/home/anut/kids_dr5_work/bin4.npz",
+          "size": 265580502,
+          "mtime": 1793495470.6079571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin2_Bin6": {
+      "seconds": 1227.5242075920105,
+      "npairs": 1941103750011.0,
+      "weight": 102144731701335.97,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 7359911,
+      "nobj2": 5960461,
+      "catalogues": {
+        "2": {
+          "file": "/home/anut/kids_dr5_work/bin1.npz",
+          "size": 301757795,
+          "mtime": 1793495469.0919566,
+          "radec_dtype": "float64"
+        },
+        "6": {
+          "file": "/home/anut/kids_dr5_work/bin5.npz",
+          "size": 244380345,
+          "mtime": 1793495471.0519571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin3_Bin4": {
+      "seconds": 1275.977028131485,
+      "npairs": 2057586270899.0,
+      "weight": 167169090422347.4,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 6799681,
+      "nobj2": 6880432,
+      "catalogues": {
+        "3": {
+          "file": "/home/anut/kids_dr5_work/bin2.npz",
+          "size": 278788365,
+          "mtime": 1793495469.5719566,
+          "radec_dtype": "float64"
+        },
+        "4": {
+          "file": "/home/anut/kids_dr5_work/bin3.npz",
+          "size": 282099156,
+          "mtime": 1793495470.0639567,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin3_Bin5": {
+      "seconds": 1239.3591215610504,
+      "npairs": 1944154139116.0,
+      "weight": 146334456822034.22,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 6799681,
+      "nobj2": 6477538,
+      "catalogues": {
+        "3": {
+          "file": "/home/anut/kids_dr5_work/bin2.npz",
+          "size": 278788365,
+          "mtime": 1793495469.5719566,
+          "radec_dtype": "float64"
+        },
+        "5": {
+          "file": "/home/anut/kids_dr5_work/bin4.npz",
+          "size": 265580502,
+          "mtime": 1793495470.6079571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin3_Bin6": {
+      "seconds": 1184.4350888729095,
+      "npairs": 1798426758623.0,
+      "weight": 91246858295987.2,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 6799681,
+      "nobj2": 5960461,
+      "catalogues": {
+        "3": {
+          "file": "/home/anut/kids_dr5_work/bin2.npz",
+          "size": 278788365,
+          "mtime": 1793495469.5719566,
+          "radec_dtype": "float64"
+        },
+        "6": {
+          "file": "/home/anut/kids_dr5_work/bin5.npz",
+          "size": 244380345,
+          "mtime": 1793495471.0519571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin4_Bin5": {
+      "seconds": 1254.8998546600342,
+      "npairs": 1981902445884.0,
+      "weight": 132048711779244.75,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 6880432,
+      "nobj2": 6477538,
+      "catalogues": {
+        "4": {
+          "file": "/home/anut/kids_dr5_work/bin3.npz",
+          "size": 282099156,
+          "mtime": 1793495470.0639567,
+          "radec_dtype": "float64"
+        },
+        "5": {
+          "file": "/home/anut/kids_dr5_work/bin4.npz",
+          "size": 265580502,
+          "mtime": 1793495470.6079571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin4_Bin6": {
+      "seconds": 1191.5673673152924,
+      "npairs": 1834722593893.0,
+      "weight": 82447951171638.55,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 6880432,
+      "nobj2": 5960461,
+      "catalogues": {
+        "4": {
+          "file": "/home/anut/kids_dr5_work/bin3.npz",
+          "size": 282099156,
+          "mtime": 1793495470.0639567,
+          "radec_dtype": "float64"
+        },
+        "6": {
+          "file": "/home/anut/kids_dr5_work/bin5.npz",
+          "size": 244380345,
+          "mtime": 1793495471.0519571,
+          "radec_dtype": "float64"
+        }
+      }
+    },
+    "Bin5_Bin6": {
+      "seconds": 1170.0977132320404,
+      "npairs": 1738809989061.0,
+      "weight": 72439900225611.31,
+      "threads": 20,
+      "treecorr": "5.1.4",
+      "nobj1": 6477538,
+      "nobj2": 5960461,
+      "catalogues": {
+        "5": {
+          "file": "/home/anut/kids_dr5_work/bin4.npz",
+          "size": 265580502,
+          "mtime": 1793495470.6079571,
+          "radec_dtype": "float64"
+        },
+        "6": {
+          "file": "/home/anut/kids_dr5_work/bin5.npz",
+          "size": 244380345,
+          "mtime": 1793495471.0519571,
+          "radec_dtype": "float64"
+        }
+      }
+    }
+  },
+  "calls": [
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "autos",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 08:11:40",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "all",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 09:15:07",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "1-6",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 10:44:44",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "2-3",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 11:05:24",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "2-4",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 11:27:29",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "2-5",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 11:49:50",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "2-6",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 12:11:21",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "3-4",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 12:31:54",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "3-5",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 12:53:15",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "3-6",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 13:14:00",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "4-5",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 13:33:49",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "4-6",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 13:54:49",
+      "cpu_count": 22
+    },
+    {
+      "argv": [
+        "run",
+        "--pairs",
+        "5-6",
+        "--bin-slop",
+        "1.5",
+        "--threads",
+        "20"
+      ],
+      "treecorr": "5.1.4",
+      "threads": 20,
+      "start": "2026-11-01 14:14:46",
+      "cpu_count": 22
+    }
+  ],
+  "last_call_seconds": 1170.7928771972656
+}

@@ -1,0 +1,73 @@
+{
+  "what": "check A4: independent pair counter vs TreeCorr, correlated shear field",
+  "n_gal": 3000,
+  "nbins": 200,
+  "results": {
+    "flip1=0,flip2=0": {
+      "npairs_ratio_median": 0.5,
+      "npairs_ratio_std": 0.00043750848626202373,
+      "xip_corr_all": 0.9999997748916595,
+      "xip_ratio_all": 1.000000058105767,
+      "xip_corr_highsnr": 0.9999998555830838,
+      "xip_ratio_highsnr": 1.0000000924671235,
+      "xip_maxrel_highsnr": 0.009796866244069502,
+      "xip_n_highsnr": 136,
+      "xim_corr_all": 0.8039937173944123,
+      "xim_ratio_all": 0.38625531335504865,
+      "xim_corr_highsnr": 0.8329700133621142,
+      "xim_ratio_highsnr": 0.3870127317969231,
+      "xim_maxrel_highsnr": 3.0603409043938465,
+      "xim_n_highsnr": 29
+    },
+    "flip1=0,flip2=1": {
+      "npairs_ratio_median": 0.5,
+      "npairs_ratio_std": 0.00043750848626202373,
+      "xip_corr_all": 0.9999997738621507,
+      "xip_ratio_all": 0.9999998858892986,
+      "xip_corr_highsnr": 0.9999998540341335,
+      "xip_ratio_highsnr": 0.9999999228891334,
+      "xip_maxrel_highsnr": 0.009782350370594273,
+      "xip_n_highsnr": 136,
+      "xim_corr_all": 0.999988946977172,
+      "xim_ratio_all": 0.9999955098070591,
+      "xim_corr_highsnr": 0.9999900984586195,
+      "xim_ratio_highsnr": 0.999997488090131,
+      "xim_maxrel_highsnr": 0.023455629614523854,
+      "xim_n_highsnr": 28
+    },
+    "flip1=1,flip2=0": {
+      "npairs_ratio_median": 0.5,
+      "npairs_ratio_std": 0.00043750848626202373,
+      "xip_corr_all": 0.9999997738621502,
+      "xip_ratio_all": 0.9999998858892988,
+      "xip_corr_highsnr": 0.9999998540341335,
+      "xip_ratio_highsnr": 0.9999999228891334,
+      "xip_maxrel_highsnr": 0.009782350370594495,
+      "xip_n_highsnr": 136,
+      "xim_corr_all": 0.9999889469771718,
+      "xim_ratio_all": 0.9999955098070582,
+      "xim_corr_highsnr": 0.9999900984586195,
+      "xim_ratio_highsnr": 0.9999974880901306,
+      "xim_maxrel_highsnr": 0.02345562961452341,
+      "xim_n_highsnr": 28
+    },
+    "flip1=1,flip2=1": {
+      "npairs_ratio_median": 0.5,
+      "npairs_ratio_std": 0.00043750848626202373,
+      "xip_corr_all": 0.9999997748916593,
+      "xip_ratio_all": 1.0000000581057673,
+      "xip_corr_highsnr": 0.9999998555830838,
+      "xip_ratio_highsnr": 1.0000000924671235,
+      "xip_maxrel_highsnr": 0.009796866244070168,
+      "xip_n_highsnr": 136,
+      "xim_corr_all": 0.8039937173944123,
+      "xim_ratio_all": 0.3862553133550483,
+      "xim_corr_highsnr": 0.8329700133621142,
+      "xim_ratio_highsnr": 0.3870127317969231,
+      "xim_maxrel_highsnr": 3.060340904393847,
+      "xim_n_highsnr": 29
+    }
+  },
+  "best": "flip1=0,flip2=1",
+  "note": "TreeCorr npairs counts ordered pairs on auto-correlations; this counter counts unordered, hence the exact 0.5"
+}

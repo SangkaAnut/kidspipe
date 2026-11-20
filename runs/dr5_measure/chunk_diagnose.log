@@ -1,0 +1,9 @@
+(1) single            npairs=6.043768e+09  sum(weight)=7.513397e+11
+chunk sizes: [92705, 92704, 92704, 92705] total 370818
+(2) cross once          npairs=5.845268e+09  sum(weight)=7.265534e+11  npairs ratio=0.967156199  w ratio=0.967010601
+(3) cross twice         npairs=6.043768e+09  sum(weight)=7.513397e+11  npairs ratio=1.000000000  w ratio=1.000000000
+(4) native patches    npairs=6.043768e+09  sum(weight)=7.513397e+11  npairs ratio=1.000000000  w ratio=1.000000000
+    xi+ max |rel diff| vs single = 1.292e-03
+
+If (3) matches (1) exactly, naive chunking IS exact once the fold is handled.
+If (4) matches (1) exactly, TreeCorr patches are the safest chunking route.

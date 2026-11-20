@@ -1,0 +1,19 @@
+bin1: 370,818
+bin2: 367,995
+
+Bin1_Bin1: 36 chunk-pair processes
+  npairs ratio        = 1.000000000000
+  sum(weight) ratio   = 1.000000000008
+  max|npairs diff|    = 0.000e+00
+  xi+ corr            = 1.000000000000
+  xi+ max pull (sigma) = 1.398e-04   median 8.935e-08
+
+Bin1_Bin2: 64 chunk-pair processes
+  npairs ratio        = 1.000000000000
+  sum(weight) ratio   = 0.999999999997
+  max|npairs diff|    = 0.000e+00
+  xi+ corr            = 1.000000000000
+  xi+ max pull (sigma) = 7.062e-05   median 5.647e-08
+
+If npairs and weight ratios are 1.000000000 and max pull ~0, folded chunking is exact
+and can be used for the production run.

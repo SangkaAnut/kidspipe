@@ -1,0 +1,20 @@
+7,416,371 galaxies, RA 0.00..360.00, Dec -35.61..3.96
+
+  nside/deg   pixel_deg2   occ_pix    area_deg2   gal/pix    n_gal/area
+         20      0.14324     11758       1684.2      630.8    4403.473
+         40      0.03581     40963       1466.9      181.1    5055.883
+         60      0.01592     90390       1438.6       82.0    5155.264
+         80      0.00895    152504       1365.3       48.6    5432.097
+        120      0.00398    337640       1343.4       22.0    5520.487
+        160      0.00224    585404       1310.2       12.7    5660.478
+        200      0.00143    892776       1278.8        8.3    5799.443
+
+adopted: nside/deg=160, area=1310.2 deg2, occupancy=12.7 gal/pix
+number density = 5660.478 gal/arcmin^2  (official NGAL_1 = 1.6884)
+
+Test A -- pure AREA difference (same density as official, larger footprint):
+  predict npairs ratio = A_ours/A_off, with A_off = n/NGAL_1 = 1220.1 deg2
+  -> predicted ratio = 1.0738   (measured 1.4170)
+
+Test B -- pure DENSITY difference (same area as official):
+  predict npairs ratio = (dens/NGAL_1)^2 = 11239388.7751   (measured 1.4170)

@@ -1,0 +1,6 @@
+load 0.2s 7359911
+catalog 0.3s
+slop=0.10 auto bin1 4.1s  xip[0]=0.000e+00 npairs[0]=0
+Traceback (most recent call last):
+  File "<stdin>", line 12, in <module>
+AttributeError: 'GGCorrelation' object has no attribute 'r_nom'. Did you mean: 'rnom'?

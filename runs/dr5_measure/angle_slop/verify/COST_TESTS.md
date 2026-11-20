@@ -1,0 +1,44 @@
+# cost_tests verifier record (2026-10-30)
+
+## (b) Fast tests
+`OMP_NUM_THREADS=4 PYTHONPATH=src python -m pytest -m 'not slow' -q -p no:cacheprovider`: **356 passed, 12 deselected, 1 warning, 0 failed** (420 s). Warning = scipy quad roundoff in a Bessel reference (benign).
+
+## (a) Cost audit
+### Base 49 h
+CHUNKING.md s4 (lines 76-90): Bin1_Bin1 chunk 0-0, 1.300e11 pairs in 538.8 s = 2.41e8 pairs/s (16 thr); total ordered pairs 9.763e14 x 0.04397 (in-cone fraction, from one 10% Bin1 run) = 4.292e13 -> 49.5 h. I recomputed sum n_i n_j (n_i(n_i-1) for autos) from paper_gate.json counts = 9.763e14 (OK). Weaknesses: (i) the rate is ONE chunk-pair of Bin1; (ii) in-cone fraction 0.04397 is Bin1-only; the measured Bin6 auto fraction is 1.6136e12/(5960461*5960460) = 0.04542 (+3.3%), so the total is 4.29-4.43e13 pairs.
+
+### Hours table (49 h x ratio): every entry recomputes
+Ratios from study_grid.json patch A (16 thr, uncontended) or S for starred: 0:0 0.9959 -> 48.8; 0.5:0.1 0.5676 -> 27.8; 1:0.1 0.3620 -> 17.7; 1.5:0.1/0.01 0.2290 -> 11.2; 1.5:0.005 0.3542 -> 17.4; 1.5:0.003 0.5353 -> 26.2; 1.5:0.002 0.6664 -> 32.7; S: 1:0.003 0.5985 -> 29.3*; 1.5:0.001 0.8487 -> 41.6*. Arithmetic correct. B (2243 s) and SIGA are contended and not used - consistent with the text. Note S ratios are not like A: S 1.5:0.1 = 0.316 vs A 0.229, 1:0.1 0.441 vs 0.362, 0.5:0.1 0.633 vs 0.568, so the ratio depends on patch size (S 101k gal). S-based entries (1:0.003, 1.5:0.001) are biased high-cost-ratio for the full survey (if the A/S trend holds, true hours lower, ~ -10-25%).
+
+### Full-pair evidence contradicts the patch ratio for bin_slop 1.5
+- Full Bin6_Bin6 slop 1.5 (PILOT_BIN6.md:3,45; pilot_bin6/slop15.log): 1857 s on 8 threads. Pilot (0,def) 5905 s (sum of chunk times) on 14 thr; exact (0,0) 6995 s on 14 thr.
+- Wall ratio 1.5:0.1 / (0,0) = 0.27 (vs pilot 0.31), but in core-seconds (assuming linear scaling) 1857*8/(6995*14) = 0.152 (vs pilot 0.180). The table uses 0.229 -> 11.2 h. Full-pair-based would be 7.5-8.8 h, if the 8-thread run was efficient/uncontended (unknown). PILOT_BIN6.md:70 says "~15 h" (raw 3.2x) and ANGLE_SLOP says 11.2 h: two different numbers in the records, neither is core-normalised. Verifier note in PILOT_BIN6.md:74 gives 2.1x at 20% size, so ratio is size dependent (bigger = larger saving), supporting the table 11.2 h being conservative.
+
+### "(0,0) costs the same as (0,default)"
+- Patch A uncontended 538.5 vs 540.7 s (0.996); patch S 0:0 / 0:0.1 = 0.944 (and 0:0.01..0.05 0.97-0.99). Supports ratio 0.94-1.0.
+- Full pair: exact 6995 s vs pilot 5905 s (sum of chunk times; log totals 6999 / 5909) = **1.18x slower**. Per non-empty chunk-pair (32 of 136, same npairs exactly) ratio min 1.02, median 1.21, max 1.51. npairs identical in all 136 (1.4218e12 summed, 1.6136e12 folded). Confound: the exact run was contended (6-thread study jobs concurrently, per ANGLE_SLOP.md Timings); the pilot's concurrent load is unknown. So the full-pair data neither confirm nor refute "same cost"; they permit up to +18-20% (pessimistic). ANGLE_SLOP.md:34 quotes 6999 s without noting that it is 18% above the pilot. C1 cost-equality is supported only by uncontended patches.
+
+### Production extrapolation at (0,0)
+Pair-count share (my calc, n_i n_j): Bin6_Bin6 is only 3.6% of the 21-pair total (4.2-5.6% per bin-1/2 pair); bin1-bin1 5.6%. Done so far: Bin6_Bin6 (both pilot and b0_a0 chunk sets, 1.61e12 binned = 3.6%) + Bin1_Bin1 chunk 0-0 (1.3e11, 0.3%). Remaining ~ 4.1-4.3e13 binned pairs (96% of work). Production resumes with essentially the full 49 h pool; the pilot saves only ~1.9 h.
+Per-thread rates (pairs/s/thread): Bin1 chunk (16 thr, claimed uncontended) 1.50e7; pilot Bin6 (14 thr) 1.95e7; exact Bin6 (14 thr, contended) 1.65e7. Bin6 chunks are ~10-30% faster per thread than Bin1 (unexplained: density/clustering or contention in the Bin1 measurement).
+Total binned pairs 4.29e13 (f=0.04397) to 4.43e13 (f=0.04542).
+| scenario | rate | 16 thr | 20 thr (eff 0.85-1.0) |
+|---|---|---|---|
+| optimistic (pilot rate 1.95e7/thr) | 3.1e8 | 38 h | 31-37 h |
+| central (exact-run rate 1.65e7/thr) | 2.6e8 | 46 h | 37-43 h |
+| pessimistic (Bin1 rate 1.5e7 x 1.18 exact penalty) | 2.0e8 | 61 h | 50-59 h |
+(table = full 21 pairs, 4.4e13; subtract ~2 h for work done.)
+**Best estimate (0,0) at 16 threads: ~45 h (range 37-60 h); at 20 threads ~38 h (range 31-55 h).** Compared with "48.8 h" in the table: central is similar at 16 thr, but the stated figure has no error bar and the quoted 20-thread benefit is not in the table. Caveats: threads beyond 16 shared with other users on 22 cores; cross pairs (no-fold) never timed; chunk-pair count 256 per cross pair, negligible overhead; in-cone fraction varies by pair (cross pairs of distant bins likely slightly lower).
+
+## (c) Records contradicted or overstated by the full-pair exact result
+1. RESUME.md:66 "`bin_slop` is not a lever (0.0 and 0.05 give identical npairs). Coarse bins do not help." Contradicted on cost: bin_slop 1.5 is 3-4x faster (slop15.log 1857 s vs 5909 s; ANGLE_SLOP table 0.5: 0.57, 1: 0.36, 1.5: 0.23). Fix: "bin_slop <= 0.05 does not change cost; bin_slop >= 0.5 does (0.5: x0.57, 1: x0.36, 1.5: x0.15-0.23) but changes xi- (see ANGLE_SLOP.md)".
+2. RESUME.md:91-96 (bug 13): title "bin_slop=0 is NOT exact for xi-" and "CHUNKING.md 'exact' holds for xi+ only". At production scale default angle_slop vs 0 differs by 0.0006 sigma (xi-), 3e-5 (xi+) (fullpair_vs_exact.json), so bin_slop 0 with default angle_slop is exact to <1e-3 sigma. The 0.14 sigma was an 80 deg2 patch effect. Fix: reword to "angle_slop 0.1 matters on small patches (0.14 sigma) but not on the full 1000-bin Bin6 pair (0.0006 sigma); (0,0) is still the brute-force-exact setting (5e-14)". Also line 96 "All runs so far used the default" is now false (b0_a0 full pair exists).
+3. RESUME.md:38 (pilot row) "the official one behaves like a bin_slop~1.5 measurement" and "Interpretation pending". ANGLE_SLOP.md:10 itself says official bin_slop NOT established. Evidence: slop-1.5 passes A3 only marginally (0.089 vs 0.1; A3 threshold was calibrated on "theirs" data); exact vs slop-1.5 full pair is 0.093 xi-, and "theirs" 0.044 differs from slop1.5-through-our-code 0.089. Fix: "official is closer to bin_slop 1.5 than to exact; official bin_slop unknown". Also RESUME.md:110-113 states "A3 xi- failure is exact-vs-official" - fine, but C4 "not an error in our measurement" is an inference: verify.md subsample test shows a +1.5% xi- shift with slop 1.5 (t~2.3) so the approximation may be biased, not merely different; the exact result is the better estimate but the A3 gate (0.1) cannot be met by it.
+4. RESUME.md:4 "Nothing long is running." and :113 "verifier workflow running" - contradictory within the file (and verifiers are now running). Fix: "verifiers running; no production job".
+5. RESUME.md:60-66 "Measured: ~49 h" - it is an extrapolation from one chunk-pair, not a measurement of the production. Fix: "Estimated (extrapolated), 38-60 h at 16-20 thr".
+6. RESUME.md:106-108 "Pilot ... its chunk files count toward production" - true only for default-angle_slop production; if (0,0) is chosen, the b0_a0 set also exists, so Bin6_Bin6 is done either way; it is only 3.6% of production work.
+7. PILOT_BIN6.md:70 "Timing hint: ... near 15 h instead of 49 h ... one auto pair only" vs ANGLE_SLOP.md table 11.2 h vs core-normalised 7.5-9 h. Reconcile. Also PILOT_BIN6.md:70 "Either the A3 gate is moved for exact measurements, or the production run uses the official-like bin_slop" - fine but should cite that 1.5:0.1 full-pair deviates 0.44 sigma E_n20 from exact (ANGLE_SLOP).
+8. PILOT_BIN6.md:5 "Theirs = TreeCorr 5.1.4, bin_slop=1.5, unordered" and :60 "official/their curves carry the approximation": stated as fact; VERIFY.md:54 says official bin_slop not established. Fix: "external reproduction uses bin_slop 1.5".
+9. scripts/dr5_measure_xi_chunked.py:152-155 help: "0 = exact xi_- projection angles (~14x slower on a 20 WIDE-bin test...)" - not wrong but misleading: add "at full-pair scale the default differs from 0 by only 6e-4 sigma (xi-); exact (0,0) equals brute force to 5e-14". The "14x slower" is a 20-wide-bin artefact; the help also implies the default is inaccurate.
+10. ANGLE_SLOP.md:34 "6999 s ... (1.9 h, 14 threads, contended)" omit the +18% vs the pilot (5909 s); Headline item 1 "cost the same" should say "within ~0-6% on uncontended patches; full pair 1.18x in contended wall time". ANGLE_SLOP.md Recommendation "~49 h (same as the default)" should carry the 38-60 h range. Also ANGLE_SLOP.md "~1 h at 14 threads" for 0.5:0: 0.568 x 5905 s = 0.93 h (pilot basis) / 1.1 h (exact basis) OK.
+11. ANGLE_SLOP.md table row "1.5:0.1 hours 11.2" vs full-pair evidence (see above); row 0:0 "not measured" in the MEASURED column although the exact run is the full-pair reference (fine) - ok.

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kidspipe"
+version = "0.1.0"
+description = "Clean-room fast KiDS/KV450 cosmic-shear (xi+/-) inference pipeline"
+requires-python = ">=3.10"
+dependencies = ["numpy", "scipy", "numba", "camb"]
+
+[project.optional-dependencies]
+samplers = ["dynesty", "nautilus-sampler"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: long-running validation tests"]

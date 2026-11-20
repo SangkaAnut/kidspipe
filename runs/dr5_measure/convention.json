@@ -1,0 +1,85 @@
+{
+  "what": "shear sign convention decided against official xi+/- (check A1/A2 pre-step)",
+  "stride": 20,
+  "threads": 16,
+  "pairs": [
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ]
+  ],
+  "binning": "Log, 1000 bins, 2-300 arcmin, sep_units='arcmin', bin_slop=0.05",
+  "note": "xi_+ invariant under flipping both components; a single flip flips the sign of xi_-. r_xim is the decisive statistic because xi_- changes sign with a single flip.",
+  "summary": {
+    "flip1=0,flip2=0": {
+      "Bin1_Bin1_xip_corr": 0.01962896156805811,
+      "Bin1_Bin1_xim_corr": 0.1325480364105509,
+      "Bin1_Bin1_xip_im_corr": -0.055440857807767745,
+      "Bin1_Bin1_xip_over_xim_ours": 0.01749603323253396,
+      "Bin1_Bin1_xip_over_xim_off": 0.021052019895573672,
+      "Bin1_Bin1_npairs_sum": 6041611646.0,
+      "Bin1_Bin2_xip_corr": 0.072068185294584,
+      "Bin1_Bin2_xim_corr": 0.030973246685160993,
+      "Bin1_Bin2_xip_im_corr": 0.05419052296928768,
+      "Bin1_Bin2_xip_over_xim_ours": -0.050429872867086986,
+      "Bin1_Bin2_xip_over_xim_off": -0.01402567326929222,
+      "Bin1_Bin2_npairs_sum": 5970305228.0,
+      "score": 0.1635212830957119
+    },
+    "flip1=0,flip2=1": {
+      "Bin1_Bin1_xip_corr": 0.019474821154639606,
+      "Bin1_Bin1_xim_corr": 0.0042948658670838614,
+      "Bin1_Bin1_xip_im_corr": -0.034096268655024645,
+      "Bin1_Bin1_xip_over_xim_ours": 0.02304612651701842,
+      "Bin1_Bin1_xip_over_xim_off": 0.021052019895573672,
+      "Bin1_Bin1_npairs_sum": 6041611646.0,
+      "Bin1_Bin2_xip_corr": 0.07194418539913419,
+      "Bin1_Bin2_xim_corr": -0.05190648465103787,
+      "Bin1_Bin2_xip_im_corr": -0.054217365667848474,
+      "Bin1_Bin2_xip_over_xim_ours": 0.09036515062108015,
+      "Bin1_Bin2_xip_over_xim_off": -0.01402567326929222,
+      "Bin1_Bin2_npairs_sum": 5970305228.0,
+      "score": -0.04761161878395401
+    },
+    "flip1=1,flip2=0": {
+      "Bin1_Bin1_xip_corr": 0.019474821154639638,
+      "Bin1_Bin1_xim_corr": 0.004294865867083727,
+      "Bin1_Bin1_xip_im_corr": 0.0005905766539857383,
+      "Bin1_Bin1_xip_over_xim_ours": 0.02304612651698973,
+      "Bin1_Bin1_xip_over_xim_off": 0.021052019895573672,
+      "Bin1_Bin1_npairs_sum": 6041611646.0,
+      "Bin1_Bin2_xip_corr": 0.07194418539913405,
+      "Bin1_Bin2_xim_corr": -0.05190648465103773,
+      "Bin1_Bin2_xip_im_corr": -0.05421736566784845,
+      "Bin1_Bin2_xip_over_xim_ours": 0.09036515062102737,
+      "Bin1_Bin2_xip_over_xim_off": -0.01402567326929222,
+      "Bin1_Bin2_npairs_sum": 5970305228.0,
+      "score": -0.04761161878395401
+    },
+    "flip1=1,flip2=1": {
+      "Bin1_Bin1_xip_corr": 0.019628961568058264,
+      "Bin1_Bin1_xim_corr": 0.1325480364105509,
+      "Bin1_Bin1_xip_im_corr": 0.11656299883785626,
+      "Bin1_Bin1_xip_over_xim_ours": 0.017496033232537383,
+      "Bin1_Bin1_xip_over_xim_off": 0.021052019895573672,
+      "Bin1_Bin1_npairs_sum": 6041611646.0,
+      "Bin1_Bin2_xip_corr": 0.07206818529458402,
+      "Bin1_Bin2_xim_corr": 0.03097324668516107,
+      "Bin1_Bin2_xip_im_corr": 0.05419052296928758,
+      "Bin1_Bin2_xip_over_xim_ours": -0.05042987286707812,
+      "Bin1_Bin2_xip_over_xim_off": -0.01402567326929222,
+      "Bin1_Bin2_npairs_sum": 5970305228.0,
+      "score": 0.16352128309571198
+    }
+  },
+  "adopted_key": "flip1=1,flip2=1",
+  "adopted_flips": {
+    "flip_g1": true,
+    "flip_g2": true
+  },
+  "runtime_s": 188.3243989944458
+}

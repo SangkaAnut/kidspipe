@@ -1,0 +1,16 @@
+{
+  "nchunks": 16,
+  "nbins": 1000,
+  "bin_slop": 0.0,
+  "angle_slop": 0.0,
+  "threads": 8,
+  "binning": "Log, 1000 bins, 2-300 arcmin, sep_units='arcmin'",
+  "chunking": "equal-count RA strips, quantile edges",
+  "fold_rule": "auto pairs: 2 * sum_{a<b} process(c_a,c_b); cross pairs: no fold",
+  "exactness_check": "chunk_diagnose.log, chunk_verify.log (ratio 1.000000000)",
+  "partial_total_seconds": 597.8016550540924,
+  "chunk_pairs_written": 6,
+  "chunk_pairs_skipped": 130,
+  "mpi_workers": 2,
+  "threads_per_worker": 8
+}
