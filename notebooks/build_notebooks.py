@@ -161,7 +161,7 @@ def setup_cells(nb: NB, title_extra: str = "") -> None:
 
 ACK_MD = """
 **Acknowledgement.** The DR5 / KiDS-Legacy data are KiDS products. Acknowledge KiDS and cite Wright et al. 2024 (A&A 686, A170) and the KiDS-Legacy papers
-(<https://kids.strw.leidenuniv.nl/DR5/legacy_wl.php>); the repository's `README.md` has the full text. The repository is private; do not share the data or results
+(<https://kids.strw.leidenuniv.nl/DR5/legacy_wl.php>); the full acknowledgement statement is on that KiDS page (the repository's `README.md` and `data/README.md` only summarise it). The repository is private; do not share the data or results
 outside the terms of the KiDS release.
 """
 
@@ -211,7 +211,7 @@ print("paths.dr5_catalogue()   ", paths.dr5_catalogue())
 
 `pytest -m 'not slow'`. The suite checks the theory chain, the likelihood, the samplers, COSEBIs, the KiDS-Legacy pipeline and the DR5 measurement code (the DR5 tests that need
 data skip when it is absent). **Runtime estimate: roughly 10-20 min on 8 vCPU, 30-60 min on the free 2-vCPU runtime** (the full suite took 10-12 min on the 22-core development
-workstation, and it uses worker processes in several tests). Wall-clock assertions carry the `timing` marker and are skipped on machines with fewer than 8 cores unless
+workstation, and it uses worker processes in several tests). Wall-clock assertions carry the `timing` marker and are skipped on machines with fewer than 16 cores unless
 `KIDSPIPE_TIMING_TESTS=1`; no tolerance is relaxed for slow machines. Use `-x` to stop at the first failure.
 """)
     nb.code("!python -m pytest -q -m 'not slow' -p no:cacheprovider --durations=10")
@@ -554,7 +554,7 @@ DELETE_GZ = True  #@param {type:"boolean"}
 LOCAL_WORK_CACHE = True  #@param {type:"boolean"}
 #@markdown copy the per-bin npz from Drive to the local disk once per session (faster than reading Drive in every pair process)
 import os, pathlib
-from setup_env import sh, launch, tail
+from setup_env import sh, launch, tail, stop
 W = WORKERS
 CHAIN = f"python3 scripts/dr5_chain.py"
 CACHE = " --work-cache /content/dr5_work_local" if LOCAL_WORK_CACHE else ""
@@ -595,7 +595,7 @@ rc = run("measure", f"--max-hours {MAX_HOURS}{CACHE}")
 """)
     nb.md("""
 Alternative for long runs: start the stage **detached** so that closing the browser tab does not stop it (it keeps running while the runtime lives), then poll the log.
-Stop it with `p.terminate()` (the chain terminates the running pair cleanly; finished pairs stay on disk).
+Stop it with `stop(p)` (signals the whole process group; `p.terminate()` would only reach the shell wrapper; the chain terminates the running pair cleanly; finished pairs stay on disk).
 """)
     nb.code("""
 START_DETACHED = False   #@param {type:"boolean"}

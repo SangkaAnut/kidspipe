@@ -70,6 +70,7 @@ With none of them set, the defaults below are used.
 | `KIDSPIPE_DR5_WORK` | per-bin extract of the DR5 shear catalogue (`bin0.npz` .. `bin5.npz`, about 1.6 GB) | `~/kids_dr5_work` |
 | `KIDSPIPE_DR5_CATALOGUE` | the DR5 shear catalogue `KiDS_Legacy_NS_unblind_final.fits` (16.4 GB) | `<dr5_work>/KiDS_Legacy_NS_unblind_final.fits` |
 | `KIDSPIPE_EMULATOR` | linear-transfer emulator artefact | `<data>/emulator/transfer_emulator_v1.npz` |
+| `KIDSPIPE_PLOTS` | figures written by the scripts (the clone's `plots/` holds the shipped references) | `<root>/plots` |
 
 `runs/` in the checkout holds the shipped reference results (see "Repository layout"); a result that you produce into `$KIDSPIPE_RUNS` is preferred over the shipped copy when
 a script or test needs an existing result as input (`kidspipe.paths.find_result`). Variables are read at call time, except module-level constants such as `kidspipe.measure.official.OFFICIAL`, which are fixed at import:
@@ -238,7 +239,7 @@ plus a CAMB-priced early phase, because only 32 % of the omch2 prior lies inside
 * Hessian step control, boundary handling and the PJ-HPD on non-flat priors are described in `docs/interface_notes/inference.md`.
 * Absolute timings above were taken on the development workstation (22 cores, WSL2), shared with other jobs; relative costs are reliable, absolute ones are not (a Colab runtime has fewer, differently clocked cores) (observed load slow-down 2.7-3.6x; `docs/PERFORMANCE.md` section 1).
   The speed-up versus the original kcap/CosmoSIS pipeline in `docs/PERFORMANCE.md` section 8 is an estimate: kcap itself was never run.
-* Only KV450 cosmic shear (xi+/-) is implemented: no COSEBIs/band powers, no KiDS-1000, no 3x2pt, no Hartlap/ln|C| terms (the spec's likelihood has none).
+* Scope: KV450 cosmic shear (xi+/-), COSEBIs (E_n) and the KiDS-Legacy comparison / DR5 measurement chain are implemented (see above); not implemented: band powers, KiDS-1000 inference, 3x2pt, Hartlap/ln|C| terms in the KV450 xi+/- likelihood (the spec's likelihood has none).
 
 
 ## Tests
@@ -249,7 +250,7 @@ pytest -q -m "not slow"          # or: PYTHONPATH=src python3 -m pytest -q -m "n
 
 `tests/test_e2e.py` holds the spec-anchor, cache-correctness, fidelity/backend, robustness and CLI tests; the nested-sampler CLI smoke tests,
 the ensemble and the multi-process CLI tests are marked `slow`. Tests marked `timing` assert wall-clock speed and are skipped unless
-`KIDSPIPE_TIMING_TESTS=1` is set or the machine has at least 8 cores; tolerances are never loosened for slow machines. Tests that need the DR5 products or release files skip when those are absent.
+`KIDSPIPE_TIMING_TESTS=1` is set or the machine has at least 16 cores (`KIDSPIPE_TIMING_TESTS=0` skips them); tolerances are never loosened for slow machines. Tests that need the DR5 products or release files skip when those are absent.
 
 ## COSEBIs
 

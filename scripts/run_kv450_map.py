@@ -57,7 +57,7 @@ def run_one(job):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--starts", type=int, default=36)
-    ap.add_argument("--workers", type=int, default=C.NCPU, help="worker processes (default os.cpu_count())")
+    ap.add_argument("--workers", type=int, default=min(12, C.NCPU), help="worker processes (default min(12, os.cpu_count()))")
     ap.add_argument("--stage", choices=("explore", "polish"), default="explore",
                     help="explore: all starts on the 41-node z grid (L-BFGS-B only); polish: top --top candidates, spec grid, + Powell/NM")
     ap.add_argument("--top", type=int, default=8)

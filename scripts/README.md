@@ -19,6 +19,7 @@ may be slower or faster). Core-hours = wall x processes.
 | `KIDSPIPE_DR5_CATALOGUE` | the uncompressed 16.4 GB DR5 shear catalogue | `<dr5_work>/KiDS_Legacy_NS_unblind_final.fits` |
 | `KIDSPIPE_EMULATOR` | linear-transfer emulator artefact | `<data>/emulator/transfer_emulator_v1.npz` |
 | `KIDSPIPE_PLOTS` | where figures go (scripts only) | `<root>/plots` |
+| `KIDSPIPE_THEIRS_XIPM` | the earlier pipeline's `xipm` directory read by `dr5_sign_convention.py` (optional, external) | `/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm` |
 | `KIDSPIPE_THEIRS` | the earlier pipeline's xi directory (optional, external; see "Investigation scripts") | `/mnt/d/HI-gamma-correlation/pipeline/01_lensing_validation/outputs/xipm/fiducial` |
 
 Result files used as INPUTS (MAP, production chains, `adoption.json`, `b1_integration.json`, products, legacy chi2 tables, ...)
@@ -27,7 +28,10 @@ session with `KIDSPIPE_RUNS` on Google Drive therefore starts from the shipped r
 ones to Drive. A stage that resumes its own work (`legacy_validate.py eval`, the MCMC and chunk drivers) looks only at `<runs>`,
 so it never mistakes a shipped result for progress of your run.
 
-Worker / thread defaults are `os.cpu_count()` everywhere (`--workers`, `--threads`); explicit values still work. Each MCMC / nested
+Worker / thread defaults are the original fixed numbers capped by the machine, `min(OLD, os.cpu_count())` (`--workers` 10, 12, 6 or 20 and
+`--threads` 20 or 16, depending on the script; see each `--help`), so the 22-core workstation behaves exactly as before and a 2-8 vCPU Colab
+runtime gets its core count; explicit values still work (`dr5_chain.py` is the exception: its `--threads` defaults to `os.cpu_count()`, and it
+passes the count explicitly to every child script). Each MCMC / nested
 worker needs about 0.3 GB; one TreeCorr process of the DR5 chain needs 2.3 GB (auto pair) to 5 GB (cross pair), so on a 12.7 GB
 machine run ONE pair per process and never more than one MPI worker.
 
@@ -59,7 +63,7 @@ KiDS data acknowledgement: results derived from the KiDS-Legacy / DR5 data must 
 | 15 | `run_kv450_report.py` | `analysis.json`, prod chains, `nautilus*/nested*` (missing tags are reported and skipped) | markdown tables on stdout | seconds |
 | 16 | `make_plots.py` | MAP, prod chains, profile, benchmark JSON (shipped copies are found) | `plots/01..08*.png` | about 1 min |
 
-Total of steps 1-14: about 33 core-h (16 h wall on 2 vCPU, 4 h on 8 vCPU *est.*); the two production runs alone are 22.7 core-h.
+Total of steps 1-14: about 45 core-h (about 24 h wall on 2 vCPU, about 9 h on 8 vCPU, *est.*; same table as `notebooks/01`); the two production runs alone are 22.7 core-h.
 `--chains` options are statistical settings, not parallelism, and keep their defaults.
 
 ## 2. COSEBIs (xi+/- best fit to E_n)
@@ -101,7 +105,7 @@ per chunk-pair across sessions.
 Optional / report helpers: `dr5_plot_report_figs.py` (figures for `docs/PIPELINE_ARCHITECTURE_COMPARISON.tex` into `docs/figs/`,
 or `$KIDSPIPE_PLOTS/figs`), `dr5_mpi_chunk_compare.py NEW_DIR REF_DIR [--out f.json]` (compares chunk files of two runs, e.g. MPI vs serial).
 
-Interface used by the DR5 runner (unchanged by the portability pass): all `--threads` defaults moved from fixed numbers to
+Interface used by the DR5 runner (unchanged by the portability pass): all `--threads` defaults are the old fixed numbers capped by
 `os.cpu_count()`; `dr5_extract.py` gained `--catalogue/--out/--chunk/--force`; nothing else in the call syntax changed.
 
 ## 5. Emulator retraining (optional: the shipped `data/emulator/transfer_emulator_v1.npz` is enough to run everything)
@@ -109,7 +113,7 @@ Interface used by the DR5 runner (unchanged by the portability pass): all `--thr
 | step | call | outputs | cost |
 |---|---|---|---|
 | 1 | `train_emulator.py generate --workers N` | `<runs>/emulator_train/{train,train_aug,test}.npz` (about 520 MB), `kgrid.npy`, `zgrid.npy` | ~17 core-h (1051 + 384 + 256 CAMB runs) |
-| 2 | `train_emulator.py fit` (joblib LOO-GP, `os.cpu_count()` jobs) | the artefact (`$KIDSPIPE_EMULATOR`, default the SHIPPED file, which is overwritten: set the variable to keep it) | minutes |
+| 2 | `train_emulator.py fit` (joblib LOO-GP, `min(20, os.cpu_count())` jobs) | the artefact (`$KIDSPIPE_EMULATOR`, default the SHIPPED file, which is overwritten: set the variable to keep it) | minutes |
 | 3 | `train_emulator.py validate` | `<runs>/emulator_train/validation.json` | minutes |
 
 ---------------------------------------------------------------------------------------------------------------------------------

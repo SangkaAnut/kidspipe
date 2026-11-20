@@ -190,7 +190,7 @@ pytest -q -m "not slow"                                     # unit + e2e (fast);
 pytest -q tests/test_e2e.py                                  # incl. the slow nested-sampler smoke tests
 ```
 
-Tests marked `timing` assert wall-clock speed and run only with `KIDSPIPE_TIMING_TESTS=1` or on machines with at least 8 cores.
+Tests marked `timing` assert wall-clock speed and run only with `KIDSPIPE_TIMING_TESTS=1` or on machines with at least 16 cores.
 
 ## DR5 measurement chain
 

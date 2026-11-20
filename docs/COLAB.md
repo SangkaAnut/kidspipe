@@ -47,7 +47,7 @@ Each notebook starts with the same form cell ("1. Session setup"). **Run it firs
 2. clones the repository to `/content/kidspipe` (or updates an existing clone to the latest commit of the branch);
 3. calls `scripts/colab/setup_env.py`, which creates the Drive directories, sets the environment variables below **in the notebook process** (so `!python ...` cells inherit them), pins
    the source mtimes (numba cache, section 7), runs `pip install -e '.[all]'` only if kidspipe or an extra is missing, and prints versions, cores, RAM and disk;
-4. sets `WORKERS = os.cpu_count()`, used for every `--workers` / `--threads` in the notebooks.
+4. sets `WORKERS = os.cpu_count()`, used for every `--workers` / `--threads` in the notebooks (they are always passed explicitly; run on its own, a script's default is its original fixed number capped by `os.cpu_count()`, see `scripts/README.md`).
 
 ### Environment variables (defined in `src/kidspipe/paths.py`)
 
@@ -58,6 +58,7 @@ Each notebook starts with the same form cell ("1. Session setup"). **Run it firs
 | `KIDSPIPE_DR5_CATALOGUE` | `/content/dr5/KiDS_Legacy_NS_unblind_final.fits` | the 16.4 GB catalogue, **local disk only** |
 | `KIDSPIPE_PLOTS` | `/content/drive/MyDrive/kidspipe/plots` | figures written by the scripts (the clone's `plots/` keeps the shipped references) |
 | `OMP_NUM_THREADS`, `NUMBA_NUM_THREADS` | `os.cpu_count()` | CAMB / numba threads. Worker-process steps override them with 1 per process in the command |
+| `HDF5_USE_FILE_LOCKING` | `FALSE` | HDF5 / h5py file locking fails on the Google Drive FUSE mount ("unable to lock file"); the nested-sampling checkpoint (`nautilus.hdf5`) is written there, so the lock is switched off |
 | `NUMBA_CACHE_DIR` | `/content/drive/MyDrive/kidspipe/numba_cache` | compiled numba functions |
 | `KIDSPIPE_ROOT`, `KIDSPIPE_DATA`, `KIDSPIPE_OFFICIAL`, `KIDSPIPE_EMULATOR` | (defaults) | repository root, shipped input data, official KiDS-Legacy release files, emulator artefact |
 
@@ -111,7 +112,7 @@ python scripts/dr5_chain.py compare                     # your results vs the re
 python scripts/dr5_chain.py all --max-hours 11 [--no-exact]   # everything in order; run again in the next session
 ```
 
-Common options: `--threads N` (default `os.cpu_count()`), `--max-hours H`, `--pairs 1-2,3-3|autos|cross|all`, `--order heavy|light|index`, `--force`, `--dry-run`, `--runs-dir`,
+Common options: `--threads N` (default `os.cpu_count()` for `dr5_chain.py` itself, which passes the count explicitly to every child script), `--max-hours H`, `--pairs 1-2,3-3|autos|cross|all`, `--order heavy|light|index`, `--force`, `--dry-run`, `--runs-dir`,
 `--work-dir`, `--catalogue`, `--work-cache DIR`. `--dry-run` prints every command, the pair order and the estimated times without running or writing anything.
 
 How it behaves:
@@ -130,7 +131,7 @@ How it behaves:
 * **Inputs that cannot be regenerated.** `product` needs `adoption/adoption.json` and `a1_salvage/a1_salvage.json`, small results of the earlier pipeline. The chain copies them from the repository's
   shipped `runs/` into `$KIDSPIPE_RUNS` when they are missing there.
 * **Detached runs.** `scripts/colab/setup_env.launch(cmd, log)` starts a command in its own session with output appended to a log on Drive, `tail(log)` follows it. A cell that blocks for
-  hours is lost when the browser tab is closed; a detached job keeps running while the runtime lives (Colab can still reclaim an idle or over-age runtime).
+  hours is lost when the browser tab is closed; a detached job keeps running while the runtime lives (Colab can still reclaim an idle or over-age runtime). Stop a detached job with `stop(p)`, which signals the whole process group; `p.terminate()` would only reach the `sh` wrapper and leave the chain and its TreeCorr pair running.
 
 ### Download details
 
@@ -138,7 +139,7 @@ How it behaves:
 is compared with the server's `Content-Length`), checks free disk (about 24 GB needed), decompresses with `pigz -dc` (else `gzip -dc`) into `...fits.part`, verifies the header
 (`NAXIS2 = 40,894,394` rows via fitsio or astropy, and that the file is at least `NAXIS1 x NAXIS2` bytes) and only then renames it. A truncated gz makes the decompression fail instead of
 producing a short file. **Acknowledgement:** the catalogue is a KiDS-Legacy data product; acknowledge KiDS and cite Wright et al. 2024 (A&A 686, A170) and the KiDS-Legacy papers listed at
-<https://kids.strw.leidenuniv.nl/DR5/legacy_wl.php> (the repository `README.md` has the full text).
+<https://kids.strw.leidenuniv.nl/DR5/legacy_wl.php> (the full acknowledgement statement is on that KiDS page; the repository `README.md` and `data/README.md` only summarise it).
 
 ### Session plan
 
@@ -169,7 +170,7 @@ expected between different TreeCorr, numpy or BLAS builds; Monte-Carlo steps (ch
 | `download` stops or `curl` reports an error | run `download` again; it resumes from the partial gz. If the decompression fails, the gz is truncated: delete it and download again. |
 | `status` shows everything done in a fresh runtime | `KIDSPIPE_RUNS` points at the shipped `runs/`: run the setup cell. |
 | the estimated times are far off | the machine factor in `status` is measured from the pairs you ran. Free-tier vCPUs can be 1.5-3x slower than the workstation cores; a noisy host varies by session. |
-| a test fails on the free runtime | `pytest -m 'not slow'` skips the `timing` tests on fewer than 8 cores (override: `KIDSPIPE_TIMING_TESTS=1`); no tolerance is relaxed for slow machines. Report anything else. |
+| a test fails on the free runtime | `pytest -m 'not slow'` skips the `timing` tests on fewer than 16 cores, i.e. on every Colab runtime (override: `KIDSPIPE_TIMING_TESTS=1`); no tolerance is relaxed for slow machines. Report anything else. |
 | mpi4py / `mpirun` | not needed and not installed by `.[all]`; the Colab notebooks use worker processes (`--workers`). MPI gives no speedup on one machine. |
 
 ## 8. Colab usage notes

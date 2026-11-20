@@ -67,7 +67,7 @@ from kidspipe import paths  # noqa: E402
 from kidspipe.measure.official import PAIRS  # noqa: E402
 
 #: output tree: <runs>/dr5_measure/xi_chunked with <runs> = $KIDSPIPE_RUNS (default <root>/runs); the per-bin input extract is
-#: read from $KIDSPIPE_DR5_WORK (kidspipe.measure.xi.load_bin).  --threads defaults to os.cpu_count().
+#: read from $KIDSPIPE_DR5_WORK (kidspipe.measure.xi.load_bin).  --threads defaults to min(16, os.cpu_count()).
 OUTROOT = paths.runs_dir() / "dr5_measure" / "xi_chunked"
 NLETTER = {1: 7416371, 2: 7359911, 3: 6799681, 4: 6880432, 5: 6477538, 6: 5960461}
 
@@ -254,7 +254,7 @@ def main() -> None:
     ap.add_argument("--all", action="store_true", help="run every chunk-pair not yet done")
     ap.add_argument("--assemble", action="store_true", help="assemble chunk-pairs into pair npz")
     ap.add_argument("--status", action="store_true", help="report progress and estimated cost")
-    ap.add_argument("--threads", type=int, default=os.cpu_count() or 1, help="TreeCorr threads (default os.cpu_count(); per worker rank under --mpi)")
+    ap.add_argument("--threads", type=int, default=min(16, os.cpu_count() or 1), help="TreeCorr threads (default min(16, os.cpu_count()); per worker rank under --mpi)")
     ap.add_argument("--bin-slop", type=float, default=0.0)
     ap.add_argument("--angle-slop", type=float, default=None,
                     help="TreeCorr angle_slop (rad). Default None = TreeCorr default (0.1); 0 = exact xi_- "

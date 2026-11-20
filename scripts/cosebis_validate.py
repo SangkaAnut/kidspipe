@@ -448,7 +448,10 @@ def stage_post(nm=5, tag="n5", burn_extra=0):
 def reweight(nm, tag, m, cm, like, n=4000):
     """Importance weights w = L_cosebis(theta)/L_xi(theta) for a thinned xi+/- chain (prior identical)."""
     f = RUN / f"reweight_{tag}.npz"                                  # where a fresh computation is cached
-    fin = paths.find_result(f"cosebis/reweight_{tag}.npz")           # existing cache: yours, else the shipped one
+    # existing cache: yours; the SHIPPED one only together with the shipped xi chains (the cache is checked by length alone, so it must
+    # never be applied to chains you produced yourself)
+    mine_chain = bool(glob.glob(str(paths.runs_dir() / "kv450_final/prod*/prod_c*.npz")))
+    fin = f if (f.exists() or mine_chain) else paths.find_result(f"cosebis/reweight_{tag}.npz")
     S, Dxi, LPxi = xi_chain(step=max(1, 272840 // n))
     cached = False
     if fin.exists():

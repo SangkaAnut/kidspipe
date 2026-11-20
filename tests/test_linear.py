@@ -11,6 +11,7 @@ from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
 
 camb = pytest.importorskip("camb")
+from _anchors import anchor  # noqa: E402  (CAMB-version-dependent spec anchors)
 
 from kidspipe.theory.linear import (LinearBackend, LinearResult, Z_CHI, Z_GRID_REDUCED, Z_GRID_SPEC,  # noqa: E402
                                     default_nthreads)
@@ -47,14 +48,14 @@ def fresh_camb(omch2, ombh2, h, n_s, ln_1e10_A_s, z, var=None, mnu=0.06):
 def test_spec_sanity_point(lin_sanity):
     """spec s2.2: sigma8=0.779557, omega_m=0.250296, omnuh2=6.44867e-4, nk=194, kmax=30 h/Mpc, kmin=7.1429e-5."""
     r = lin_sanity
-    assert r.sigma8_0 == pytest.approx(0.779557, abs=1e-6)
-    assert r.omega_m == pytest.approx(0.250296, abs=1e-6)
-    assert r.omnuh2 == pytest.approx(6.44867e-4, rel=1e-5)
+    assert r.sigma8_0 == pytest.approx(anchor("linear.sanity.sigma8", 0.779557), abs=1e-6)
+    assert r.omega_m == pytest.approx(anchor("linear.sanity.omega_m", 0.250296), abs=1e-6)
+    assert r.omnuh2 == pytest.approx(anchor("linear.sanity.omnuh2", 6.44867e-4), rel=1e-5)
     assert r.k_h.size == 194
     assert r.k_h[0] == pytest.approx(7.1429e-5, rel=1e-4)
     assert r.k_h[-1] == pytest.approx(30.0, rel=1e-6)
     assert r.pk_lin.shape == (150, 194) and r.pk_cb.shape == (150, 194)
-    assert r.S8 == pytest.approx(0.779557 * np.sqrt(0.250296 / 0.3), rel=1e-6)
+    assert r.S8 == pytest.approx(anchor("linear.sanity.S8", 0.779557 * np.sqrt(0.250296 / 0.3)), rel=1e-6)
     assert r.omega_b == pytest.approx(0.022 / 0.49) and r.omega_c == pytest.approx(0.10 / 0.49)
     assert r.omega_m == pytest.approx((0.022 + 0.10 + r.omnuh2) / 0.49, rel=1e-12)
     assert r.omega_nu_frac == pytest.approx(r.omnuh2 / (0.49 * r.omega_m))
@@ -64,16 +65,16 @@ def test_vs_spec_anchor_test_cosmology(backend):
     """spec s4.1 anchors (anchors_test_cosmology.json): sigma8, S8, omega_m, chi, P_lin."""
     a = json.load(open(os.path.join(DATA, "anchors_test_cosmology.json")))["mead_A2.0"]
     r = backend.compute(**TESTCOSMO)
-    assert r.sigma8_0 == pytest.approx(a["sigma8"], rel=1e-6)
-    assert r.S8 == pytest.approx(a["S8"], rel=1e-6)
-    assert r.omega_m == pytest.approx(a["omega_m"], rel=1e-6)
+    assert r.sigma8_0 == pytest.approx(anchor("linear.testcosmo.sigma8", a["sigma8"]), rel=1e-6)
+    assert r.S8 == pytest.approx(anchor("linear.testcosmo.S8", a["S8"]), rel=1e-6)
+    assert r.omega_m == pytest.approx(anchor("linear.testcosmo.omega_m", a["omega_m"]), rel=1e-6)
     assert r.k_h.size == a["nk"] and r.k_h[-1] == pytest.approx(a["kmax_h"], rel=1e-6)
     chi = CubicSpline(r.z_chi, r.chi)
-    assert chi(0.5) == pytest.approx(a["chi_z0.5"], rel=1e-6)
-    assert chi(1.0) == pytest.approx(a["chi_z1_Mpc_over_h"], rel=1e-6)
+    assert chi(0.5) == pytest.approx(anchor("linear.testcosmo.chi_z0.5", a["chi_z0.5"]), rel=1e-6)
+    assert chi(1.0) == pytest.approx(anchor("linear.testcosmo.chi_z1", a["chi_z1_Mpc_over_h"]), rel=1e-6)
     # P_lin(z=0, k=0.1005): the anchor is the LINEAR-in-k interpolation between CAMB nodes (verified: it agrees
     # to ~1e-14; log-log linear and cubic-spline conventions differ from it by 2.5e-4 and 1e-3).
-    assert np.interp(0.1005, r.k_h, r.pk_lin[0]) == pytest.approx(a["Plin_z0_k0.1"], rel=1e-9)
+    assert np.interp(0.1005, r.k_h, r.pk_lin[0]) == pytest.approx(anchor("linear.testcosmo.Plin_z0_k0.1005", a["Plin_z0_k0.1"]), rel=1e-9)
 
 
 def test_pofk_linear_regime_anchor(backend):

@@ -1,0 +1,27 @@
+{
+ "camb_version": "2.0.5",
+ "numpy_version": "2.4.6",
+ "note": "values measured by tests' own code paths under this CAMB; used by the spec-anchor tests when CAMB >= 2 (the spec anchors were produced with CAMB 1.x); tolerances are the same as for the spec anchors",
+ "values": {
+  "linear.sanity.sigma8": 0.7795802360281281,
+  "linear.sanity.omega_m": 0.2502957130110619,
+  "linear.sanity.omnuh2": 0.0006448993754203254,
+  "linear.sanity.S8": 0.7120769019967133,
+  "linear.sanity.nk": 194,
+  "linear.sanity.kmin_h": 7.142857066355646e-05,
+  "linear.sanity.kmax_h": 29.999998092651367,
+  "nonlinear.sanity.pnl_z0_k1.00298": 350.06612752005555,
+  "nonlinear.sanity.plin_z0_k1.00298": 69.57149802005529,
+  "linear.testcosmo.sigma8": 0.7091169550163016,
+  "linear.testcosmo.S8": 0.647714989612861,
+  "linear.testcosmo.omega_m": 0.2502957130110619,
+  "linear.testcosmo.nk": 194,
+  "linear.testcosmo.kmax_h": 29.999998092651367,
+  "linear.testcosmo.chi_z0.5": 1345.5822867229153,
+  "linear.testcosmo.chi_z1": 2384.9590804596482,
+  "linear.testcosmo.Plin_z0_k0.1005": 4234.855653184159,
+  "e2e.test.sigma8": 0.7091169550163016,
+  "e2e.test.omega_m": 0.2502957130110619,
+  "e2e.test.S8": 0.647714989612861
+ }
+}

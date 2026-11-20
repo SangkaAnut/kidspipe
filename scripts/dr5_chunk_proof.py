@@ -48,7 +48,7 @@ for d in (SCRATCH / "xi_chunked",):
 from kidspipe.measure.xi import make_treecorr_cat, run_pair, corr_to_arrays  # noqa: E402
 
 cat = make_treecorr_cat(sub)
-gg = run_pair(cat, cat, nbins=1000, bin_slop=0.0, num_threads=os.cpu_count() or 1)
+gg = run_pair(cat, cat, nbins=1000, bin_slop=0.0, num_threads=min(16, os.cpu_count() or 1))
 ref = corr_to_arrays(gg)
 print(f"reference: npairs={ref['npairs'].sum():.6e}  w={ref['weight'].sum():.6e}")
 
@@ -71,7 +71,7 @@ print(f"chunks: {[c.nobj for c in cats]}")
 d = drv.OUTROOT / "chunks" / "Bin1_Bin1"
 d.mkdir(parents=True, exist_ok=True)
 for (a, b) in drv.chunk_pairs(NCH, same_bin=True):
-    g = run_pair(cats[a], cats[b], nbins=1000, bin_slop=0.0, num_threads=os.cpu_count() or 1)
+    g = run_pair(cats[a], cats[b], nbins=1000, bin_slop=0.0, num_threads=min(16, os.cpu_count() or 1))
     arr = corr_to_arrays(g)
     arr["fold"] = np.float64(drv.fold_factor(a, b, True))
     np.savez(d / f"c{a:02d}_{b:02d}.npz", **arr)

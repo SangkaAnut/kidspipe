@@ -139,20 +139,25 @@ def hms(seconds: float) -> str:
 
 
 # ------------------------------------------------------------------------------------------------ configuration
+def _abs(p) -> Path:
+    """Absolute path against the CALLER's cwd (children run with cwd=ROOT and would otherwise read a relative path differently)."""
+    return Path(p).expanduser().absolute()
+
+
 class Cfg:
     def __init__(self, a: argparse.Namespace):
         self.a = a
-        self.runs = Path(a.runs_dir).expanduser() if a.runs_dir else paths.runs_dir()
-        self.work = Path(a.work_dir).expanduser() if a.work_dir else paths.dr5_work_dir()
-        self.catalogue = Path(a.catalogue).expanduser() if a.catalogue else paths.dr5_catalogue()
-        self.work_cache = Path(a.work_cache).expanduser() if a.work_cache else None
+        self.runs = _abs(a.runs_dir) if a.runs_dir else _abs(paths.runs_dir())
+        self.work = _abs(a.work_dir) if a.work_dir else _abs(paths.dr5_work_dir())
+        self.catalogue = _abs(a.catalogue) if a.catalogue else _abs(paths.dr5_catalogue())
+        self.work_cache = _abs(a.work_cache) if a.work_cache else None
         self.threads = int(a.threads) if a.threads else (os.cpu_count() or 1)
         self.dry = bool(a.dry_run)
         self.nchunks = int(a.nchunks)
         self.meas = self.runs / "dr5_measure"
         self.b15 = self.meas / "xi_unordered" / "b1.5"
         self.chunks = self.meas / "xi_chunked"
-        self.state_file = Path(a.state).expanduser() if a.state else self.meas / "chain_state.json"
+        self.state_file = _abs(a.state) if a.state else self.meas / "chain_state.json"
         self.stop_file = self.meas / "chain_STOP"
         self.shipped = paths.shipped_runs_dir()
         self.t0 = time.time()
@@ -511,7 +516,7 @@ def remote_size(url: str) -> int | None:
 def cmd_download(cfg: Cfg, st: dict) -> int:
     a = cfg.a
     if a.dir:
-        fits = Path(a.dir).expanduser() / paths.CATALOGUE_NAME
+        fits = _abs(a.dir) / paths.CATALOGUE_NAME
         if fits.resolve() != cfg.catalogue.resolve():
             print(f"note: downloading to {fits}; set KIDSPIPE_DR5_CATALOGUE={fits} (or pass --catalogue) for the later steps.")
     else:
@@ -701,6 +706,8 @@ def cmd_measure(cfg: Cfg, st: dict) -> int:
             rec["factor"] = wall * cfg.threads / (REF_B15_S[p] * REF_THREADS)
             consecutive = 0
             ran += 1
+        elif timed_out:                                   # --hard-deadline cut the pair: a clean stop (exit 75), not a failure
+            print(f"{pname(p)}: stopped at the deadline (the pair is lost and will be redone in the next session)")
         else:
             failed.append(p)
             consecutive += 1
@@ -708,6 +715,8 @@ def cmd_measure(cfg: Cfg, st: dict) -> int:
             print(f"FAILED {pname(p)}: rc={rc}{hint}", file=sys.stderr)
         st.setdefault("records", {}).setdefault("b15", {})[pname(p)] = rec
         save_state(cfg, st)
+        if timed_out:
+            break
         if consecutive >= a.max_failures:
             print(f"{consecutive} failures in a row: stopping", file=sys.stderr)
             break
@@ -920,11 +929,18 @@ def cmd_plots(cfg: Cfg, st: dict, exact_only: bool = False) -> int:
 
 
 # ------------------------------------------------------------------------------------------------ compare with the shipped reference
+#: provenance / metadata arrays of the pair and product files (wall time, thread count, object counts, settings): they differ on every
+#: machine and say nothing about the physics, so they are not compared
+_PROVENANCE = {"seconds", "threads", "nobj1", "nobj2", "source_sizes", "bin_slop", "angle_slop_effective"}
+
+
 def _compare_npz(mine: Path, ref: Path) -> str:
     import numpy as np
     with np.load(mine) as a, np.load(ref) as b:
         worst, worst_key, identical, n = 0.0, "", True, 0
         for k in b.files:
+            if k in _PROVENANCE:
+                continue
             if k not in a.files:
                 return f"key {k} missing"
             x, y = a[k], b[k]

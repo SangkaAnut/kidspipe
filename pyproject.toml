@@ -27,6 +27,9 @@ mpi = ["mpi4py>=4.0", "threadpoolctl"]              # optional; needs an MPI lib
 test = ["pytest>=7.4"]
 all = ["kidspipe[samplers,measure,plots,emulator,test]"]
 
+[project.scripts]
+kidspipe = "kidspipe.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -35,5 +38,5 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [
     "slow: long-running validation tests (deselect with -m 'not slow')",
-    "timing: wall-clock assertions; skipped unless KIDSPIPE_TIMING_TESTS=1 or the machine has >= 8 cores",
+    "timing: wall-clock assertions; run on >= 16 cores, or force with KIDSPIPE_TIMING_TESTS=1 (0 to skip)",
 ]

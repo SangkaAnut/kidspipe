@@ -33,7 +33,7 @@ def job(j):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--workers", type=int, default=C.NCPU, help="worker processes (default os.cpu_count())")
+    ap.add_argument("--workers", type=int, default=min(12, C.NCPU), help="worker processes (default min(12, os.cpu_count()))")
     ap.add_argument("--map-file", default="map_best.json")
     a = ap.parse_args()
     x0 = np.array(json.load(open(C.find(a.map_file)))["theta"])

@@ -33,8 +33,10 @@ Fallback
 box and ``mnu == 0.06``; anything else (and any emulator failure) is delegated to the exact CAMB path of
 :class:`~kidspipe.theory.linear.LinearBackend` (counted in ``stats['fallback']``).
 
-Artefact: ``data/emulator/transfer_emulator_v1.npz`` (override with ``$KIDSPIPE_EMULATOR`` or ``path=``), written by
-``scripts/train_emulator.py`` with version stamps (CAMB version, box, seeds, sizes).
+Artefacts: ``data/emulator/transfer_emulator_v1.npz`` (trained with CAMB 1.5.8) and
+``data/emulator/transfer_emulator_v1_camb2.npz`` (same design, trained with CAMB 2.0.5); the one matching the installed
+CAMB major version is loaded (:func:`kidspipe.paths.emulator_artefact`; override with ``$KIDSPIPE_EMULATOR`` or ``path=``).
+Both are written by ``scripts/train_emulator.py`` with version stamps (CAMB version, box, seeds, sizes).
 """
 from __future__ import annotations
 

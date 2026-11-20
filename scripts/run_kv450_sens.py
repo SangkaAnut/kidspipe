@@ -82,7 +82,7 @@ def run_variant(job):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--variants", default="all")
-    ap.add_argument("--workers", type=int, default=C.NCPU, help="worker processes (default os.cpu_count())")
+    ap.add_argument("--workers", type=int, default=min(12, C.NCPU), help="worker processes (default min(12, os.cpu_count()))")
     ap.add_argument("--cycles", type=int, default=3000)
     ap.add_argument("--burn", type=int, default=1500)
     ap.add_argument("--chains", type=int, default=3)

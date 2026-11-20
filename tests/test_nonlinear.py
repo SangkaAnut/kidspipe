@@ -6,6 +6,7 @@ import pytest
 from scipy.interpolate import CubicSpline
 
 camb = pytest.importorskip("camb")
+from _anchors import anchor  # noqa: E402  (CAMB-version-dependent spec anchors)
 
 from kidspipe.theory import nonlinear as nl  # noqa: E402
 from kidspipe.theory.linear import LinearBackend, Z_GRID_REDUCED  # noqa: E402
@@ -83,8 +84,8 @@ def test_spec_anchor_pnl(backend):
     k = r.k_h
     i = np.searchsorted(k, 1.00298)
     w = (1.00298 - k[i - 1]) / (k[i] - k[i - 1])
-    assert pn[0, i - 1] * (1 - w) + pn[0, i] * w == pytest.approx(350.03, rel=1e-4)
-    assert r.pk_lin[0, i - 1] * (1 - w) + r.pk_lin[0, i] * w == pytest.approx(69.57, rel=1e-4)
+    assert pn[0, i - 1] * (1 - w) + pn[0, i] * w == pytest.approx(anchor("nonlinear.sanity.pnl_z0_k1.00298", 350.03), rel=1e-4)
+    assert r.pk_lin[0, i - 1] * (1 - w) + r.pk_lin[0, i] * w == pytest.approx(anchor("nonlinear.sanity.plin_z0_k1.00298", 69.57), rel=1e-4)
 
 
 def test_pnl_vs_fresh_camb_incl_rescale(backend, lin):

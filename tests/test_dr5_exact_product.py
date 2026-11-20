@@ -112,10 +112,10 @@ def test_cosebis_are_the_integral_of_the_stored_xi(prod, ctx, mx):
 
 
 def test_product_matches_assembled_files(prod, mx):
-    mx.validate_sources(prod)
+    mx.validate_sources(prod, srcdir=ASM)
     bad = copy(prod); bad["varxi"][0, 400] *= 1.0001                                                # pair 1-1 is an auto pair
     with pytest.raises(AssertionError):
-        mx.validate_sources(bad)
+        mx.validate_sources(bad, srcdir=ASM)
 
 
 @needs_chunks

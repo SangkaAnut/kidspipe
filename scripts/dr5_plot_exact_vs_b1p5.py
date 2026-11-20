@@ -66,7 +66,6 @@ def main():
     fig.suptitle(t, x=0.06, ha="left", y=0.985, fontsize=11, color=INK)
     fig.text(0.06, 0.945, sub, ha="left", fontsize=9, color=MUTED)
     fig.text(0.06, 0.035, note, ha="left", fontsize=8.5, color=MUTED)
-    OUTF.parent.mkdir(exist_ok=True)
     OUTF.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUTF, bbox_inches="tight"); print("wrote", OUTF)
 

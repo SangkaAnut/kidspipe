@@ -5,7 +5,7 @@ fixed-parameter / penalised optimiser wrapper, and small chain helpers.
 
 Paths (kidspipe.paths): results are written to ``OUT`` = ``<runs>/kv450_final`` with ``<runs>`` = $KIDSPIPE_RUNS (default <root>/runs).  Results used
 as INPUTS (MAP, pilot, production chains, ...) are read with ``find(rel)`` / ``result_glob(pattern)``: ``OUT`` first, else the copy shipped in
-<root>/runs/kv450_final.  ``NCPU`` = os.cpu_count() is the default for every ``--workers`` option of the drivers.
+<root>/runs/kv450_final.  ``NCPU`` = os.cpu_count(); every ``--workers`` default is the baseline count capped by it, ``min(N, NCPU)``.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from kidspipe import paths                          # noqa: E402
 
 OUT = paths.runs_dir() / "kv450_final"
 OUT.mkdir(parents=True, exist_ok=True)
-NCPU = os.cpu_count() or 1                          # default worker count of the drivers
+NCPU = os.cpu_count() or 1                          # machine cap for the default worker counts of the drivers
 
 
 def find(rel) -> Path:

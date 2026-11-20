@@ -44,7 +44,7 @@ The default `apply_m=True` divides data by (1+m_a)(1+m_b). Whether the shipped E
 (Delta chi2 = 1.3 at 5 modes, 5.8 at 20) but the model was fitted with m-corrected xi+/-, so this cannot decide it.
 
 ## COSEBIs-only posterior (plot 06)
-Method: `runs/cosebis/mcmc.py`, kidspipe `blocked_metropolis`, emulator model, 5 modes, m-corrected data, proposal covariance and starts from the xi+/- posterior
+Method: `scripts/cosebis_mcmc.py`, kidspipe `blocked_metropolis`, emulator model, 5 modes, m-corrected data, proposal covariance and starts from the xi+/- posterior
 (prod1+prod2). 10 chains, 1500 burn-in + 500 recorded cycles each (chain 4 has 1000; the first 500 are used), 14 parameters sampled (delta_c, A_c are unconstrained by COSEBIs and just sample their priors).
 
 * **Truncated to the emulator box** (omch2 in [0.03, 0.34], ombh2, h): proposals outside get ln P = -inf. A first run with CAMB fallback outside the box was far too slow
@@ -85,7 +85,7 @@ with errors ~0.04. I did not check these against the papers; treat as unverified
 # from the repository root of your clone (after `pip install -e '.[all]'`, or with `export PYTHONPATH=$PWD/src`)
 export OMP_NUM_THREADS=4 NUMBA_NUM_THREADS=4
 python3 scripts/cosebis_validate.py main      # plots 01-05, 07, numbers (~1.5 min)
-COSEBIS_WALL=1500 python3 runs/cosebis/mcmc.py 5 10 10000 1500 n5   # MCMC, ~30 min on ~2 effective cores
+COSEBIS_WALL=1500 python3 scripts/cosebis_mcmc.py 5 10 10000 1500 n5   # MCMC, ~30 min on ~2 effective cores
 python3 scripts/cosebis_validate.py post      # plot 06 + reweighting (reweighting ~8 min, cached in runs/cosebis/reweight_n5.npz)
 pytest -q tests/test_cosebis.py
 ```

@@ -8,7 +8,7 @@ Inputs (read only; each looked up as <runs>/..., else the copy shipped in <root>
 fullvector_checks.json, a4_recheck.json (plot 6 is skipped without it), the official FITS/ascii (via kidspipe.measure.official),
 dr5_measure/b1_integration.json (B1 scalars; arrays are recomputed from the official ascii: it stores none),
 and the earlier pipeline's xi (theirs, $KIDSPIPE_THEIRS, optional: the two ours-vs-theirs panels of plot 2 are omitted when it is absent);
-the float64 extract $KIDSPIPE_DR5_WORK/bin{0,5}.npz (a4 only).  The a4 TreeCorr runs use os.cpu_count() threads.
+the float64 extract $KIDSPIPE_DR5_WORK/bin{0,5}.npz (a4 only).  The a4 TreeCorr runs use min(16, os.cpu_count()) threads.
 Plots: dr5_01_xipm_vs_official, dr5_02_npairs_weights_ratio, dr5_03_En_vs_official, dr5_03b_Bn_vs_official, dr5_04_integration_vs_measurement,
 dr5_05_Bn_null, dr5_06_estimator_crosscheck.
 """
@@ -267,7 +267,7 @@ def run_a4():
         if not (work / f"bin{b - 1}.npz").is_file():
             sys.exit(f"a4 needs the per-bin extract {work / f'bin{b - 1}.npz'}: run scripts/dr5_extract.py first "
                      f"(or set KIDSPIPE_DR5_WORK)")
-    nthreads = os.cpu_count() or 1
+    nthreads = min(16, os.cpu_count() or 1)
     cat = {}
     ra0 = dec0 = None
     for b in (6, 1):

@@ -5,7 +5,7 @@ Stages (run in this order; see docs/KIDS_LEGACY_VALIDATION.md for exact commands
   plots   all figures plots/legacy_*.png and the summary json runs/legacy_val/summary.json
   timing  ms per E_n evaluation (runs/legacy_val/timing.json)
 
-Keep OMP_NUM_THREADS / NUMBA_NUM_THREADS = 1 for `eval` (one single-threaded CAMB per worker); --workers defaults to os.cpu_count().
+Keep OMP_NUM_THREADS / NUMBA_NUM_THREADS = 1 for `eval` (one single-threaded CAMB per worker); --workers defaults to min(10, os.cpu_count()).
 
 Paths (kidspipe.paths): results in <runs>/legacy_val/ and the operator cache in <runs>/legacy/cache with <runs> = $KIDSPIPE_RUNS
 (default <root>/runs); figures in $KIDSPIPE_PLOTS (default <root>/plots).  `eval` resumes from <runs>/legacy_val/chi2.npz (your own run
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     ap.add_argument("--n-top", type=int, default=150)
     ap.add_argument("--n-draw", type=int, default=4000)
     ap.add_argument("--seed", type=int, default=7)
-    ap.add_argument("--workers", type=int, default=os.cpu_count() or 1, help="eval worker processes (default os.cpu_count())")
+    ap.add_argument("--workers", type=int, default=min(10, os.cpu_count() or 1), help="eval worker processes (default min(10, os.cpu_count()))")
     ap.add_argument("--n-time", type=int, default=8)
     ap.add_argument("--mpi", action="store_true", help="eval over MPI ranks: `mpirun -n N python scripts/legacy_validate.py eval "
                     "--mpi`; rank 0 schedules and saves, ranks 1..N-1 evaluate (one single-threaded model each); --workers ignored")

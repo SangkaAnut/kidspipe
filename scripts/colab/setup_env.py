@@ -28,6 +28,7 @@ import importlib.util
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -55,6 +56,7 @@ def environment(drive_root: str | os.PathLike = DEFAULT_DRIVE_ROOT, catalogue_di
         "OMP_NUM_THREADS": n,
         "NUMBA_NUM_THREADS": n,
         "PYTHONUNBUFFERED": "1",
+        "HDF5_USE_FILE_LOCKING": "FALSE",     # h5py / nautilus checkpoints on the Drive FUSE mount fail with "unable to lock file" otherwise
     }
     if numba_cache == "drive":
         env["NUMBA_CACHE_DIR"] = str(drive_root / "numba_cache")
@@ -180,12 +182,22 @@ def launch(cmd: str, log: str | os.PathLike) -> subprocess.Popen:
     """Start a shell command detached from the notebook cell, output appended to ``log`` (e.g. on Drive).
 
     A cell that blocks for hours is lost when the browser tab is closed; a detached job keeps running while the runtime lives.
-    Follow it with ``tail(log)``; stop it with ``p.terminate()`` (the DR5 chain stops cleanly: finished work stays on disk)."""
+    Follow it with ``tail(log)``; stop it with ``stop(p)`` (NOT ``p.terminate()``: that signals only the ``sh`` wrapper, not the chain;
+    ``stop`` signals the whole process group, and the DR5 chain then stops its pair cleanly: finished work stays on disk)."""
     log = Path(log)
     log.parent.mkdir(parents=True, exist_ok=True)
     f = open(log, "ab", buffering=0)
     f.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')}  {cmd}\n".encode())
     return subprocess.Popen(cmd, shell=True, stdout=f, stderr=subprocess.STDOUT, start_new_session=True, env=os.environ.copy(), cwd=str(REPO))
+
+
+def stop(p: subprocess.Popen, sig: int = signal.SIGTERM) -> None:
+    """Signal the whole process group of a job started with ``launch`` (or ``sh``): the shell, the chain and its children.
+    ``launch`` makes the child a session leader, so its process group id is ``p.pid``."""
+    try:
+        os.killpg(p.pid, sig)
+    except ProcessLookupError:
+        pass
 
 
 def tail(log: str | os.PathLike, n: int = 30) -> str:
@@ -200,12 +212,12 @@ def sh(cmd: str, cwd: str | os.PathLike | None = None) -> int:
     """Run a shell command, streaming its output into the notebook cell; returns the exit status (Colab does not always show the
     output of a plain ``subprocess.call``)."""
     p = subprocess.Popen(cmd, shell=True, cwd=str(cwd or REPO), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
-                         env=os.environ.copy())
+                         env=os.environ.copy(), start_new_session=True)
     try:
         for line in p.stdout:
             print(line, end="", flush=True)
     except KeyboardInterrupt:
-        p.terminate()
+        stop(p)                      # the child has its own session: signal the whole group, not only the shell
         p.wait()
         raise
     return p.wait()

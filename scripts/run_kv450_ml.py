@@ -37,7 +37,7 @@ def job(j):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--workers", type=int, default=C.NCPU, help="worker processes (default os.cpu_count())")
+    ap.add_argument("--workers", type=int, default=min(6, C.NCPU), help="worker processes (default min(6, os.cpu_count()))")
     a = ap.parse_args()
     X, LP = [], []
     for f in C.result_glob("prod*/prod_c*.npz"):

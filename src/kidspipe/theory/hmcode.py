@@ -61,6 +61,10 @@ from functools import lru_cache
 import numpy as np
 from numba import njit, prange
 
+#: fastmath without 'reassoc': lets LLVM use FMA/approximate functions but not reorder sums, so results do not depend on
+#: thread count, memory alignment or the order of the redshifts (bitwise; numba >= 0.60 otherwise differs by ~1 ulp)
+_FASTMATH = {"nnan", "ninf", "nsz", "arcp", "contract", "afn"}
+
 __all__ = ["hmcode_pnl", "pk_cb_approx", "hmcode_pnl_diag", "nfw_window", "growth_table", "omega_m_of_z"]
 
 # ----------------------------------------------------------------------------------------------
@@ -267,7 +271,7 @@ def _get_grid(k_h, ms, dl):
 # ----------------------------------------------------------------------------------------------
 # numba kernels
 # ----------------------------------------------------------------------------------------------
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=_FASTMATH)
 def _dense_dsq(lnd2, i0, w, nin, lq, lk_last, slope, out):
     """exp of interpolated ln Delta^2 on the dense grid (inside) / power-law continuation (outside)."""
     for d in range(nin):
@@ -279,7 +283,7 @@ def _dense_dsq(lnd2, i0, w, nin, lq, lk_last, slope, out):
         out[d] = math.exp(last + slope * (lq[d] - lk_last))
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=_FASTMATH)
 def _dot(a, b):
     s = 0.0
     for i in range(a.size):
@@ -287,7 +291,7 @@ def _dot(a, b):
     return s
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=_FASTMATH)
 def _hm_one_z(k, lk, pk_t, pk_c, i0, w, nin, lq, WR, W8, W100, Wv,
               lnR, dR, ia, ib, ms, om_z, g_z, z_z, f_nu, n_s, A_b, eta0, dolag,
               lna_t, lng_t, ftab, gtab, kmin_nl, tol_win, out, diag):
@@ -456,7 +460,7 @@ def _hm_one_z(k, lk, pk_t, pk_c, i0, w, nin, lq, WR, W8, W100, Wv,
     diag[9] = kstar
 
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=True, parallel=True, fastmath=_FASTMATH)
 def _hm_all(k, lk, pk_t, pk_c, i0, w, nin, lq, WR, W8, W100, Wv, lnR, dR, ia, ib, ms,
             om_z, g_z, z_arr, f_nu, n_s, A_b, eta0, dolag, lna_t, lng_t, ftab, gtab, kmin_nl, tol_win,
             out, diag):

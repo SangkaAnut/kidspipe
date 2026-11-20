@@ -11,7 +11,7 @@ TreeCorr 4.2.3, bin_slop 1.5 (Wright+25 Sect. 2.5.1 footnote 1).
 
 Paths (kidspipe.paths): inputs bin0..5.npz from $KIDSPIPE_DR5_WORK (written by dr5_extract.py), official release files from
 $KIDSPIPE_OFFICIAL; outputs under <runs>/dr5_measure/xi_unordered/ with <runs> = $KIDSPIPE_RUNS (default <root>/runs):
-b<slop>/Bin<I>_Bin<J>.npz, manifest.json, eval.json, EVAL.md.  --threads defaults to os.cpu_count().  Run one process per pair
+b<slop>/Bin<I>_Bin<J>.npz, manifest.json, eval.json, EVAL.md.  --threads defaults to min(20, os.cpu_count()).  Run one process per pair
 on a 12-16 GB machine (a TreeCorr cross pair needs about 5 GB and a long-lived process retains memory across pairs).
 Optional inputs that degrade gracefully when absent: the earlier pipeline's xi (``$KIDSPIPE_THEIRS``, default
 /mnt/d/HI-gamma-correlation/...; the ours-vs-theirs comparison is skipped) and a1_salvage.json (the one-constant A_p test is skipped).
@@ -372,7 +372,7 @@ def do_eval(args):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("cmd", choices=["run", "eval"])
     ap.add_argument("--pairs", default="autos"); ap.add_argument("--bin-slop", type=float, default=1.5)
-    ap.add_argument("--threads", type=int, default=os.cpu_count() or 1, help="TreeCorr threads (default: os.cpu_count())"); ap.add_argument("--force", action="store_true")
+    ap.add_argument("--threads", type=int, default=min(20, os.cpu_count() or 1), help="TreeCorr threads (default: min(20, os.cpu_count()))"); ap.add_argument("--force", action="store_true")
     ap.add_argument("--source", choices=["ours", "theirs"], default="ours")
     ap.add_argument("--subsample", type=int, default=0, help=argparse.SUPPRESS)
     ap.add_argument("--seed", type=int, default=0, help=argparse.SUPPRESS)

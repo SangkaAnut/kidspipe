@@ -16,6 +16,8 @@ import pytest
 
 from kidspipe import api, params
 from kidspipe.params import PARAM_NAMES
+
+from _anchors import anchor  # CAMB-version-dependent spec anchors
 from kidspipe.theory.model import CosmicShearModel
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,9 +70,9 @@ def test_chi2_spec_test_cosmology(post):
 
 def test_derived_quantities_test_cosmology(post):
     d = api.derived_for(post, api.preset("test"))
-    assert d["sigma8"] == pytest.approx(0.7090923, abs=2e-5)
-    assert d["omega_m"] == pytest.approx(0.2502956, abs=2e-6)
-    assert d["S8"] == pytest.approx(0.6476924, abs=2e-5)
+    assert d["sigma8"] == pytest.approx(anchor("e2e.test.sigma8", 0.7090923), abs=2e-5)
+    assert d["omega_m"] == pytest.approx(anchor("e2e.test.omega_m", 0.2502956), abs=2e-6)
+    assert d["S8"] == pytest.approx(anchor("e2e.test.S8", 0.6476924), abs=2e-5)
     assert d["S8"] == pytest.approx(d["sigma8"] * np.sqrt(d["omega_m"] / 0.3), rel=1e-12)
 
 

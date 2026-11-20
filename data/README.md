@@ -22,7 +22,8 @@ from the public KiDS server (see the end of this file).
 | `validation/anchors_test_cosmology.json` | regression anchors (sigma8, Omega_m, S8, C_ell, xi, chi2 at the spec test cosmology) | produced by this project's reference implementation of the spec (`docs/MASTER_MATH_SPEC.md`); our own |
 | `validation/k_h.txt`, `z.txt`, `pk_mead.txt` | stored CAMB 'mead' non-linear P(k, z) used to test the stand-alone HMcode | kcap `tests/test_pofk/camb_output` |
 | `validation/pofk_values.ini`, `flinc_theory_vector.ascii` | cosmology of that P(k) test; theory vector of the Flinc mock cosmology | kcap test files |
-| `emulator/transfer_emulator_v1.npz` | PCA + polynomial / Gaussian-process emulator of the CAMB linear transfer function for (omch2, ombh2, h), trained on 1435 CAMB runs (10 MB) | **our own**, produced by `scripts/train_emulator.py` (README, "Architecture" and `docs/PERFORMANCE.md` section 6); validation in `runs/validate_emulator_pipeline*.json` |
+| `emulator/transfer_emulator_v1.npz` | PCA + polynomial / Gaussian-process emulator of the CAMB linear transfer function for (omch2, ombh2, h), trained on 1435 CAMB 1.5.8 runs (10 MB); loaded when CAMB 1.x is installed | **our own**, produced by `scripts/train_emulator.py` (README, "Architecture" and `docs/PERFORMANCE.md` section 6); validation in `runs/validate_emulator_pipeline*.json` |
+| `emulator/transfer_emulator_v1_camb2.npz` | the same emulator design retrained on CAMB 2.0.5 runs; loaded when CAMB 2.x is installed | **our own**, `scripts/train_emulator.py` under CAMB 2.0.5 (`docs/COMPATIBILITY.md`); validation in `runs/emulator_train_camb2/validation.json` |
 
 The row "source" entries for `kv450/`, `cosebis/` and `validation/` describe the origin as recorded in `docs/VALIDATION_TARGETS.md` and `docs/REVIEW.md`; the copies were
 renamed, and the original release file names and checksums were not all kept. Where exact provenance matters, compare with the public KV450 / kcap files.

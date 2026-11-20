@@ -38,7 +38,7 @@ print("official centres :", ang.round(2))
 print("official xiP     :", val.round(6))
 print("official sigma   :", sig.round(6))
 
-kw = treecorr_kwargs(nbins=9, bin_slop=0.0, num_threads=os.cpu_count() or 1)
+kw = treecorr_kwargs(nbins=9, bin_slop=0.0, num_threads=min(16, os.cpu_count() or 1))
 cat = make_treecorr_cat(rec)
 gg = treecorr.GGCorrelation(kw)
 gg.process(cat, cat)

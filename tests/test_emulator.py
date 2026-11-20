@@ -1,7 +1,8 @@
 """Tests for kidspipe.theory.emulator (transfer emulator for omch2, ombh2, h) and its integration.
 
-Fast tests (default) need the shipped artefact ``data/emulator/transfer_emulator_v1.npz``; they are skipped if it is
-missing.  Tests marked ``slow`` run the full pipeline against exact CAMB.
+Fast tests (default) need the shipped artefact for the installed CAMB major version
+(``data/emulator/transfer_emulator_v1.npz`` for CAMB 1.x, ``..._v1_camb2.npz`` for CAMB 2.x, see
+:func:`kidspipe.paths.emulator_artefact`); they are skipped if it is missing.  Tests marked ``slow`` run the full pipeline against exact CAMB.
 """
 import time
 

@@ -47,6 +47,9 @@ venv/
 !/runs/emulator_train/validation.json
 !/runs/emulator_train/kgrid.npy
 !/runs/emulator_train/zgrid.npy
+!/runs/compat/**
+!/runs/emulator_train_camb2/validation.json
+!/runs/emulator_train_camb2/train.log
 
 # DR5 measurement record (docs/DR5_MEASUREMENT_REPORT.md) and products
 !/runs/dr5_measure/*.md

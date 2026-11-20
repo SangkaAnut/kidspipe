@@ -17,6 +17,7 @@ variable                    meaning                                             
 ``KIDSPIPE_DR5_CATALOGUE``  the DR5 shear catalogue                                ``<dr5_work>/KiDS_Legacy_NS_unblind_final.fits``
                             ``KiDS_Legacy_NS_unblind_final.fits`` (16.4 GB)
 ``KIDSPIPE_EMULATOR``       linear-transfer emulator artefact                      ``<data>/emulator/transfer_emulator_v1.npz``
+                                                                                  (CAMB 1.x) or ``..._v1_camb2.npz`` (CAMB 2.x)
 ``KIDSPIPE_PLOTS``          figures written by the scripts                         ``<root>/plots``
 ==========================  ====================================================  =========================================
 
@@ -28,7 +29,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-__all__ = ["root", "data_dir", "runs_dir", "shipped_runs_dir", "find_result", "official_dir", "dr5_work_dir", "dr5_catalogue", "emulator_artefact", "plots_dir",
+__all__ = ["root", "data_dir", "runs_dir", "shipped_runs_dir", "find_result", "official_dir", "dr5_work_dir", "dr5_catalogue", "emulator_artefact", "emulator_artefact_target", "plots_dir",
            "CATALOGUE_NAME", "CATALOGUE_URL", "RELEASE_URL"]
 
 #: file name of the KiDS-Legacy (DR5) shear catalogue
@@ -100,5 +101,27 @@ def plots_dir() -> Path:
     return _env("KIDSPIPE_PLOTS") or root() / "plots"
 
 
+def _camb_major() -> int | None:
+    """Major version of the installed CAMB, read from the package metadata (does not import camb)."""
+    try:
+        from importlib.metadata import version
+        return int(version("camb").split(".")[0])
+    except Exception:
+        return None
+
+
+def emulator_artefact_target() -> Path:
+    """The artefact matching the installed CAMB major version (where ``scripts/train_emulator.py fit`` writes):
+    ``transfer_emulator_v1.npz`` (trained with CAMB 1.5.8) or ``transfer_emulator_v1_camb2.npz`` (CAMB 2.0.5);
+    ``$KIDSPIPE_EMULATOR`` overrides."""
+    name = "transfer_emulator_v1_camb2.npz" if (_camb_major() or 1) >= 2 else "transfer_emulator_v1.npz"
+    return _env("KIDSPIPE_EMULATOR") or data_dir() / "emulator" / name
+
+
 def emulator_artefact() -> Path:
-    return _env("KIDSPIPE_EMULATOR") or data_dir() / "emulator" / "transfer_emulator_v1.npz"
+    """The artefact the pipeline loads: ``$KIDSPIPE_EMULATOR``, else the one trained with the installed CAMB major
+    version (:func:`emulator_artefact_target`), else ``transfer_emulator_v1.npz``."""
+    t = emulator_artefact_target()
+    if t.is_file() or _env("KIDSPIPE_EMULATOR"):
+        return t
+    return data_dir() / "emulator" / "transfer_emulator_v1.npz"

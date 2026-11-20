@@ -96,6 +96,7 @@ def main():
     import matplotlib
     matplotlib.use("Agg")
     P.style()
+    P.PLOTS.mkdir(parents=True, exist_ok=True)
     ex, b15 = dict(np.load(EXACT)), dict(np.load(P.PRODUCT))
     fx, cb = of.load_official_xipm_fits(), of.load_official_cosebis()
     assert np.array_equal(ex["pair_ids"], np.array(P.PAIRS1)) and np.array_equal(b15["pair_ids"], np.array(P.PAIRS1))

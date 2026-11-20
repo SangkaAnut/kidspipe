@@ -28,7 +28,7 @@ from kidspipe.measure.xi import load_bin, make_treecorr_cat, run_pair, corr_to_a
 
 OUT = Path(__file__).resolve().parents[1] / "runs" / "dr5_measure"
 STRIDE = 20
-THREADS = os.cpu_count() or 1
+THREADS = min(16, os.cpu_count() or 1)
 PAIRS_TODO = [(1, 1), (1, 2)]
 
 

@@ -241,7 +241,7 @@ def main() -> None:
                     help="fraction to subsample; 0 means use --from-npz instead")
     ap.add_argument("--from-npz", default="", help="directory of production npz files")
     ap.add_argument("--nbins", type=int, default=1000)
-    ap.add_argument("--threads", type=int, default=os.cpu_count() or 1)
+    ap.add_argument("--threads", type=int, default=min(16, os.cpu_count() or 1))
     ap.add_argument("--bin-slop", type=float, default=0.0)
     ap.add_argument("--pairs", default="", help="comma list i-j (1-based), e.g. 1-1,1-2")
     args = ap.parse_args()
