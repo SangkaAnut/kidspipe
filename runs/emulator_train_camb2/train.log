@@ -1,0 +1,70 @@
+[generate:test] 50/256  56 s
+[generate:test] 100/256  111 s
+[generate:test] 150/256  169 s
+[generate:test] 200/256  205 s
+[generate:test] 250/256  247 s
+[generate:test] 256 CAMB runs in 251 s -> /tmp/claude-1000/-home-anut/8ecc82c7-22dd-490c-b045-63f93bce2233/scratchpad/camb2_runs/emulator_train/test.npz
+[generate:train] 50/1051  57 s
+[generate:train] 100/1051  93 s
+[generate:train] 150/1051  133 s
+[generate:train] 200/1051  160 s
+[generate:train] 250/1051  205 s
+[generate:train] 300/1051  237 s
+[generate:train] 350/1051  274 s
+[generate:train] 400/1051  313 s
+[generate:train] 450/1051  357 s
+[generate:train] 500/1051  394 s
+[generate:train] 550/1051  427 s
+[generate:train] 600/1051  466 s
+[generate:train] 650/1051  498 s
+[generate:train] 700/1051  542 s
+[generate:train] 750/1051  578 s
+[generate:train] 800/1051  617 s
+[generate:train] 850/1051  655 s
+[generate:train] 900/1051  690 s
+[generate:train] 950/1051  731 s
+[generate:train] 1000/1051  766 s
+[generate:train] 1050/1051  800 s
+[generate:train] 1051 CAMB runs in 800 s -> /tmp/claude-1000/-home-anut/8ecc82c7-22dd-490c-b045-63f93bce2233/scratchpad/camb2_runs/emulator_train/train.npz
+[generate:train_aug] 50/384  60 s
+[generate:train_aug] 100/384  106 s
+[generate:train_aug] 150/384  161 s
+[generate:train_aug] 200/384  210 s
+[generate:train_aug] 250/384  260 s
+[generate:train_aug] 300/384  306 s
+[generate:train_aug] 350/384  351 s
+[generate:train_aug] 384 CAMB runs in 374 s -> /tmp/claude-1000/-home-anut/8ecc82c7-22dd-490c-b045-63f93bce2233/scratchpad/camb2_runs/emulator_train/train_aug.npz
+[fit:tot] PCA recon max err by npc: {4: '1.0e-01', 6: '4.4e-02', 8: '2.7e-02', 10: '1.0e-02', 12: '5.5e-03', 14: '4.3e-03', 16: '2.7e-03', 18: '1.9e-03', 20: '1.7e-03', 22: '6.6e-04', 24: '5.4e-04', 26: '5.9e-04', 28: '5.0e-04', 30: '4.9e-04', 32: '3.3e-04', 34: '3.1e-04', 36: '1.9e-04', 38: '1.6e-04', 40: '1.4e-04'}
+[fit:tot] poly8    validation max err 1.41e-02 p99 5.90e-03  (0 s)
+[fit:tot] poly10   validation max err 1.75e-02 p99 4.51e-03  (0 s)
+[fit:tot] polygp3  validation max err 1.74e-03 p99 1.24e-03  (68 s)
+[fit:tot] polygp2  validation max err 1.81e-03 p99 1.30e-03  (64 s)
+[fit:tot] selected polygp3 with npc=40
+[fit:rat] PCA recon max err by npc: {4: '3.7e-05', 6: '3.4e-05', 8: '2.1e-05', 10: '1.4e-05', 12: '1.1e-05', 14: '1.0e-05', 16: '8.9e-06'}
+[fit:rat] poly8    validation max err 3.92e-05 p99 2.53e-05  (0 s)
+[fit:rat] poly10   validation max err 6.41e-05 p99 3.04e-05  (0 s)
+[fit:rat] polygp3  validation max err 3.35e-05 p99 2.04e-05  (26 s)
+[fit:rat] polygp2  validation max err 3.29e-05 p99 1.99e-05  (22 s)
+[fit:rat] selected polygp2 with npc=10
+[fit] wrote /tmp/claude-1000/-home-anut/8ecc82c7-22dd-490c-b045-63f93bce2233/scratchpad/transfer_emulator_v1_camb2.npz (7.4 MB)
+[validate] vs_dense_truth:  {"P_tot_max": 0.001624064133973827, "P_tot_p99": 0.0013884326625174161, "P_tot_median": 0.00016392516263357424, "P_cb_max": 0.0016222326003785424, "P_cb_p99": 0.0013892002121022253, "P_cb_median": 0.0001645542530434156, "frac_below_5e-4": 0.890625, "frac_below_2e-3": 1.0}
+[validate] vs_default_native_resampled:  {"P_tot_max": 0.004700442347367631, "P_tot_p99": 0.0032242093115748033, "P_tot_median": 0.00021425383344780163, "P_cb_max": 0.004700215198034415, "P_cb_p99": 0.0032242113531336792, "P_cb_median": 0.00021417166699411134, "frac_below_5e-4": 0.83984375, "frac_below_2e-3": 0.9765625}
+[validate] sigma8: {"sigma8_rel_vs_dense_camb": {"max": 3.01398968391986e-05, "rms": 7.261268538701538e-06}, "sigma8_rel_vs_default_camb": {"max": 0.0011626027291631313}, "sigma8_dense_vs_default_camb": {"max": 0.001168118359611836}}
+TRAIN wall 1708.18 s maxrss 1700148 kB
+--- refit with --npc-tot 64 (shipped) ---
+[fit:tot] PCA recon max err by npc: {4: '1.0e-01', 6: '4.4e-02', 8: '2.7e-02', 10: '1.0e-02', 12: '5.5e-03', 14: '4.3e-03', 16: '2.7e-03', 18: '1.9e-03', 20: '1.7e-03', 22: '6.6e-04', 24: '5.4e-04', 26: '5.9e-04', 28: '5.0e-04', 30: '4.9e-04', 32: '3.3e-04', 34: '3.1e-04', 36: '1.9e-04', 38: '1.6e-04', 40: '1.4e-04', 42: '1.3e-04', 44: '1.0e-04', 46: '8.9e-05', 48: '9.0e-05', 50: '8.6e-05', 52: '7.7e-05', 54: '7.4e-05', 56: '7.4e-05', 58: '7.4e-05', 60: '7.3e-05', 62: '7.2e-05', 64: '7.1e-05'}
+[fit:tot] poly8    validation max err 1.41e-02 p99 5.88e-03  (0 s)
+[fit:tot] poly10   validation max err 1.76e-02 p99 4.52e-03  (0 s)
+[fit:tot] polygp3  validation max err 1.75e-03 p99 1.23e-03  (102 s)
+[fit:tot] polygp2  validation max err 1.81e-03 p99 1.29e-03  (91 s)
+[fit:tot] selected polygp3 with npc=64
+[fit:rat] PCA recon max err by npc: {4: '3.7e-05', 6: '3.4e-05', 8: '2.1e-05', 10: '1.4e-05', 12: '1.1e-05', 14: '1.0e-05', 16: '8.9e-06'}
+[fit:rat] poly8    validation max err 3.92e-05 p99 2.53e-05  (0 s)
+[fit:rat] poly10   validation max err 6.41e-05 p99 3.04e-05  (0 s)
+[fit:rat] polygp3  validation max err 3.35e-05 p99 2.04e-05  (22 s)
+[fit:rat] polygp2  validation max err 3.29e-05 p99 1.99e-05  (19 s)
+[fit:rat] selected polygp2 with npc=10
+[fit] wrote /tmp/claude-1000/-home-anut/8ecc82c7-22dd-490c-b045-63f93bce2233/scratchpad/transfer_emulator_v1_camb2_npc64.npz (10.6 MB)
+[validate] vs_dense_truth:  {"P_tot_max": 0.0016163562502623913, "P_tot_p99": 0.0013810174052146745, "P_tot_median": 0.00015760280607522432, "P_cb_max": 0.0016162593874472161, "P_cb_p99": 0.00138161574303325, "P_cb_median": 0.00015704360368217033, "frac_below_5e-4": 0.890625, "frac_below_2e-3": 1.0}
+[validate] vs_default_native_resampled:  {"P_tot_max": 0.004683130722548703, "P_tot_p99": 0.0032186245802715706, "P_tot_median": 0.0002076854272902115, "P_cb_max": 0.004682903577129414, "P_cb_p99": 0.003218764619720568, "P_cb_median": 0.00020857568673734864, "frac_below_5e-4": 0.83984375, "frac_below_2e-3": 0.9765625}
+[validate] sigma8: {"sigma8_rel_vs_dense_camb": {"max": 1.2547219181535674e-05, "rms": 4.484497442523511e-06}, "sigma8_rel_vs_default_camb": {"max": 0.0011642530292973463}, "sigma8_dense_vs_default_camb": {"max": 0.001168118359611836}}

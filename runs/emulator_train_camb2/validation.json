@@ -1,0 +1,95 @@
+{
+ "n_test": 256,
+ "meta": {
+  "version": 1,
+  "camb_version": "2.0.5",
+  "box": {
+   "omch2": [
+    0.03,
+    0.34
+   ],
+   "ombh2": [
+    0.019,
+    0.026
+   ],
+   "h": [
+    0.64,
+    0.82
+   ]
+  },
+  "seed_train": 20241101,
+  "seed_test": 20241102,
+  "n_train": 1435,
+  "n_test": 256,
+  "n_train_aug": 384,
+  "coords": "log(omch2, ombh2, h) scaled to [-1,1]",
+  "seed_aug": 20241103,
+  "ln_As_ref": 3.0,
+  "ns_ref": 1.0,
+  "mnu": 0.06,
+  "k_per_logint_train": 40,
+  "kmax_train": 21.0,
+  "created": "2026-11-21 02:39:27",
+  "nk": 199,
+  "nz": 169,
+  "target": "PCA(ln P_Mpc(k,z)) and PCA(ln(P_cb/P_tot)) on fixed k grid [1/Mpc]",
+  "tot_npc": 64,
+  "tot_regressor": "polygp3",
+  "tot_validation_max_err": {
+   "poly8": 0.014135807454892662,
+   "poly10": 0.017569054056676196,
+   "polygp3": 0.0017456053335274094,
+   "polygp2": 0.0018101407777087
+  },
+  "rat_npc": 10,
+  "rat_regressor": "polygp2",
+  "rat_validation_max_err": {
+   "poly8": 3.916744523714843e-05,
+   "poly10": 6.410202380662535e-05,
+   "polygp3": 3.3499526252282554e-05,
+   "polygp2": 3.29121123730076e-05
+  }
+ },
+ "vs_dense_truth_excluding_camb_glitch_window": {
+  "P_tot_max": 0.0016163562502623913,
+  "P_tot_p99": 0.0013810174052146745,
+  "P_tot_median": 0.00015760280607522432,
+  "frac_below_5e-4": 0.890625
+ },
+ "vs_dense_truth": {
+  "P_tot_max": 0.0016163562502623913,
+  "P_tot_p99": 0.0013810174052146745,
+  "P_tot_median": 0.00015760280607522432,
+  "P_cb_max": 0.0016162593874472161,
+  "P_cb_p99": 0.00138161574303325,
+  "P_cb_median": 0.00015704360368217033,
+  "frac_below_5e-4": 0.890625,
+  "frac_below_2e-3": 1.0
+ },
+ "vs_default_native_resampled_excluding_camb_glitch_window": {
+  "P_tot_max": 0.004683130722548703,
+  "P_tot_p99": 0.0032186245802715706,
+  "P_tot_median": 0.0002076854272902115,
+  "frac_below_5e-4": 0.83984375
+ },
+ "vs_default_native_resampled": {
+  "P_tot_max": 0.004683130722548703,
+  "P_tot_p99": 0.0032186245802715706,
+  "P_tot_median": 0.0002076854272902115,
+  "P_cb_max": 0.004682903577129414,
+  "P_cb_p99": 0.003218764619720568,
+  "P_cb_median": 0.00020857568673734864,
+  "frac_below_5e-4": 0.83984375,
+  "frac_below_2e-3": 0.9765625
+ },
+ "sigma8_rel_vs_dense_camb": {
+  "max": 1.2547219181535674e-05,
+  "rms": 4.484497442523511e-06
+ },
+ "sigma8_rel_vs_default_camb": {
+  "max": 0.0011642530292973463
+ },
+ "sigma8_dense_vs_default_camb": {
+  "max": 0.001168118359611836
+ }
+}

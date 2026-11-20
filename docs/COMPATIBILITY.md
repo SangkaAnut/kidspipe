@@ -52,20 +52,46 @@ The same points were evaluated in both environments with `benchmarks/camb_versio
 | chi2 at the best-posterior row (step D) | 127.2336 -> 127.2336 (release 127.23) |
 | sigma8 | -1.8e-4 relative (closer to the official chain's sigma8) |
 
-**Linear-transfer emulator.** The shipped artefact `data/emulator/transfer_emulator_v1.npz` was trained on CAMB 1.5.8.
-Inside its box it does not call CAMB, so its output is the same under both versions. What changes is its error against
-the exact spectrum of the CAMB that is installed:
+**Linear-transfer emulator: one artefact per CAMB major version.** The emulator reproduces the CAMB of its training
+set, so an artefact trained with one CAMB drifts from the exact spectrum of another. Two artefacts ship, with the same
+design (box, Sobol seeds, 1435 training + 256 test runs, 64 + 10 PCA components), and the pipeline loads the one that
+matches the installed CAMB major version (`kidspipe.paths.emulator_artefact`; `$KIDSPIPE_EMULATOR` overrides):
+
+| artefact | trained with | held-out max / p99 / median error against dense CAMB (P_lin, k_h < 10, z <= 3) |
+|---|---|---|
+| `data/emulator/transfer_emulator_v1.npz` | CAMB 1.5.8 | 1.83e-3 / 1.08e-3 / 9.8e-5 |
+| `data/emulator/transfer_emulator_v1_camb2.npz` | CAMB 2.0.5 | 1.62e-3 / 1.38e-3 / 1.6e-4; sigma8 within 1.3e-5 |
+
+The acceptance target is 2e-3; both artefacts meet it. Validation and the training logs are in
+`runs/emulator_train/validation.json` and `runs/emulator_train_camb2/{validation.json,train.log}`. Training the CAMB 2.0.5
+artefact took 28 min with 20 workers.
+
+Against exact CAMB at the 16 KV450 points, the largest |Delta ln L| of the emulator is:
 
 | | CAMB 1.5.8 | CAMB 2.0.5 |
 |---|---|---|
-| max \|Delta ln L\| emulator against exact, 16 points | 5.8e-4 | 3.3e-3 (Delta chi2 0.0065) |
+| CAMB-1.5.8 artefact | 5.8e-4 | 3.3e-3 (wrong pairing; P_lin up to 1.6 % off at the low-omch2 corner of the box) |
+| CAMB-2.0.5 artefact | - | 5.7e-4 (Delta chi2 0.0011) |
 
-Under CAMB 2 the emulator reproduces CAMB 1.5.8 rather than the installed CAMB. The difference is far below anything
-that moves a posterior (Delta chi2 < 0.01), but it exceeds the emulator's documented accuracy against its own
-training CAMB (Delta ln L <= 1.1e-3). The package warns about this at load time (`RuntimeWarning: transfer emulator
-... was trained with CAMB 1.5.8 but CAMB 2.0.5 is installed`). For an emulator matched to CAMB 2, retrain it with
-`scripts/train_emulator.py`: about 17 core-hours to generate the training set, then the fit.
+(`runs/compat/points_camb2.0.5_numpy2.4.6_emulator-camb2.npz`.) A CAMB release after 2.0.5 still loads the CAMB-2
+artefact and warns at load time if its exact version differs from the training stamp; retrain with
+`scripts/train_emulator.py` (it writes the artefact for the installed major version) if that warning appears.
+
+## Tests that depend on the CAMB version
+
+The spec-anchor tests (`tests/test_linear.py::test_spec_sanity_point`, `::test_vs_spec_anchor_test_cosmology`,
+`tests/test_nonlinear.py::test_spec_anchor_pnl`, `tests/test_e2e.py::test_derived_quantities_test_cosmology`) assert values
+at tolerances down to 1e-9. The spec anchors were made with CAMB 1.x. Under CAMB >= 2 the same tests compare with values
+measured by the same code under CAMB 2.0.5 (`data/validation/anchors_camb2.json`, `benchmarks/measure_camb2_anchors.py`,
+`tests/_anchors.py`), **with unchanged tolerances**. The largest moves from the CAMB 1.5.8 values: P_lin(k = 0.1005) +2.1e-4,
+P_nl(k = 1.003) +9.7e-5, omega_nu h^2 +5.1e-5, sigma8 and S8 +3.5e-5. A CAMB 2.x release that moves them again would make
+these tests fail; re-measure with the benchmark script after checking the change.
+
+## numba >= 0.60: bitwise determinism of the HMcode kernels
+
+With numba 0.64, `fastmath=True` let LLVM reassociate sums inside the HMcode kernels differently depending on memory
+alignment, so results changed by about 1 ulp with the thread count or the order of the redshifts. The kernels now use
+fastmath without `reassoc`. They are again bitwise identical across thread counts, input layout and redshift order, on
+numba 0.59 and 0.64. This changes P_nl by at most 2e-14 relative, with no measurable speed change.
 
 ## Test suite
-
-See the end of this file for the results of the full suite in both environments.
