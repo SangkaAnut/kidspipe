@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from .._compat import trapezoid
+
 from ..theory.cosebis import CosebisFilters
 
 ARCMIN = np.deg2rad(1.0 / 60.0)   # radians per arcmin
@@ -60,8 +62,8 @@ def e_from_xi_binned(theta_arcmin: np.ndarray, xip: np.ndarray, xim: np.ndarray,
     if scheme == "trapz":
         # theta T xi dtheta = theta^2 T xi dln(theta), sampled at the bin centres; trapezoid in ln(theta)
         t = np.log(th)
-        ap = np.trapz(Tp * th ** 2 * xip[..., None, :], t, axis=-1)      # -> (..., nmodes)
-        am = np.trapz(Tm * th ** 2 * xim[..., None, :], t, axis=-1)
+        ap = trapezoid(Tp * th ** 2 * xip[..., None, :], t, axis=-1)      # -> (..., nmodes)
+        am = trapezoid(Tm * th ** 2 * xim[..., None, :], t, axis=-1)
     else:
         w = _weights(th, edges, scheme)
         ap = np.einsum("nk,...k->...n", Tp, w * xip)

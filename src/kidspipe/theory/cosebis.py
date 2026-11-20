@@ -28,7 +28,6 @@ Public API: ``CosebisFilters``, ``parse_roots_table``, ``parse_norm_table``, ``r
 from __future__ import annotations
 
 import math
-import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -49,9 +48,8 @@ L_MAX_KCAP = 1.0e4 / (300.0 * ARCMIN)
 
 def default_cosebis_dir() -> Path:
     """``$KIDSPIPE_DATA/cosebis`` if set else ``<repo>/data/cosebis``."""
-    env = os.environ.get("KIDSPIPE_DATA")
-    root = Path(env) if env else Path(__file__).resolve().parents[3] / "data"
-    return root / "cosebis"
+    from .. import paths
+    return paths.data_dir() / "cosebis"
 
 
 # --------------------------------------------------------------------------------------

@@ -6,12 +6,15 @@ from __future__ import annotations
 
 import glob
 import re
-from pathlib import Path
 
 import numpy as np
 
-OFFICIAL = Path("/mnt/d/HI-gamma-correlation/KiDs_DR5_lensing/"
-                "KiDS_Legacy_cosmic_shear_data_release_unpacked/KiDS_Legacy_cosmic_shear_data_release/data")
+from .. import paths
+
+#: official release files (``KiDS_Legacy_xipm.fits``, ``KiDS_Legacy_cosebis.fits``, ``cosmosis_xipm/``); default
+#: ``<data>/kids_legacy`` (shipped), override with ``$KIDSPIPE_OFFICIAL`` (the ``data/`` directory of the unpacked
+#: KiDS-Legacy cosmic-shear release, ``paths.RELEASE_URL``)
+OFFICIAL = paths.official_dir()
 
 N_BIN = 6
 N_PAIR = 21

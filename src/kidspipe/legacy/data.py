@@ -15,11 +15,12 @@ PAIRS = [(i, j) for i in range(N_BIN) for j in range(i, N_BIN)]      # (BIN1-1, 
 
 
 def legacy_dir() -> Path:
-    for parent in Path(__file__).resolve().parents:
-        p = parent / "data" / "kids_legacy"
-        if p.is_dir():
-            return p
-    raise FileNotFoundError("data/kids_legacy not found")
+    """``<data>/kids_legacy`` (``$KIDSPIPE_DATA`` overrides the data root, see :mod:`kidspipe.paths`)."""
+    from .. import paths
+    p = paths.data_dir() / "kids_legacy"
+    if not p.is_dir():
+        raise FileNotFoundError(f"{p} not found; set KIDSPIPE_DATA to the data directory")
+    return p
 
 
 @dataclass

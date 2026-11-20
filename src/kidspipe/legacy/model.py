@@ -14,6 +14,8 @@ from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 
 import numpy as np
+
+from .._compat import trapezoid
 from scipy.interpolate import CubicSpline
 
 from ..theory.cosebis import CosebisFilters, cosebis_operator
@@ -64,7 +66,7 @@ class LegacyCosebisModel:
         self.nthreads = nthreads
         self.z_nz = self.data.z_mid
         nz = np.clip(self.data.nz, 0, None)
-        self.nz0 = nz / np.trapz(nz, self.z_nz, axis=-1)[:, None]
+        self.nz0 = nz / trapezoid(nz, self.z_nz, axis=-1)[:, None]
         self.ell = np.logspace(np.log10(o.ell_min), np.log10(o.ell_max), o.n_ell)
         self.filters = filters if filters is not None else CosebisFilters(o.tmin, o.tmax, o.n_modes, source="mpmath")
         self.M = cosebis_operator(self.ell, self.filters, o.n_modes, lmin=o.ell_min, lmax=o.lmax_int,
@@ -129,7 +131,7 @@ class LegacyCosebisModel:
             v = np.where((zq >= z[0]) & (zq <= z[-1]), v, 0.0)
             if o.clip_negative_nz:
                 v = np.clip(v, 0, None)
-            out[i] = v / np.trapz(v, z)
+            out[i] = v / trapezoid(v, z)
         return out
 
     def amplitudes(self, p) -> np.ndarray:

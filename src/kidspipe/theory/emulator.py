@@ -39,7 +39,6 @@ Artefact: ``data/emulator/transfer_emulator_v1.npz`` (override with ``$KIDSPIPE_
 from __future__ import annotations
 
 import json
-import os
 import threading
 import warnings
 from collections import OrderedDict
@@ -60,10 +59,8 @@ PARAM_ORDER = ("omch2", "ombh2", "h")
 
 
 def default_artefact_path() -> Path:
-    env = os.environ.get("KIDSPIPE_EMULATOR")
-    if env:
-        return Path(env)
-    return Path(__file__).resolve().parents[3] / "data" / "emulator" / "transfer_emulator_v1.npz"
+    from .. import paths
+    return paths.emulator_artefact()
 
 
 # ======================================================================================================

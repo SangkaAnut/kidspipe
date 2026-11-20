@@ -4,17 +4,36 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kidspipe"
-version = "0.1.0"
-description = "Clean-room fast KiDS/KV450 cosmic-shear (xi+/-) inference pipeline"
+version = "0.2.0"
+description = "Fast KiDS cosmic-shear pipeline: KV450 xi+- and COSEBIs inference, KiDS-Legacy validation, DR5 xi+-/COSEBIs measurement"
+readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["numpy", "scipy", "numba", "camb"]
+# numpy 1.26 and 2.x, CAMB 1.5.8 and 2.x are both supported (see docs/COMPATIBILITY.md)
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "numba>=0.59",
+    "camb>=1.5.8",
+    "astropy>=6.0",
+    "mpmath>=1.3",
+]
 
 [project.optional-dependencies]
-samplers = ["dynesty", "nautilus-sampler"]
+samplers = ["dynesty>=2.1", "nautilus-sampler>=1.0", "h5py"]
+measure = ["treecorr>=5.1", "fitsio>=1.2"]          # DR5 measurement chain (catalogue extraction, TreeCorr)
+plots = ["matplotlib>=3.7"]
+emulator = ["joblib"]                               # retraining the linear-transfer emulator only
+mpi = ["mpi4py>=4.0", "threadpoolctl"]              # optional; needs an MPI library (e.g. Open MPI)
+test = ["pytest>=7.4"]
+all = ["kidspipe[samplers,measure,plots,emulator,test]"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["slow: long-running validation tests"]
+pythonpath = ["src"]
+markers = [
+    "slow: long-running validation tests (deselect with -m 'not slow')",
+    "timing: wall-clock assertions; skipped unless KIDSPIPE_TIMING_TESTS=1 or the machine has >= 8 cores",
+]

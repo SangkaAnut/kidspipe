@@ -19,7 +19,6 @@ Theory arrays use ``xip[..., 15, 9]`` / ``xim[..., 15, 9]`` (pair index in PAIRS
 """
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -123,9 +122,9 @@ def to_pm_blocks(vec) -> np.ndarray:
 # loaders
 # --------------------------------------------------------------------------------------
 def default_data_dir() -> Path:
-    """``$KIDSPIPE_DATA`` if set, else ``<repo>/data`` (src/kidspipe/likelihood/data.py -> parents[3])."""
-    env = os.environ.get("KIDSPIPE_DATA")
-    return Path(env) if env else Path(__file__).resolve().parents[3] / "data"
+    """``$KIDSPIPE_DATA`` if set, else ``<repo>/data`` (see :mod:`kidspipe.paths`)."""
+    from .. import paths
+    return paths.data_dir()
 
 
 def load_data_vector(path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

@@ -23,6 +23,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .._compat import trapezoid
+
 __all__ = [
     "NZ_FILES",
     "default_nz_dir",
@@ -45,17 +47,11 @@ NZ_FILES = (
 
 def default_nz_dir() -> Path:
     """Locate ``data/kv450/nofz`` (env ``KIDSPIPE_DATA`` overrides the data root)."""
-    env = os.environ.get("KIDSPIPE_DATA")
-    if env:
-        p = Path(env) / "kv450" / "nofz"
-        if not p.is_dir():
-            raise FileNotFoundError(f"KIDSPIPE_DATA={env!r} is set but {p} does not exist")
-        return p
-    for parent in Path(__file__).resolve().parents:
-        p = parent / "data" / "kv450" / "nofz"
-        if p.is_dir():
-            return p
-    raise FileNotFoundError("cannot find data/kv450/nofz; set KIDSPIPE_DATA")
+    from .. import paths
+    p = paths.data_dir() / "kv450" / "nofz"
+    if not p.is_dir():
+        raise FileNotFoundError(f"cannot find {p}; set KIDSPIPE_DATA to the data directory")
+    return p
 
 
 def normalise_nz(z: np.ndarray, n: np.ndarray) -> np.ndarray:
@@ -64,7 +60,7 @@ def normalise_nz(z: np.ndarray, n: np.ndarray) -> np.ndarray:
     ``n <- n / trapz(n, z)``, unit of ``n``: 1.
     """
     n = np.asarray(n, dtype=np.float64)
-    norm = np.asarray(np.trapz(n, z, axis=-1))
+    norm = np.asarray(trapezoid(n, z, axis=-1))
     if not (np.all(np.isfinite(norm)) and np.all(norm > 0.0)):
         raise ValueError("n(z) has a non-finite or non-positive trapezoid integral and cannot be normalised "
                          "(photo-z shift pushed the whole distribution out of the table, or NaN input)")
@@ -160,4 +156,4 @@ class NZ:
     def mean_z(self, n: np.ndarray | None = None) -> np.ndarray:
         """Mean redshift ``int z n dz`` of each bin (of ``n`` if given)."""
         n = self.n if n is None else n
-        return np.trapz(n * self.z, self.z, axis=-1)
+        return trapezoid(n * self.z, self.z, axis=-1)

@@ -23,7 +23,10 @@ from pathlib import Path
 import numpy as np
 
 TMIN, TMAX, NBINS_LOG = 2.0, 300.0, 1000
-WORK = Path.home() / "kids_dr5_work"
+from .. import paths
+
+#: per-bin catalogue extract written by ``scripts/dr5_extract.py`` (``$KIDSPIPE_DR5_WORK``, default ``~/kids_dr5_work``)
+WORK = paths.dr5_work_dir()
 
 
 def load_bin(b: int, work: Path = WORK) -> dict:

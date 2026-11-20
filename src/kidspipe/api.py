@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 from pathlib import Path
 from typing import Mapping, Optional
 
@@ -68,11 +67,9 @@ def block_indices(kind: str) -> np.ndarray:
 
 
 def default_runs_dir() -> Path:
-    """``<repo>/runs`` (repo = three levels above this file when running from a source checkout)."""
-    env = os.environ.get("KIDSPIPE_RUNS")
-    if env:
-        return Path(env)
-    return Path(__file__).resolve().parents[2] / "runs"
+    """``$KIDSPIPE_RUNS`` if set, else ``<repo>/runs`` (see :mod:`kidspipe.paths`)."""
+    from . import paths
+    return paths.runs_dir()
 
 
 # ----------------------------------------------------------------------------------------------
