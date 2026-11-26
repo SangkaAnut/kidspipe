@@ -387,6 +387,77 @@ def test_free_eta0_and_A_response_matches_camb():
 
 
 # ------------------------------------------------------------------------------------------
+# invariants of the optimised 1-halo loop (see the "Cost of the 1-halo loop" module docstring)
+# ------------------------------------------------------------------------------------------
+def test_dot_multi_accumulator_matches_fsum():
+    """The eight-accumulator ``_dot`` (used for the sigma(R) quadrature) must stay exact to rounding."""
+    import math
+
+    rng = np.random.default_rng(7)
+    for n in (1, 7, 8, 9, 673, 674, 675):
+        a = rng.uniform(0.5, 1.5, n)
+        b = rng.uniform(1e-3, 1e3, n)
+        ref = math.fsum(float(x) * float(y) for x, y in zip(a, b))
+        assert hmcode._dot(a, b) == pytest.approx(ref, rel=2e-15)
+    # mixed signs: still no catastrophic loss (the association order is fixed, so it is reproducible)
+    a = rng.normal(size=1000)
+    b = rng.normal(size=1000)
+    assert hmcode._dot(a, b) == pytest.approx(math.fsum(float(x) * float(y) for x, y in zip(a, b)), rel=1e-12)
+
+
+def test_fg_tab_equals_fg_eval():
+    """``_fg_eval`` is the ln-z wrapper of ``_fg_tab``; both branches (table, z > Z_ASYM) must agree."""
+    ftab, gtab = hmcode._fg_tables()
+    z = np.concatenate([np.logspace(-6, 1.7, 60), np.array([0.999, 1.0, 59.9, 60.1, 1e2, 1e3])])
+    for zi in z:
+        t = (np.log(zi) - hmcode.FG_LNZ0) / hmcode.FG_DU
+        a = hmcode._fg_tab(t, zi, ftab, gtab)
+        b = hmcode._fg_eval(np.log(zi), zi, ftab, gtab)
+        assert a == b
+    # the asymptotic branch (z > Z_ASYM) agrees with the tabulated Ci/Si values where they overlap
+    for zi in (61.0, 80.0, 200.0):
+        fa, ga = hmcode._fg_eval(np.log(zi), zi, ftab, gtab)
+        t = min((np.log(zi) - hmcode.FG_LNZ0) / hmcode.FG_DU, ftab.size - 2.0)
+        assert fa == pytest.approx(1.0, abs=3e-3) and ga == pytest.approx(1.0, abs=1e-2)
+
+
+def test_one_halo_skip_bound_inequality():
+    """The low-k 1-halo skip relies on ``(1+u)^(1/alpha) - 1 <= 3u`` for ``u <= 1e-13`` and 1/alpha <= 2.
+
+    Verified as a pure inequality (independent of the physics), for the whole alpha range of the model
+    (alpha is clipped to [0.5, 2], so 1/alpha in [0.5, 2]).
+    """
+    # u >= 1e-14: below that, `1.0 + u` is itself absorbed by the double-precision ulp and the
+    # comparison would test rounding, not the inequality
+    u = np.logspace(-14, -13, 21)
+    for alpha in (0.5, 0.75, 0.98, 1.5, 2.0):
+        assert np.all((1.0 + u) ** (1.0 / alpha) - 1.0 <= 3.0 * u)
+        assert np.all(3.0 * u <= 1e-12)                       # < 1e-12 relative, as documented
+    # worst case (1/alpha = 2) in exact algebra: 2u + u^2 <= 3u for every u <= 1
+    for uu in (1e-13, 1e-6, 1e-1, 1.0):
+        assert 2.0 * uu + uu * uu <= 3.0 * uu
+
+
+def test_low_k_one_halo_skip_fires_on_no_node_here():
+    """Document the measured behaviour of the skip: for CAMB's k grid the 1-halo term is never < 1e-12.
+
+    The skip criterion is provably safe but conservative (W^2 <= 1); at the smallest CAMB node
+    (k ~ 7e-5 h/Mpc) the *true* 1-halo/2-halo ratio is already ~1e-6, so no node is skipped.  This
+    test guards the premise: if a future change made P_nl pure 2-halo at low k, it would fail.
+    """
+    o = cosmo(omch2=0.10, ombh2=0.022, h=0.70, ns=1.09, lnA=3.09, zs=(0.0, 1.0))
+    pnl, dg = hmcode.hmcode_pnl_diag(o["z"], o["kh"], o["pl"], o["om"], o["fnu"], o["h"], o["ns"], 2.0, 0.74, o["pcb"])
+    for iz in range(2):
+        sv, fdamp = dg[iz, 1], dg[iz, 3]
+        th = np.tanh(o["kh"] * sv / np.sqrt(fdamp))
+        d2 = o["pl"][iz] * o["kh"] ** 3 / (2 * np.pi ** 2) * np.maximum(1.0 - fdamp * th * th, 0.0)
+        p2 = d2 * 2 * np.pi ** 2 / o["kh"] ** 3
+        rel = np.abs(pnl[iz] / p2 - 1.0)
+        assert rel.min() > 1e-12          # no node is pure 2-halo -> the skip cannot hide a bug there
+        assert rel[0] < 1e-5              # ... but the 1-halo term is genuinely small at the first node
+
+
+# ------------------------------------------------------------------------------------------
 # performance
 # ------------------------------------------------------------------------------------------
 @pytest.mark.timing
