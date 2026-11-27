@@ -41,6 +41,7 @@ Both are written by ``scripts/train_emulator.py`` with version stamps (CAMB vers
 from __future__ import annotations
 
 import json
+import math
 import threading
 import warnings
 from collections import OrderedDict
@@ -49,10 +50,12 @@ from pathlib import Path
 from time import perf_counter
 from typing import Optional
 
+import numba as nb
 import numpy as np
 from numpy.polynomial import legendre as _leg
 from scipy.interpolate import CubicSpline
 
+from .background import compute_background
 from .linear import K_PIVOT_MPC, LinearBackend, LinearResult, Z_CHI, Z_GRID_SPEC, _Z_CHI_RO, _ro
 
 __all__ = ["TransferEmulator", "EmulatedLinearBackend", "default_artefact_path", "load_emulator"]
@@ -149,6 +152,7 @@ class TransferEmulator:
             self.reg_rat = _Regressor({k[8:]: d[k] for k in d.files if k.startswith("reg_rat_")})
         self.path = path
         self._lo, self._hi = self.box[:, 0], self.box[:, 1]
+        self._sigma8_op = _Sigma8Operator(self.k_mpc)
         self._check_camb_version()
 
     def _check_camb_version(self):
@@ -192,7 +196,7 @@ def load_emulator(path=None) -> TransferEmulator:
 
 
 # ======================================================================================================
-# sigma8 by quadrature (exact top-hat window, dense spline grid)
+# sigma8 by quadrature (exact top-hat window, cached not-a-knot cubic Hermite operator)
 # ======================================================================================================
 _N_DENSE = 4000
 
@@ -207,23 +211,110 @@ def _tophat_w2(x: np.ndarray) -> np.ndarray:
     return w * w
 
 
+@nb.njit(cache=True)
+def _sigma8_build_integ_nb(
+    lnp0: np.ndarray,
+    d_mat: np.ndarray,
+    idx_h: np.ndarray,
+    w00: np.ndarray,
+    w10: np.ndarray,
+    w01: np.ndarray,
+    w11: np.ndarray,
+    k_dense: np.ndarray,
+    k3_fac: np.ndarray,
+    dlnk: float,
+    h: float,
+):
+    nk = lnp0.size
+    slopes = np.empty(nk, dtype=np.float64)
+    for i in range(nk):
+        acc = 0.0
+        for j in range(nk):
+            acc += d_mat[i, j] * lnp0[j]
+        slopes[i] = acc
+
+    n = k_dense.size
+    out = np.empty(n, dtype=np.float64)
+    r = 8.0 / h
+    total = 0.0
+    for j in range(n):
+        i = idx_h[j]
+        v = w00[j] * lnp0[i] + w10[j] * slopes[i] + w01[j] * lnp0[i + 1] + w11[j] * slopes[i + 1]
+        x = k_dense[j] * r
+        if x < 1e-2:
+            w = 1.0 - 0.1 * x * x
+        else:
+            w = 3.0 * (math.sin(x) - x * math.cos(x)) / (x * x * x)
+        val = k3_fac[j] * math.exp(v) * (w * w)
+        out[j] = val
+        total += val
+    s2_ref = dlnk * (total - 0.5 * (out[0] + out[n - 1]))
+    return out, s2_ref
+
+
+@nb.njit(cache=True)
+def _sigma8_tilt_s2_nb(integ: np.ndarray, lnk_rel: np.ndarray, dlnk: float, dn: float) -> float:
+    n = integ.size
+    total = 0.0
+    for j in range(n):
+        total += integ[j] * math.exp(dn * lnk_rel[j])
+    first = integ[0] * math.exp(dn * lnk_rel[0])
+    last = integ[n - 1] * math.exp(dn * lnk_rel[n - 1])
+    return dlnk * (total - 0.5 * (first + last))
+
+
+class _Sigma8Operator:
+    """Precomputed exact not-a-knot cubic Hermite operator from ``ln(k_mpc)`` to the 4,000-node sigma8 grid."""
+
+    def __init__(self, k_mpc: np.ndarray):
+        lnk_nodes = np.log(np.asarray(k_mpc, dtype=np.float64))
+        nk = lnk_nodes.size
+        lnk_dense = np.linspace(lnk_nodes[0], lnk_nodes[-1], _N_DENSE)
+        k_dense = np.exp(lnk_dense)
+        self.lnk_nodes = _ro(lnk_nodes)
+        self.lnk = _ro(lnk_dense)
+        self.k_dense = _ro(k_dense)
+        self.k3_fac = _ro(k_dense ** 3 / (2.0 * np.pi ** 2))
+        self.lnk_rel = _ro(lnk_dense - np.log(K_PIVOT_MPC))
+        self.dlnk = float(lnk_dense[1] - lnk_dense[0])
+
+        cs_eye = CubicSpline(lnk_nodes, np.eye(nk), axis=0)
+        self.d_mat = _ro(cs_eye(lnk_nodes, 1))
+        idx_h = np.clip(np.searchsorted(lnk_nodes, lnk_dense, side="right") - 1, 0, nk - 2)
+        hi = lnk_nodes[idx_h + 1] - lnk_nodes[idx_h]
+        t = (lnk_dense - lnk_nodes[idx_h]) / hi
+        t2 = t * t
+        t3 = t2 * t
+        self.idx_h = np.ascontiguousarray(idx_h, dtype=np.int32)
+        self.idx_h.setflags(write=False)
+        self.w00 = _ro(2.0 * t3 - 3.0 * t2 + 1.0)
+        self.w10 = _ro((t3 - 2.0 * t2 + t) * hi)
+        self.w01 = _ro(-2.0 * t3 + 3.0 * t2)
+        self.w11 = _ro((t3 - t2) * hi)
+
+
 class _Sigma8:
     """sigma_8(A_s, n_s) of a reference z=0 spectrum: sigma^2 = int dlnk k^3 P_Mpc / (2 pi^2) W^2(k R), R = 8/h Mpc."""
 
-    def __init__(self, k_mpc: np.ndarray, lnp0: np.ndarray, h: float):
-        lnk = np.log(k_mpc)
-        self.lnk = np.linspace(lnk[0], lnk[-1], _N_DENSE)
-        k = np.exp(self.lnk)
-        p = np.exp(CubicSpline(lnk, lnp0)(self.lnk))
-        integ = k ** 3 * p / (2.0 * np.pi ** 2) * _tophat_w2(k * 8.0 / h)
-        self.integ = integ                                      # (D,)  at the reference (A_ref, n_ref)
-        self.lnk_rel = self.lnk - np.log(K_PIVOT_MPC)
-        self.dlnk = self.lnk[1] - self.lnk[0]
+    def __init__(self, k_mpc: np.ndarray, lnp0: np.ndarray, h: float, *, op: Optional[_Sigma8Operator] = None):
+        if op is None:
+            op = _Sigma8Operator(k_mpc)
+        self.lnk = op.lnk
+        self.lnk_rel = op.lnk_rel
+        self.dlnk = op.dlnk
+        lnp0_c = np.ascontiguousarray(lnp0, dtype=np.float64)
+        integ, s2_ref = _sigma8_build_integ_nb(
+            lnp0_c, op.d_mat, op.idx_h, op.w00, op.w10, op.w01, op.w11, op.k_dense, op.k3_fac, self.dlnk, float(h)
+        )
+        self.integ = _ro(integ)
+        self._s2_ref = float(s2_ref)
 
     def __call__(self, fac: float, dn: float) -> float:
-        g = self.integ if dn == 0.0 else self.integ * np.exp(dn * self.lnk_rel)
-        s2 = fac * self.dlnk * (g.sum() - 0.5 * (g[0] + g[-1]))
-        return float(np.sqrt(s2))
+        if dn == 0.0:
+            s2 = fac * self._s2_ref
+        else:
+            s2 = fac * _sigma8_tilt_s2_nb(self.integ, self.lnk_rel, self.dlnk, float(dn))
+        return float(math.sqrt(s2))
 
 
 # ======================================================================================================
@@ -251,18 +342,34 @@ class EmulatedLinearBackend(LinearBackend):
     """``LinearBackend`` whose ``compute`` uses the transfer emulator inside its training box and exact CAMB outside.
 
     Same constructor arguments as :class:`LinearBackend` (they configure the exact fallback and the output ``z_grid``)
-    plus ``emulator`` (a :class:`TransferEmulator`, default: the shipped artefact) and ``fallback`` (``True``: delegate
-    out-of-box requests to CAMB; ``False``: raise ``ValueError``).  ``stats`` additionally counts ``emu_evals``,
-    ``fallback`` and ``emu_seconds``.
+    plus ``emulator`` (a :class:`TransferEmulator`, default: the shipped artefact), ``fallback`` (``True``: delegate
+    out-of-box requests to CAMB; ``False``: raise ``ValueError``), and ``background_backend`` (``'numba'`` default
+    for stand-alone Numba background solver at ``mnu=0.06``, or ``'camb'`` for CAMB ``get_background``; custom
+    ``mnu != 0.06`` always falls back to CAMB).  ``stats`` additionally counts ``emu_evals``, ``fallback`` and
+    ``emu_seconds``.
 
     The returned :class:`LinearResult` has the same fields and shapes as the CAMB one (``pk_cb`` included); its
     ``k_h`` is ``emulator.k_mpc / h`` and is a fresh (cached) array per (omch2, ombh2, h).
     """
 
-    def __init__(self, *args, emulator: Optional[TransferEmulator] = None, fallback: bool = True, **kw):
+    def __init__(self, *args, emulator: Optional[TransferEmulator] = None, fallback: bool = True,
+                 background_backend: str = "numba", **kw):
+        if background_backend not in ("numba", "camb"):
+            raise ValueError(f"background_backend must be 'numba' or 'camb', got {background_backend!r}")
         super().__init__(*args, **kw)
         self.emulator = emulator if emulator is not None else TransferEmulator()
         self.fallback = bool(fallback)
+        self.background_backend = background_backend
+        trained = str(self.emulator.meta.get("camb_version", ""))
+        if trained.startswith("1."):
+            self._camb_major = 1
+        elif trained:
+            try:
+                self._camb_major = 1 if int(trained.split(".")[0]) < 2 else 2
+            except ValueError:
+                self._camb_major = 2
+        else:
+            self._camb_major = 2
         self.stats.update({"emu_evals": 0, "emu_cache_hits": 0, "fallback": 0, "emu_seconds": 0.0})
         self._emu_cache: "OrderedDict[tuple, _EmuEntry]" = OrderedDict()
         em = self.emulator
@@ -272,7 +379,7 @@ class EmulatedLinearBackend(LinearBackend):
         if not self._z_subset and (self.z_grid[-1] > em.z[-1] + 1e-12):
             raise ValueError("requested z_grid extends beyond the emulator's redshift range")
 
-    # ---------------------------------------------------------------- background (exact, cheap)
+    # ---------------------------------------------------------------- background (CAMB diagnostic/fallback & Numba fast path)
     @staticmethod
     def _background(omch2, ombh2, h, mnu):
         import camb
@@ -296,12 +403,20 @@ class EmulatedLinearBackend(LinearBackend):
         e.k_h = _ro(em.k_mpc / h)
         e.pk_ref = _ro(np.exp(lnp) * h3)                                  # (Mpc/h)^3 at (A_ref, n_ref)
         e.pk_cb_ref = _ro(np.exp(lnpcb) * h3)
-        p, b = self._background(omch2, ombh2, h, mnu)
-        e.chi = _ro(b.comoving_radial_distance(np.asarray(Z_CHI), tol=1e-8) * p.h)
-        e.ez = _ro(b.h_of_z(np.asarray(self.z_grid)) / b.h_of_z(0.0))
-        e.omega_m, e.omnuh2 = float(p.omegam), float(p.omnuh2)
+        if self.background_backend == "numba" and abs(mnu - 0.06) < 1e-12:
+            om, on, ez, chi = compute_background(
+                omch2, ombh2, h, mnu, self.z_grid, _Z_CHI_RO, camb_major=self._camb_major
+            )
+            e.chi = _ro(chi)
+            e.ez = _ro(ez)
+            e.omega_m, e.omnuh2 = float(om), float(on)
+        else:
+            p, b = self._background(omch2, ombh2, h, mnu)
+            e.chi = _ro(b.comoving_radial_distance(np.asarray(Z_CHI), tol=1e-8) * p.h)
+            e.ez = _ro(b.h_of_z(np.asarray(self.z_grid)) / b.h_of_z(0.0))
+            e.omega_m, e.omnuh2 = float(p.omegam), float(p.omnuh2)
         e.h, e.ombh2, e.omch2, e.mnu = float(h), float(ombh2), float(omch2), float(mnu)
-        e.s8 = _Sigma8(em.k_mpc, lnp[0], h)
+        e.s8 = _Sigma8(em.k_mpc, lnp[0], h, op=em._sigma8_op)
         e.sigma8_ref = e.s8(1.0, 0.0)
         if not (np.isfinite(e.pk_ref).all() and np.isfinite(e.pk_cb_ref).all() and (e.pk_ref > 0).all()):
             raise RuntimeError("emulator returned a non-finite / non-positive spectrum")
