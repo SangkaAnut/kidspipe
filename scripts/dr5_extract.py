@@ -9,6 +9,7 @@ Also records the selection diagnostics needed for the n_eff / sigma_e gate.
 Usage (from any directory; the repository root is found from this file's location)::
 
   python scripts/dr5_extract.py [--catalogue P] [--out D] [--chunk N] [--force]
+  python scripts/dr5_extract.py --out D --uncompressed-dir U [--from-npz] [--bins 1,6]
 
 Defaults come from ``kidspipe.paths``: ``--catalogue`` = ``$KIDSPIPE_DR5_CATALOGUE`` (else
 ``<dr5_work>/KiDS_Legacy_NS_unblind_final.fits``), ``--out`` = ``$KIDSPIPE_DR5_WORK`` (else ``~/kids_dr5_work``).
@@ -53,6 +54,75 @@ def _atomic_write_text(path: Path, text: str) -> None:
     os.replace(tmp, path)
 
 
+def write_uncompressed_bin(
+    uncompressed_dir: Path,
+    b: int,
+    arrays: dict[str, np.ndarray],
+    *,
+    force: bool = False,
+) -> Path:
+    """Write uncompressed ``bin{b}/<col>.npy`` arrays atomically for memory-mapped loading."""
+    bdir = Path(uncompressed_dir) / f"bin{int(b)}"
+    bdir.mkdir(parents=True, exist_ok=True)
+    for col, arr in arrays.items():
+        target = bdir / f"{col}.npy"
+        if target.is_file() and not force:
+            continue
+        tmp = bdir / f".{col}.npy.part"
+        try:
+            with open(tmp, "wb") as fh:
+                np.save(fh, np.asarray(arr))
+            os.replace(tmp, target)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
+    return bdir
+
+
+def convert_npz_to_uncompressed(
+    npz_dir: Path,
+    uncompressed_dir: Path,
+    *,
+    bins: list[int] | None = None,
+    force: bool = False,
+) -> list[Path]:
+    """Stream existing ``bin*.npz`` columns into ``bin*/<col>.npy`` without duplicating full bins in RAM."""
+    npz_dir = Path(npz_dir)
+    uncompressed_dir = Path(uncompressed_dir)
+    indices = list(range(NBIN)) if bins is None else [int(b) for b in bins]
+    out_dirs: list[Path] = []
+    for b in indices:
+        src = npz_dir / f"bin{b}.npz"
+        if not src.is_file():
+            raise FileNotFoundError(f"{src} not found; run scripts/dr5_extract.py first")
+        with np.load(src) as z:
+            cols = list(z.files)
+            nrows = int(z["ra"].shape[0]) if "ra" in cols else -1
+            for col in cols:
+                bdir = write_uncompressed_bin(uncompressed_dir, b, {col: z[col]}, force=force)
+        out_dirs.append(bdir)
+        print(f"bin{b}: converted n={nrows:,} ({','.join(cols)}) -> {bdir}", flush=True)
+    return out_dirs
+
+
+def _parse_bins_arg(bins_arg: str) -> list[int] | None:
+    """Parse 1-based comma-separated tomographic bin IDs into 0-based file indices."""
+    s = bins_arg.strip()
+    if not s:
+        return None
+    out: list[int] = []
+    for tok in s.split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        b = int(tok)
+        if not (1 <= b <= NBIN):
+            raise ValueError(f"--bins values must be in 1..{NBIN}, got {b}")
+        if (b - 1) not in out:
+            out.append(b - 1)
+    return out or None
+
+
 def _already_done(out: Path, nrows: int) -> bool:
     """True if all 6 bin files and extract_info.json exist and are consistent with the catalogue row count."""
     info_path = out / "extract_info.json"
@@ -78,10 +148,30 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--catalogue", type=Path, default=CAT, help=f"uncompressed KiDS-Legacy shear catalogue (default {CAT})")
     ap.add_argument("--out", type=Path, default=OUT, help=f"directory for bin0..5.npz + extract_info.json (default {OUT})")
+    ap.add_argument("--uncompressed-dir", type=Path, default=None,
+                    help="also write uncompressed bin{k}/{ra,dec,e1,e2,w,north}.npy for mmap loading")
+    ap.add_argument("--from-npz", action="store_true",
+                    help="convert existing bin*.npz in --out to --uncompressed-dir without reading FITS")
+    ap.add_argument("--bins", default="",
+                    help="comma-separated 1-based tomographic bins to convert with --from-npz (default all 6)")
     ap.add_argument("--chunk", type=int, default=CHUNK, help=f"rows read per slice (default {CHUNK:,})")
     ap.add_argument("--force", action="store_true", help="re-extract even if complete outputs already exist")
     args = ap.parse_args()
-    cat, out, chunk = args.catalogue.expanduser(), args.out.expanduser(), int(args.chunk)
+    cat = args.catalogue.expanduser()
+    out = args.out.expanduser()
+    udir = args.uncompressed_dir.expanduser() if args.uncompressed_dir is not None else None
+    chunk = int(args.chunk)
+    bins_sel = _parse_bins_arg(args.bins)
+
+    if args.from_npz:
+        if udir is None:
+            _fail("--from-npz requires --uncompressed-dir")
+        convert_npz_to_uncompressed(out, udir, bins=bins_sel, force=args.force)
+        return
+
+    if udir is not None and not cat.is_file() and (out / "bin0.npz").is_file():
+        convert_npz_to_uncompressed(out, udir, bins=bins_sel, force=args.force)
+        return
 
     if str(cat).endswith(".gz"):
         _fail(f"{cat} is gzip-compressed. cfitsio would inflate the whole 16.4 GB table in memory. Decompress first, e.g.\n"
@@ -104,6 +194,9 @@ def main() -> None:
     nrows = f[1].get_nrows()
     print(f"rows={nrows:,}", flush=True)
     if not args.force and _already_done(out, nrows):
+        if udir is not None:
+            convert_npz_to_uncompressed(out, udir, bins=bins_sel, force=False)
+            return
         print(f"all {NBIN} bin files and extract_info.json already present in {out} with matching row counts; "
               f"nothing to do (use --force to redo)", flush=True)
         return
@@ -175,6 +268,11 @@ def main() -> None:
         with open(tmp, "wb") as fh:
             np.savez(fh, ra=r, dec=dd, e1=ee1, e2=ee2, w=ww, north=nn)
         os.replace(tmp, out / f"bin{b}.npz")
+        if udir is not None:
+            write_uncompressed_bin(
+                udir, b, {"ra": r, "dec": dd, "e1": ee1, "e2": ee2, "w": ww, "north": nn},
+                force=args.force,
+            )
         info["bins"][str(b)] = {
             "n_gal": int(r.size),
             "n_dropped_nonfinite_or_nonpos_weight": n_drop,

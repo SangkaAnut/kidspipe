@@ -27,19 +27,53 @@ from .. import paths
 
 #: per-bin catalogue extract written by ``scripts/dr5_extract.py`` (``$KIDSPIPE_DR5_WORK``, default ``~/kids_dr5_work``)
 WORK = paths.dr5_work_dir()
+BIN_REQUIRED_COLS = ("ra", "dec", "e1", "e2", "w")
+BIN_OPTIONAL_COLS = ("north",)
 
 
-def load_bin(b: int, work: Path = WORK) -> dict:
+def load_bin(
+    b: int,
+    work: Path = WORK,
+    mmap: bool = False,
+    columns: tuple[str, ...] | list[str] | None = None,
+) -> dict:
     """Load the compact catalogue for 1-based tomographic bin ``b``.
 
     ``dr5_extract.py`` writes ``bin0.npz`` for tomographic bin 1 (zero-based file names), so
     the index is shifted here; a 1-based->1-based mapping silently measured the wrong bin.
+    When ``mmap=True``, reads uncompressed ``bin{b-1}/<col>.npy`` via ``np.load(..., mmap_mode='r')``.
     """
-    f = Path(work) / f"bin{int(b) - 1}.npz"
+    idx = int(b) - 1
+    if mmap:
+        d = Path(work) / f"bin{idx}"
+        if not d.is_dir():
+            raise FileNotFoundError(
+                f"{d} (uncompressed tomographic bin {b}) not found; "
+                f"run scripts/dr5_extract.py --uncompressed-dir {Path(work)}"
+            )
+        if columns is None:
+            cols = list(BIN_REQUIRED_COLS) + [
+                col for col in BIN_OPTIONAL_COLS if (d / f"{col}.npy").is_file()
+            ]
+        else:
+            cols = list(columns)
+        out = {}
+        for col in cols:
+            p = d / f"{col}.npy"
+            if not p.is_file():
+                raise FileNotFoundError(
+                    f"{p} (column {col!r} of tomographic bin {b}) not found; "
+                    f"run scripts/dr5_extract.py --uncompressed-dir {Path(work)}"
+                )
+            out[col] = np.load(p, mmap_mode="r")
+        return out
+
+    f = Path(work) / f"bin{idx}.npz"
     if not f.exists():
         raise FileNotFoundError(f"{f} (tomographic bin {b}) not found; run scripts/dr5_extract.py")
-    d = np.load(f)
-    return {k: d[k] for k in d.files}
+    with np.load(f) as d:
+        cols = list(d.files) if columns is None else list(columns)
+        return {k: d[k] for k in cols}
 
 
 def make_treecorr_cat(rec: dict, flip_g1: bool = False, flip_g2: bool = False,
