@@ -917,6 +917,39 @@ def test_set_power_cache_equivalence_and_invalidation(toy, nz):
     check_mut(lambda c, z, zp, k, p: k.__setitem__(120, k[120] * 1.01))
     check_mut(lambda c, z, zp, k, p: p.__setitem__(10, p[10] * 1.5))
 
+    # 2b. Aliasing via read-only view of a writeable array or pre-existing writeable view of a frozen array
+    _lim._clear_limber_caches()
+    base_chi = chi_w.copy()
+    ro_chi_view = base_chi[:]
+    ro_chi_view.flags.writeable = False
+    lim_alias = Limber(ell=ell, n_nodes=300).set_power(ro_chi_view, z_w, OM, zpk_w, kh_w, pk_w)
+    for arr in (lim_alias.z, lim_alias.chi, lim_alias._zf, lim_alias._chif,
+                lim_alias.dchidz, lim_alias.w, lim_alias.inv_chi, lim_alias.D):
+        assert not arr.flags.writeable
+    q_alias_before = lim_alias.Qt.copy()
+    base_chi[100:] *= 1.05
+    lim_alias.set_power(ro_chi_view, z_w, OM, zpk_w, kh_w, pk_w)
+    q_alias_after = lim_alias.Qt.copy()
+    _lim._clear_limber_caches()
+    fresh_alias = Limber(ell=ell, n_nodes=300).set_power(ro_chi_view, z_w, OM, zpk_w, kh_w, pk_w)
+    assert not np.array_equal(q_alias_after, q_alias_before)
+    assert np.array_equal(q_alias_after, fresh_alias.Qt) and np.array_equal(lim_alias.D, fresh_alias.D)
+
+    _lim._clear_limber_caches()
+    base_zpk = zpk_w.copy()
+    w_zpk_view = base_zpk[:]
+    base_zpk.flags.writeable = False
+    lim_fview = Limber(ell=ell, n_nodes=300).set_power(chi_w, z_w, OM, base_zpk, kh_w, pk_w)
+    q_fv_before, d_fv_before = lim_fview.Qt.copy(), lim_fview.D.copy()
+    w_zpk_view[1:-1] += 5e-4
+    lim_fview.set_power(chi_w, z_w, OM, base_zpk, kh_w, pk_w)
+    q_fv_after, d_fv_after = lim_fview.Qt.copy(), lim_fview.D.copy()
+    _lim._clear_limber_caches()
+    fresh_fv = Limber(ell=ell, n_nodes=300).set_power(chi_w, z_w, OM, base_zpk, kh_w, pk_w)
+    assert not np.array_equal(q_fv_after, q_fv_before)
+    assert not np.array_equal(d_fv_after, d_fv_before)
+    assert np.array_equal(q_fv_after, fresh_fv.Qt) and np.array_equal(d_fv_after, fresh_fv.D)
+
     # 3. Varying z_max, n_nodes, kernel_oversample, ell, interp_order, fidelity never serves stale data
     _lim._clear_limber_caches()
     base = Limber(ell=ell, fidelity="fast", n_nodes=300, interp_order=3, kernel_oversample=4).set_power(

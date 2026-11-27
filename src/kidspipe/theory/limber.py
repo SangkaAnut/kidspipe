@@ -1029,15 +1029,13 @@ def _freeze(a: np.ndarray) -> np.ndarray:
 
 
 def _ro_store(a: np.ndarray) -> np.ndarray:
-    if a.dtype == np.float64 and a.flags.c_contiguous and not a.flags.writeable:
-        return a
     c = np.array(a, dtype=np.float64, copy=True, order="C")
     c.flags.writeable = False
     return c
 
 
 def _arr_match(a: np.ndarray, ro: np.ndarray) -> bool:
-    return (a is ro and not a.flags.writeable) or np.array_equal(a, ro)
+    return np.array_equal(a, ro)
 
 
 @dataclass
