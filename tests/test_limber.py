@@ -509,3 +509,275 @@ def test_camb_with_ia_and_photoz_shift_vs_brute_force():
         worst = max(worst, np.max(np.abs(C[..., il] / ref - 1)))
     print("CAMB IA+shift vs brute force:", worst)
     assert worst < 5e-4
+
+
+# ----------------------------------------------------------------------------- _fill_q look-up kernel (prompt 07)
+from numba import njit  # noqa: E402
+
+from kidspipe.theory import limber as _lim  # noqa: E402
+
+
+@njit(cache=False)
+def _fill_q_reference(tab, z_pk, lnk, z_nodes, lnchi, ln_nu, order, use_exp, out, vraw, scale):
+    """The pre-prompt-07 kernel, verbatim apart from the serial loop: per-node row, divisions in the weights.
+
+    Also returns the unclipped interpolant ``vraw`` and ``scale = sum_i |w_i r_i|``, the magnitude that bounds the
+    rounding error of evaluating ``v = sum_i w_i r_i`` in any order (0 where the result is identically 0)."""
+    nm = z_nodes.size
+    nl = ln_nu.size
+    nk = lnk.size
+    nzp = z_pk.size
+    for m in range(nm):
+        z = z_nodes[m]
+        if (not np.isfinite(lnchi[m])) or z < z_pk[0] or z > z_pk[nzp - 1]:
+            for l in range(nl):
+                out[m, l] = 0.0
+                vraw[m, l] = 0.0
+                scale[m, l] = 0.0
+            continue
+        iz = np.searchsorted(z_pk, z) - 1
+        if iz < 0:
+            iz = 0
+        if iz > nzp - 2:
+            iz = nzp - 2
+        t = (z - z_pk[iz]) / (z_pk[iz + 1] - z_pk[iz])
+        row = np.empty(nk)
+        for j in range(nk):
+            row[j] = (1.0 - t) * tab[iz, j] + t * tab[iz + 1, j]
+        j = 0
+        for l in range(nl):
+            x = ln_nu[l] - lnchi[m]
+            if x < lnk[0] or x > lnk[nk - 1]:
+                out[m, l] = 0.0
+                vraw[m, l] = 0.0
+                scale[m, l] = 0.0
+                continue
+            while j < nk - 2 and lnk[j + 1] <= x:
+                j += 1
+            if order == 3 and nk >= 4:
+                j0 = j - 1
+                if j0 < 0:
+                    j0 = 0
+                if j0 > nk - 4:
+                    j0 = nk - 4
+                x0 = lnk[j0]
+                x1 = lnk[j0 + 1]
+                x2 = lnk[j0 + 2]
+                x3 = lnk[j0 + 3]
+                w0 = (x - x1) * (x - x2) * (x - x3) / ((x0 - x1) * (x0 - x2) * (x0 - x3))
+                w1 = (x - x0) * (x - x2) * (x - x3) / ((x1 - x0) * (x1 - x2) * (x1 - x3))
+                w2 = (x - x0) * (x - x1) * (x - x3) / ((x2 - x0) * (x2 - x1) * (x2 - x3))
+                w3 = (x - x0) * (x - x1) * (x - x2) / ((x3 - x0) * (x3 - x1) * (x3 - x2))
+                v = w0 * row[j0] + w1 * row[j0 + 1] + w2 * row[j0 + 2] + w3 * row[j0 + 3]
+                sc = abs(w0 * row[j0]) + abs(w1 * row[j0 + 1]) + abs(w2 * row[j0 + 2]) + abs(w3 * row[j0 + 3])
+            else:
+                v = row[j] + (row[j + 1] - row[j]) * (x - lnk[j]) / (lnk[j + 1] - lnk[j])
+                f = (x - lnk[j]) / (lnk[j + 1] - lnk[j])
+                sc = abs(row[j]) + abs(row[j + 1]) * abs(f) + abs(row[j]) * abs(f)
+            vraw[m, l] = v
+            scale[m, l] = sc
+            if use_exp:
+                out[m, l] = np.exp(v)
+            else:
+                out[m, l] = v if v > 0.0 else 0.0
+
+
+def _reference(tab, z_pk, lnk, z_nodes, lnchi, ln_nu, order, use_exp):
+    shp = (z_nodes.size, ln_nu.size)
+    out, vraw, scale = np.empty(shp), np.empty(shp), np.empty(shp)
+    _fill_q_reference(tab, z_pk, lnk, z_nodes, lnchi, ln_nu, order, use_exp, out, vraw, scale)
+    return out, vraw, scale
+
+
+def _fq_case(lnk, nm=301, nl=97, z_lo=0.05, seed=0):
+    """A look-up problem whose x = ln nu - ln chi range overhangs the k table on both sides, hits table nodes
+    exactly (chi = 1 at one node, ln nu containing ln k nodes), has a chi = 0 node and nodes outside z_pk."""
+    rng = np.random.default_rng(seed)
+    z_pk = np.concatenate([[z_lo], np.sort(rng.uniform(z_lo, 3.0, 28)), [3.0]])
+    z_pk = np.unique(z_pk)
+    k = np.exp(lnk)
+    tab = np.log((1.0 + z_pk)[:, None] ** -1.4 * 2e4 * k ** 0.9 / (1.0 + (k / 0.02) ** 2.6) + 1e-3 * k ** -0.5)
+    z_nodes = np.linspace(0.0, 3.3, nm)                         # [0, z_lo) and (3, 3.3] lie outside z_pk
+    chi = 3000.0 * z_nodes / (1.0 + 0.4 * z_nodes)
+    chi[nm // 2] = 1.0                                         # ln chi = 0: x == ln nu exactly
+    lnchi = np.where(chi > 0, np.log(np.where(chi > 0, chi, 1.0)), np.nan)   # chi(0) = 0 -> NaN row
+    c = np.nanmedian(lnchi)                                    # typical ln chi: most x land inside the table
+    ln_nu = np.sort(np.concatenate([np.linspace(lnk[0] - 1.0 + c, lnk[-1] + 1.0 + c, nl - 6),
+                                    lnk[np.unique([0, 1, min(2, lnk.size - 1), lnk.size // 2, lnk.size - 2, lnk.size - 1])]]))
+    return z_pk, tab, z_nodes, lnchi, ln_nu
+
+
+def _assert_close_fq(new, ref, rtol=1e-13):
+    assert np.array_equal(new == 0.0, ref == 0.0), "zero masks differ"
+    rel = np.abs(new - ref) / np.maximum(np.abs(ref), 1e-30)
+    assert rel.max() < rtol, rel.max()
+
+
+def _assert_close_fq_cond(new, ref, vraw, scale, use_exp, rtol=1e-13):
+    """``use_exp``: |dQ/Q| < rtol.  P interpolated in value (kcap): |dQ| < rtol sum_i |w_i r_i| -- on coarse grids
+    v = sum_i w_i r_i cancels and a 1-ulp change of a weight is amplified by sum|w r| / |v| in relative terms (the
+    former kernel had rounding errors of the same size) -- and identical zero masks wherever the sign of the
+    unclipped interpolant is resolved, |v| > rtol sum|w r|."""
+    if use_exp:
+        _assert_close_fq(new, ref, rtol)
+        return
+    assert np.all(np.abs(new - ref) <= rtol * scale), np.max(np.abs(new - ref) / np.maximum(scale, 1e-300))
+    resolved = np.abs(vraw) > rtol * scale
+    assert np.array_equal((new == 0.0)[resolved], (ref == 0.0)[resolved]), "zero masks differ"
+    assert np.all(new[~resolved] <= rtol * scale[~resolved])
+
+
+_GRIDS = {
+    "nonuniform": lambda: np.log(np.sort(np.concatenate([np.logspace(-4, 1, 37), np.logspace(1.02, 2.7, 25),
+                                                         [3e-3, 3.1e-3, 0.5]]))),
+    "uniform": lambda: np.log(np.exp(np.linspace(np.log(1e-4), np.log(500.0), 120))),
+    "nk4": lambda: np.log(np.array([1e-3, 1e-2, 0.3, 30.0])),
+    "nk5": lambda: np.log(np.array([1e-3, 4e-3, 0.1, 3.0, 100.0])),
+    "nk3_linear_fallback": lambda: np.log(np.array([1e-3, 0.1, 50.0])),
+    "nk2_linear_fallback": lambda: np.log(np.array([1e-3, 50.0])),
+}
+
+
+@pytest.mark.parametrize("grid", list(_GRIDS))
+@pytest.mark.parametrize("order", [3, 1])
+@pytest.mark.parametrize("use_exp", [True, False])
+def test_fill_q_matches_reference(grid, order, use_exp):
+    """New pre-indexed kernels == the former kernel to < 1e-13 relative with identical zero masks, on uniform and
+    non-uniform ln k grids, the 4-point edge stencils (nk = 4, 5), the linear fallback (nk < 4), x on table nodes,
+    x outside the table on both sides, chi = 0 and z outside the P(k, z) table."""
+    lnk = _GRIDS[grid]()
+    z_pk, tab, z_nodes, lnchi, ln_nu = _fq_case(lnk)
+    if not use_exp:
+        tab = np.exp(tab)
+    ref, vraw, scale = _reference(tab, z_pk, lnk, z_nodes, lnchi, ln_nu, order, use_exp)
+    new = np.full_like(ref, np.nan)
+    _lim._fill_q(tab, z_pk, lnk, z_nodes, lnchi, ln_nu, order, use_exp, new)
+    assert np.all(np.isfinite(new))
+    assert np.count_nonzero(scale) > 0.4 * ref.size and np.count_nonzero(scale == 0.0) > ln_nu.size   # inside / outside
+    _assert_close_fq_cond(new, ref, vraw, scale, use_exp)
+
+
+def test_fill_q_clipping_matches_reference():
+    """kcap (P, not ln P): negative cubic overshoots of a step-like P are clipped to 0 exactly as before."""
+    lnk = np.log(np.logspace(-3, 2, 60)) + 0.05 * np.sin(np.arange(60.0))   # non-uniform: the cursor path
+    z_pk, tab, z_nodes, lnchi, ln_nu = _fq_case(lnk)
+    P = np.exp(tab)
+    P[:, 30:] *= 1e-6                                          # a step: the cubic undershoots below 0 after it
+    ref, vraw, scale = _reference(P, z_pk, lnk, z_nodes, lnchi, ln_nu, 3, False)
+    new = np.empty_like(ref)
+    _lim._fill_q(P, z_pk, lnk, z_nodes, lnchi, ln_nu, 3, False, new)
+    assert np.count_nonzero(vraw < -1e-3 * scale) > 10        # clipping really happens (clearly negative cubic)
+    _assert_close_fq_cond(new, ref, vraw, scale, False)
+
+
+def test_fill_q_uniform_detection_and_paths():
+    """The uniform-grid path is taken only for grids uniform to UNIFORM_LNK_RTOL; on a uniform grid it agrees with
+    the monotone-cursor path to < 1e-13 for a smooth table.  (Its fractional position ``s = (x - lnk[0]) / dlnk``
+    carries a rounding error of ~|s| 2^-52 node spacings, so next to a near-discontinuity of the table the two paths
+    can differ by that shift times the local slope -- as the former kernel's result moves with the rounding of x.)"""
+    lnk = _GRIDS["uniform"]()
+    dl = lnk[1] - lnk[0]
+    z_pk, tab, z_nodes, lnchi, ln_nu = _fq_case(lnk)
+    prep = lambda g: _lim._fill_q_prepare(z_pk, z_nodes, lnchi, g, _lim.UNIFORM_LNK_RTOL)
+    assert prep(lnk)[2] is True
+    for eps, expect in ((1e-13, True), (1e-9, False)):
+        g = lnk.copy()
+        g[57] += eps * dl
+        assert prep(g)[2] is expect, eps
+    assert prep(_GRIDS["nonuniform"]())[2] is False
+    iz, t, uniform, inv_dlnk, inv_dk, inv_den = prep(lnk)
+    work = np.empty((7, lnk.size))
+    for use_exp in (True, False):
+        tb = tab if use_exp else np.exp(tab)
+        a = np.empty((z_nodes.size, ln_nu.size))
+        b = np.empty_like(a)
+        _lim._fill_q_uniform(tb, lnk, iz, t, lnchi, ln_nu, use_exp, inv_dlnk, work, a)
+        _lim._fill_q_cursor(tb, lnk, iz, t, lnchi, ln_nu, use_exp, inv_den, work, b)
+        _assert_close_fq(a, b)
+
+
+def test_fill_q_independent_of_threads_and_chunks(monkeypatch):
+    """Bit-identical for 1 vs all numba threads and for any number of node chunks."""
+    import numba
+    lnk = _GRIDS["nonuniform"]()
+    z_pk, tab, z_nodes, lnchi, ln_nu = _fq_case(lnk, nm=503)
+    run = lambda: _lim._fill_q(tab, z_pk, lnk, z_nodes, lnchi, ln_nu, 3, True, np.empty((z_nodes.size, ln_nu.size)))
+    nt0 = numba.get_num_threads()
+    try:
+        numba.set_num_threads(1)
+        one = run()
+        numba.set_num_threads(nt0)
+        many = run()
+        monkeypatch.setattr(_lim, "_CHUNKS_PER_THREAD", 1)
+        few = run()
+        monkeypatch.setattr(_lim, "_CHUNKS_PER_THREAD", 1000)   # more chunks than nodes -> one node per chunk
+        finest = run()
+    finally:
+        numba.set_num_threads(nt0)
+    assert np.array_equal(one, many) and np.array_equal(one, few) and np.array_equal(one, finest)
+
+
+def test_fill_q_degenerate_tables():
+    """A single-redshift table gives exact zeros (the former kernel read past the table); results stay finite."""
+    lnk = _GRIDS["nonuniform"]()
+    z_pk, tab, z_nodes, lnchi, ln_nu = _fq_case(lnk)
+    out = np.full((z_nodes.size, ln_nu.size), np.nan)
+    _lim._fill_q(tab[:1], z_pk[:1], lnk, z_nodes, lnchi, ln_nu, 3, True, out)
+    assert np.all(out == 0.0)
+
+
+def test_fill_q_allocations_do_not_scale_with_nodes():
+    """No heap allocation per node or per chunk inside the parallel kernels (NRT allocation counter): the count per
+    call is a constant (parfor scheduling) for 64 / 640 nodes and 1 / 50 chunks.  numba hoists loop-invariant
+    ``np.empty`` calls out of ``prange`` bodies (it did so for the former per-node ``row``), so what this guards
+    against is an allocation numba cannot hoist; the positive control checks that the counter sees such a
+    per-node allocation."""
+    import subprocess
+    import sys
+    code = r'''
+import json
+import numpy as np
+from numba.core.runtime import rtsys
+from kidspipe.theory import limber as L
+lnk = np.log(np.logspace(-4, 2.7, 150)) + np.r_[0.0, 1e-3 * np.sin(np.arange(149))]
+z_pk = np.linspace(0.0, 3.0, 40); tab = np.log(np.outer(1 + z_pk, np.exp(lnk)) ** -1.0 + 1.0)
+counts = []
+for nm in (64, 640):
+    for nch in (1, 50):
+        z = np.linspace(0.0, 2.9, nm); chi = 3000 * z / (1 + 0.4 * z)
+        lnchi = np.where(chi > 0, np.log(np.where(chi > 0, chi, 1.0)), np.nan)
+        ln_nu = np.log(np.logspace(-1, 5, 80) + 0.5); out = np.empty((nm, 80))
+        iz, t, uni, idl, idk, iden = L._fill_q_prepare(z_pk, z, lnchi, lnk, L.UNIFORM_LNK_RTOL)
+        work = np.empty((nch, lnk.size))
+        for kern in (lambda: L._fill_q_cursor(tab, lnk, iz, t, lnchi, ln_nu, True, iden, work, out),
+                     lambda: L._fill_q_uniform(tab, lnk, iz, t, lnchi, ln_nu, True, idl, work, out),
+                     lambda: L._fill_q_linear(tab, lnk, iz, t, lnchi, ln_nu, True, False, idl, idk, work, out)):
+            kern()
+            s0 = rtsys.get_allocation_stats(); kern(); s1 = rtsys.get_allocation_stats()
+            counts.append(s1.alloc - s0.alloc)
+from numba import njit, prange
+@njit(parallel=True)
+def per_node_alloc(out):                 # positive control: a size that depends on m cannot be hoisted
+    for m in prange(out.shape[0]):
+        tmp = np.empty(m % 7 + 1)
+        tmp[:] = m
+        out[m, 0] = tmp.sum()
+ctrl = []
+for nm in (64, 640):
+    o = np.empty((nm, 1)); per_node_alloc(o)
+    s0 = rtsys.get_allocation_stats(); per_node_alloc(o); s1 = rtsys.get_allocation_stats()
+    ctrl.append(s1.alloc - s0.alloc)
+print(json.dumps({"counts": counts, "control": ctrl}))
+'''
+    import os
+    env = dict(os.environ, NUMBA_NRT_STATS="1")
+    src = str(Path(__file__).resolve().parents[1] / "src")      # as tests/test_e2e.py: the package need not be installed
+    env["PYTHONPATH"] = src + os.pathsep + env.get("PYTHONPATH", "")
+    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, timeout=600)
+    assert res.returncode == 0, res.stderr[-2000:]
+    got = json.loads(res.stdout.strip().splitlines()[-1])
+    counts, ctrl = got["counts"], got["control"]
+    assert ctrl[0] >= 64 and ctrl[1] >= 640, ctrl            # the counter does see per-node allocations
+    per_kernel = [counts[i::3] for i in range(3)]            # (nm, nchunk) = (64,1), (64,50), (640,1), (640,50)
+    for c in per_kernel:
+        assert len(set(c)) == 1 and c[0] < 64, counts         # a small constant per-call overhead (parfor scheduling)

@@ -29,6 +29,7 @@ splines or the adaptive QAG quadrature, so it differs from kcap by ~1e-3, not bi
 """
 from __future__ import annotations
 
+import numba
 import numpy as np
 from numba import njit, prange
 from scipy.interpolate import CubicSpline
@@ -99,61 +100,266 @@ def nla_growth_factor(z_pk: np.ndarray, pk_nl: np.ndarray) -> np.ndarray:
     return np.sqrt(pk_nl[:, 0] / pk_nl[0, 0])
 
 
-@njit(parallel=True, cache=True)
-def _fill_q(tab, z_pk, lnk, z_nodes, lnchi, ln_nu, order, use_exp, out):
-    """out[m, l] = interp of ``tab`` at (z_m, ln k = ln nu_l - ln chi_m); 0 outside the table.
+#: ``ln k`` grids whose spacings all agree with the mean spacing ``dlnk`` to this relative accuracy (and whose
+#: nodes lie within this fraction of ``dlnk`` of ``lnk[0] + j dlnk``) take the uniform-grid index path of
+#: :func:`_fill_q` (``s = (x - ln k_0) / dlnk``, ``j = int(s)``, constant Lagrange weights in ``s - j0``).
+UNIFORM_LNK_RTOL = 1e-11
 
-    ``tab`` is ln P (use_exp=True) or P (use_exp=False), shape (nz_pk, nk).  ``ln_nu`` ascending.
-    Linear in z; linear (order=1) or 4-point Lagrange cubic (order=3) in ln k.
+#: node chunks per numba thread in :func:`_fill_q` (load balance; each chunk owns one scratch row of nk doubles)
+_CHUNKS_PER_THREAD = 8
+
+
+@njit(cache=True)
+def _fill_q_prepare(z_pk, z_nodes, lnchi, lnk, rtol):
+    """Everything of :func:`_fill_q` that does not depend on the multipole, computed once per call.
+
+    Returns ``(iz, t, uniform, inv_dlnk, inv_dk, inv_den)``:
+
+    * ``iz[m], t[m]`` -- linear-in-z stencil of node ``m``: ``z_pk[iz] <= z_m <= z_pk[iz + 1]``,
+      ``t = (z_m - z_pk[iz]) / (z_pk[iz + 1] - z_pk[iz])`` (``searchsorted`` and the expression of the former
+      per-node code); ``iz = -1`` marks a node whose row is identically 0 (``ln chi_m`` not finite, i.e. chi = 0,
+      ``z_m`` NaN or outside ``[z_pk[0], z_pk[-1]]``, or a single-redshift table).
+    * ``uniform`` -- every spacing equals the mean spacing ``dlnk`` within ``rtol |dlnk|`` (and every node
+      lies within ``rtol |dlnk|`` of ``lnk[0] + j dlnk``); ``inv_dlnk = 1/dlnk``.
+    * ``inv_dk[j] = 1/(lnk[j+1] - lnk[j])`` (linear weights) and ``inv_den[j0, i] = 1/prod_{n != i}(x_i - x_n)``
+      over the stencil ``x_n = lnk[j0 + n]`` (cubic Lagrange weights; the same products as the former code).
     """
+    nzp = z_pk.size
     nm = z_nodes.size
+    iz = np.empty(nm, dtype=np.int64)
+    t = np.zeros(nm)
+    for m in range(nm):
+        z = z_nodes[m]
+        if nzp < 2 or (not np.isfinite(lnchi[m])) or not (z >= z_pk[0] and z <= z_pk[nzp - 1]):
+            iz[m] = -1
+            continue
+        i = np.searchsorted(z_pk, z) - 1
+        if i < 0:
+            i = 0
+        if i > nzp - 2:
+            i = nzp - 2
+        iz[m] = i
+        t[m] = (z - z_pk[i]) / (z_pk[i + 1] - z_pk[i])
+    nk = lnk.size
+    inv_dk = np.zeros(max(nk - 1, 1))
+    inv_den = np.zeros((max(nk - 3, 1), 4))
+    uniform = False
+    inv_dlnk = 0.0
+    if nk >= 2:
+        dlnk = (lnk[nk - 1] - lnk[0]) / (nk - 1)
+        dev = 0.0
+        drift = 0.0
+        for j in range(nk - 1):
+            d = lnk[j + 1] - lnk[j]
+            inv_dk[j] = 1.0 / d
+            dev = max(dev, abs(d - dlnk))
+            drift = max(drift, abs(lnk[j + 1] - (lnk[0] + (j + 1) * dlnk)))
+        uniform = dev < rtol * abs(dlnk) and drift < rtol * abs(dlnk)
+        inv_dlnk = 1.0 / dlnk
+    for j0 in range(nk - 3):
+        x0 = lnk[j0]
+        x1 = lnk[j0 + 1]
+        x2 = lnk[j0 + 2]
+        x3 = lnk[j0 + 3]
+        inv_den[j0, 0] = 1.0 / ((x0 - x1) * (x0 - x2) * (x0 - x3))
+        inv_den[j0, 1] = 1.0 / ((x1 - x0) * (x1 - x2) * (x1 - x3))
+        inv_den[j0, 2] = 1.0 / ((x2 - x0) * (x2 - x1) * (x2 - x3))
+        inv_den[j0, 3] = 1.0 / ((x3 - x0) * (x3 - x1) * (x3 - x2))
+    return iz, t, uniform, inv_dlnk, inv_dk, inv_den
+
+
+@njit(inline="always")
+def _z_row(tab, i0, tt, row):
+    """``row[c] = (1 - t) tab[i0, c] + t tab[i0 + 1, c]`` (the former per-node row, now in a scratch buffer)."""
+    omt = 1.0 - tt
+    for c in range(row.size):
+        row[c] = omt * tab[i0, c] + tt * tab[i0 + 1, c]
+
+
+@njit(inline="always")
+def _store(out, m, l, v, use_exp):
+    if use_exp:
+        out[m, l] = np.exp(v)
+    else:
+        out[m, l] = v if v > 0.0 else 0.0
+
+
+@njit(parallel=True, cache=True)
+def _fill_q_cursor(tab, lnk, iz, t, lnchi, ln_nu, use_exp, inv_den, work, out):
+    """Cubic (4-point Lagrange) look-up on a general ln k grid; interval index by the monotone cursor."""
+    nm = iz.size
     nl = ln_nu.size
     nk = lnk.size
-    nzp = z_pk.size
-    for m in prange(nm):
-        z = z_nodes[m]
-        if (not np.isfinite(lnchi[m])) or z < z_pk[0] or z > z_pk[nzp - 1]:
-            for l in range(nl):
-                out[m, l] = 0.0
-            continue
-        iz = np.searchsorted(z_pk, z) - 1
-        if iz < 0:
-            iz = 0
-        if iz > nzp - 2:
-            iz = nzp - 2
-        t = (z - z_pk[iz]) / (z_pk[iz + 1] - z_pk[iz])
-        row = np.empty(nk)
-        for j in range(nk):
-            row[j] = (1.0 - t) * tab[iz, j] + t * tab[iz + 1, j]
-        j = 0
-        for l in range(nl):
-            x = ln_nu[l] - lnchi[m]
-            if x < lnk[0] or x > lnk[nk - 1]:
-                out[m, l] = 0.0
+    nchunk = work.shape[0]
+    lo = lnk[0]
+    hi = lnk[nk - 1]
+    for c in prange(nchunk):
+        row = work[c]
+        for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            i0 = iz[m]
+            if i0 < 0:
+                for l in range(nl):
+                    out[m, l] = 0.0
                 continue
-            while j < nk - 2 and lnk[j + 1] <= x:
-                j += 1
-            if order == 3 and nk >= 4:
+            _z_row(tab, i0, t[m], row)
+            lc = lnchi[m]
+            j = 0
+            for l in range(nl):
+                x = ln_nu[l] - lc
+                if x < lo or x > hi:
+                    out[m, l] = 0.0
+                    continue
+                while j < nk - 2 and lnk[j + 1] <= x:
+                    j += 1
                 j0 = j - 1
                 if j0 < 0:
                     j0 = 0
                 if j0 > nk - 4:
                     j0 = nk - 4
-                x0 = lnk[j0]
-                x1 = lnk[j0 + 1]
-                x2 = lnk[j0 + 2]
-                x3 = lnk[j0 + 3]
-                w0 = (x - x1) * (x - x2) * (x - x3) / ((x0 - x1) * (x0 - x2) * (x0 - x3))
-                w1 = (x - x0) * (x - x2) * (x - x3) / ((x1 - x0) * (x1 - x2) * (x1 - x3))
-                w2 = (x - x0) * (x - x1) * (x - x3) / ((x2 - x0) * (x2 - x1) * (x2 - x3))
-                w3 = (x - x0) * (x - x1) * (x - x2) / ((x3 - x0) * (x3 - x1) * (x3 - x2))
-                v = w0 * row[j0] + w1 * row[j0 + 1] + w2 * row[j0 + 2] + w3 * row[j0 + 3]
-            else:
-                v = row[j] + (row[j + 1] - row[j]) * (x - lnk[j]) / (lnk[j + 1] - lnk[j])
-            if use_exp:
-                out[m, l] = np.exp(v)
-            else:
-                out[m, l] = v if v > 0.0 else 0.0
+                d0 = x - lnk[j0]
+                d1 = x - lnk[j0 + 1]
+                d2 = x - lnk[j0 + 2]
+                d3 = x - lnk[j0 + 3]
+                w0 = d1 * d2 * d3 * inv_den[j0, 0]
+                w1 = d0 * d2 * d3 * inv_den[j0, 1]
+                w2 = d0 * d1 * d3 * inv_den[j0, 2]
+                w3 = d0 * d1 * d2 * inv_den[j0, 3]
+                _store(out, m, l, w0 * row[j0] + w1 * row[j0 + 1] + w2 * row[j0 + 2] + w3 * row[j0 + 3], use_exp)
+
+
+@njit(parallel=True, cache=True)
+def _fill_q_uniform(tab, lnk, iz, t, lnchi, ln_nu, use_exp, inv_dlnk, work, out):
+    """Cubic look-up on a uniform ln k grid: ``s = (x - lnk[0]) / dlnk``, ``j = int(s)``, ``u = s - j0`` and the
+    constant-coefficient Lagrange weights of the equispaced 4-point stencil.
+
+    The weights treat the nodes as exactly equispaced, and ``s`` carries a rounding error of ~``|s| 2^-52`` node
+    spacings (``int(s)`` may pick the neighbouring stencil when ``x`` sits on a node).  For a smooth table the result
+    therefore agrees with the cursor path to ~``|dlnP/dlnk| (delta + (x - lnk[0]) 2^-52)``, where ``delta`` is the
+    largest deviation of a node from ``lnk[0] + j dlnk``: ~1e-14 for grids uniform to rounding (e.g. ``log(logspace)``),
+    up to ~1e-12 for grids at the edge of :data:`UNIFORM_LNK_RTOL`.  Next to a near-discontinuity of the table the
+    difference is that position shift times the local slope, as is the sensitivity of either path to the rounding
+    of ``x`` itself."""
+    nm = iz.size
+    nl = ln_nu.size
+    nk = lnk.size
+    nchunk = work.shape[0]
+    lo = lnk[0]
+    hi = lnk[nk - 1]
+    for c in prange(nchunk):
+        row = work[c]
+        for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            i0 = iz[m]
+            if i0 < 0:
+                for l in range(nl):
+                    out[m, l] = 0.0
+                continue
+            _z_row(tab, i0, t[m], row)
+            lc = lnchi[m]
+            for l in range(nl):
+                x = ln_nu[l] - lc
+                if x < lo or x > hi:
+                    out[m, l] = 0.0
+                    continue
+                s = (x - lo) * inv_dlnk
+                j0 = int(s) - 1
+                if j0 < 0:
+                    j0 = 0
+                if j0 > nk - 4:
+                    j0 = nk - 4
+                u = s - j0
+                a1 = u - 1.0
+                a2 = u - 2.0
+                a3 = u - 3.0
+                w0 = -(a1 * a2 * a3) * (1.0 / 6.0)
+                w1 = (u * a2 * a3) * 0.5
+                w2 = -(u * a1 * a3) * 0.5
+                w3 = (u * a1 * a2) * (1.0 / 6.0)
+                _store(out, m, l, w0 * row[j0] + w1 * row[j0 + 1] + w2 * row[j0 + 2] + w3 * row[j0 + 3], use_exp)
+
+
+@njit(parallel=True, cache=True)
+def _fill_q_linear(tab, lnk, iz, t, lnchi, ln_nu, use_exp, uniform, inv_dlnk, inv_dk, work, out):
+    """Linear-in-ln-k look-up (``interp_order=1``, or fewer than 4 k nodes); cursor or uniform index."""
+    nm = iz.size
+    nl = ln_nu.size
+    nk = lnk.size
+    nchunk = work.shape[0]
+    lo = lnk[0]
+    hi = lnk[nk - 1]
+    for c in prange(nchunk):
+        row = work[c]
+        for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            i0 = iz[m]
+            if i0 < 0:
+                for l in range(nl):
+                    out[m, l] = 0.0
+                continue
+            _z_row(tab, i0, t[m], row)
+            lc = lnchi[m]
+            j = 0
+            for l in range(nl):
+                x = ln_nu[l] - lc
+                if x < lo or x > hi:
+                    out[m, l] = 0.0
+                    continue
+                if uniform:
+                    s = (x - lo) * inv_dlnk
+                    j = int(s)
+                    if j > nk - 2:
+                        j = nk - 2
+                    if j < 0:
+                        j = 0
+                    if nk >= 2:
+                        v = row[j] + (row[j + 1] - row[j]) * (s - j)
+                    else:
+                        v = row[0]
+                else:
+                    while j < nk - 2 and lnk[j + 1] <= x:
+                        j += 1
+                    if nk >= 2:
+                        v = row[j] + (row[j + 1] - row[j]) * (x - lnk[j]) * inv_dk[j]
+                    else:
+                        v = row[0]  # nk == 1: only x == lnk[0] is inside the table
+                _store(out, m, l, v, use_exp)
+
+
+def _fill_q(tab, z_pk, lnk, z_nodes, lnchi, ln_nu, order, use_exp, out):
+    """out[m, l] = interp of ``tab`` at (z_m, ln k = ln nu_l - ln chi_m); 0 outside the table.
+
+    ``tab`` is ln P (use_exp=True) or P (use_exp=False), shape (nz_pk, nk).  ``ln_nu`` ascending.
+    Linear in z; linear (order=1) or 4-point Lagrange cubic (order=3, needs nk >= 4) in ln k; the cubic stencil
+    is ``j0 = max(0, min(j - 1, nk - 4))`` around the interval ``lnk[j] <= x < lnk[j + 1]``.
+
+    Cost structure (spec s6.3 (E), prompt 07): the per-node z stencil and the grid-only weight denominators are
+    prepared once (:func:`_fill_q_prepare`); the parallel kernels make no heap allocation per node or per chunk
+    (numba's parfor scheduling costs a constant ~9 NRT allocations per call; the former per-node
+    ``row = np.empty(nk)`` was already hoisted out of the ``prange`` loop by numba).  Each chunk of nodes reuses
+    one scratch row for the z-interpolated table row: for the 2000 x 400 look-up the stencils of one node cover
+    most of the nk columns (median ~73 % on the extended CAMB grid) and each column serves up to 4 stencils, so
+    one contiguous pass over the row is cheaper than re-interpolating 4 stencil columns for every multipole.  The
+    cubic weights multiply by precomputed reciprocals instead of dividing (results change at the 1e-14 level).
+    Grids that are uniform in ln k (:data:`UNIFORM_LNK_RTOL`) take an O(1) index path; the CAMB / emulator grids
+    extended by :func:`kidspipe.theory.nonlinear.extend_high_k` are not uniform and use the monotone cursor.
+    The result does not depend on the number of threads.
+    """
+    tab = np.ascontiguousarray(tab, dtype=np.float64)
+    lnk = np.ascontiguousarray(lnk, dtype=np.float64)
+    ln_nu = np.ascontiguousarray(ln_nu, dtype=np.float64)
+    lnchi = np.ascontiguousarray(lnchi, dtype=np.float64)
+    iz, t, uniform, inv_dlnk, inv_dk, inv_den = _fill_q_prepare(
+        np.ascontiguousarray(z_pk, dtype=np.float64), np.ascontiguousarray(z_nodes, dtype=np.float64), lnchi, lnk,
+        UNIFORM_LNK_RTOL)
+    nchunk = max(1, min(iz.size, _CHUNKS_PER_THREAD * numba.get_num_threads()))
+    work = np.empty((nchunk, max(lnk.size, 1)))
+    use_exp = bool(use_exp)
+    if order == 3 and lnk.size >= 4:
+        if uniform:
+            _fill_q_uniform(tab, lnk, iz, t, lnchi, ln_nu, use_exp, inv_dlnk, work, out)
+        else:
+            _fill_q_cursor(tab, lnk, iz, t, lnchi, ln_nu, use_exp, inv_den, work, out)
+    else:
+        _fill_q_linear(tab, lnk, iz, t, lnchi, ln_nu, use_exp, uniform, inv_dlnk, inv_dk, work, out)
+    return out
 
 
 class Limber:
