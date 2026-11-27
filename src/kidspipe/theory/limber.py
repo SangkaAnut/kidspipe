@@ -29,6 +29,7 @@ splines or the adaptive QAG quadrature, so it differs from kcap by ~1e-3, not bi
 """
 from __future__ import annotations
 
+import sys
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -249,36 +250,33 @@ def _z_row(tab, i0, tt, row):
 
 
 @njit(inline="always")
-def _zero_row(out, m, nl):
-    """Zero every multipole entry of row ``m``."""
+def _zero_row(out_m, nl):
+    """Zero every multipole entry of 1-D row ``out_m``."""
     for l in range(nl):
-        out[m, l] = 0.0
+        out_m[l] = 0.0
 
 
 @njit(inline="always")
-def _zero_margins(out, m, la, lb, nl):
-    """Zero out-of-range multipole margins ``[0, la)`` and ``[lb, nl)`` of row ``m``."""
+def _zero_margins(out_m, la, lb, nl):
+    """Zero out-of-range multipole margins ``[0, la)`` and ``[lb, nl)`` of 1-D row ``out_m``."""
     for l in range(la):
-        out[m, l] = 0.0
+        out_m[l] = 0.0
     for l in range(lb, nl):
-        out[m, l] = 0.0
+        out_m[l] = 0.0
 
 
 @njit(inline="always")
-def _active_bounds_and_zero(out, m, ln_nu, lc, lo, hi):
-    """Zero out-of-range margins of row ``m`` and return the contiguous active slice ``(la, lb)``."""
+def _active_bounds_and_zero(out_m, ln_nu, lc, lo, hi):
+    """Zero out-of-range margins of 1-D row ``out_m`` and return the contiguous active slice ``(la, lb)``."""
     nl = ln_nu.size
-    l = 0
-    while l < nl and (ln_nu[l] - lc) < lo:
-        out[m, l] = 0.0
-        l += 1
-    la = l
-    while l < nl and (ln_nu[l] - lc) <= hi:
-        l += 1
-    lb = l
-    while l < nl:
-        out[m, l] = 0.0
-        l += 1
+    la = 0
+    while la < nl and (ln_nu[la] - lc) < lo:
+        out_m[la] = 0.0
+        la += 1
+    lb = nl
+    while lb > la and (ln_nu[lb - 1] - lc) > hi:
+        lb -= 1
+        out_m[lb] = 0.0
     return la, lb
 
 
@@ -459,15 +457,19 @@ def _precompute_cubic_stencils(lnk, iz, lnchi, ln_nu):
         if iz[m] < 0:
             continue
         lc = lnchi[m]
-        l = 0
-        while l < nl and (ln_nu[l] - lc) < lo:
-            l += 1
-        la = l
+        la = 0
+        while la < nl and (ln_nu[la] - lc) < lo:
+            la += 1
+        lb = nl
+        while lb > la and (ln_nu[lb - 1] - lc) > hi:
+            lb -= 1
+        if lb <= la:
+            continue
+        jm = j0s[m]
+        um = us[m]
         j = 0
-        while l < nl:
+        for l in range(la, lb):
             x = ln_nu[l] - lc
-            if x > hi:
-                break
             while j < nk - 2 and lnk[j + 1] <= x:
                 j += 1
             j0 = j - 1
@@ -475,13 +477,10 @@ def _precompute_cubic_stencils(lnk, iz, lnchi, ln_nu):
                 j0 = 0
             if j0 > nk - 4:
                 j0 = nk - 4
-            j0s[m, l] = j0
-            us[m, l] = x - lnk[j0]
-            l += 1
-        lb = l
-        if lb > la:
-            las[m] = la
-            lbs[m] = lb
+            jm[l] = j0
+            um[l] = x - lnk[j0]
+        las[m] = la
+        lbs[m] = lb
     return las, lbs, j0s, us
 
 
@@ -499,22 +498,26 @@ def _fill_q_newton_cursor_fast(d0, d1, d2, d3, h1, h2, lnk, iz, t, lnchi, ln_nu,
         j0_arr = work_j0[c]
         u_arr = work_u[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             lc = lnchi[m]
-            l = 0
-            while l < nl and (ln_nu[l] - lc) < lo:
-                out[m, l] = 0.0
-                l += 1
-            la = l
+            la = 0
+            while la < nl and (ln_nu[la] - lc) < lo:
+                out_m[la] = 0.0
+                la += 1
+            lb = nl
+            while lb > la and (ln_nu[lb - 1] - lc) > hi:
+                lb -= 1
+                out_m[lb] = 0.0
+            n_act = lb - la
+            if n_act <= 0:
+                continue
             j = 0
-            k = 0
-            while l < nl:
-                x = ln_nu[l] - lc
-                if x > hi:
-                    break
+            for k in range(n_act):
+                x = ln_nu[la + k] - lc
                 while j < nk - 2 and lnk[j + 1] <= x:
                     j += 1
                 j0 = j - 1
@@ -524,28 +527,27 @@ def _fill_q_newton_cursor_fast(d0, d1, d2, d3, h1, h2, lnk, iz, t, lnchi, ln_nu,
                     j0 = nk - 4
                 j0_arr[k] = j0
                 u_arr[k] = x - lnk[j0]
-                k += 1
-                l += 1
-            lb = l
-            while l < nl:
-                out[m, l] = 0.0
-                l += 1
-            n_act = lb - la
-            if n_act <= 0:
-                continue
+            r00 = d0[i0]
+            r01 = d1[i0]
+            r02 = d2[i0]
+            r03 = d3[i0]
+            r10 = d0[i0 + 1]
+            r11 = d1[i0 + 1]
+            r12 = d2[i0 + 1]
+            r13 = d3[i0 + 1]
             tt = t[m]
             omt = 1.0 - tt
             for k in range(n_act):
                 j0 = j0_arr[k]
                 u = u_arr[k]
-                c0 = omt * d0[i0, j0] + tt * d0[i0 + 1, j0]
-                c1 = omt * d1[i0, j0] + tt * d1[i0 + 1, j0]
-                c2 = omt * d2[i0, j0] + tt * d2[i0 + 1, j0]
-                c3 = omt * d3[i0, j0] + tt * d3[i0 + 1, j0]
-                buf[k] = c0 + u * (c1 + (u - h1[j0]) * (c2 + (u - h2[j0]) * c3))
+                u1 = u - h1[j0]
+                u2 = u - h2[j0]
+                p0 = ((r03[j0] * u2 + r02[j0]) * u1 + r01[j0]) * u + r00[j0]
+                p1 = ((r13[j0] * u2 + r12[j0]) * u1 + r11[j0]) * u + r10[j0]
+                buf[k] = omt * p0 + tt * p1
             _vexp_1d(buf, n_act)
             for k in range(n_act):
-                out[m, la + k] = buf[k]
+                out_m[la + k] = buf[k]
 
 
 @njit(parallel=True, cache=True)
@@ -557,31 +559,42 @@ def _fill_q_newton_cached_fast(d0, d1, d2, d3, h1, h2, iz, t, las, lbs, j0s, us,
     for c in prange(nchunk):
         buf = work_buf[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             la = las[m]
             lb = lbs[m]
             n_act = lb - la
             if n_act <= 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
-            _zero_margins(out, m, la, lb, nl)
+            _zero_margins(out_m, la, lb, nl)
+            r00 = d0[i0]
+            r01 = d1[i0]
+            r02 = d2[i0]
+            r03 = d3[i0]
+            r10 = d0[i0 + 1]
+            r11 = d1[i0 + 1]
+            r12 = d2[i0 + 1]
+            r13 = d3[i0 + 1]
+            jm = j0s[m]
+            um = us[m]
             tt = t[m]
             omt = 1.0 - tt
             for k in range(n_act):
                 l = la + k
-                j0 = j0s[m, l]
-                u = us[m, l]
-                c0 = omt * d0[i0, j0] + tt * d0[i0 + 1, j0]
-                c1 = omt * d1[i0, j0] + tt * d1[i0 + 1, j0]
-                c2 = omt * d2[i0, j0] + tt * d2[i0 + 1, j0]
-                c3 = omt * d3[i0, j0] + tt * d3[i0 + 1, j0]
-                buf[k] = c0 + u * (c1 + (u - h1[j0]) * (c2 + (u - h2[j0]) * c3))
+                j0 = jm[l]
+                u = um[l]
+                u1 = u - h1[j0]
+                u2 = u - h2[j0]
+                p0 = ((r03[j0] * u2 + r02[j0]) * u1 + r01[j0]) * u + r00[j0]
+                p1 = ((r13[j0] * u2 + r12[j0]) * u1 + r11[j0]) * u + r10[j0]
+                buf[k] = omt * p0 + tt * p1
             _vexp_1d(buf, n_act)
             for k in range(n_act):
-                out[m, la + k] = buf[k]
+                out_m[la + k] = buf[k]
 
 
 @njit(parallel=True, cache=True)
@@ -597,12 +610,13 @@ def _fill_q_uniform_fast(tab, lnk, iz, t, lnchi, ln_nu, inv_dlnk, work_row, work
         row = work_row[c]
         buf = work_buf[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             lc = lnchi[m]
-            la, lb = _active_bounds_and_zero(out, m, ln_nu, lc, lo, hi)
+            la, lb = _active_bounds_and_zero(out_m, ln_nu, lc, lo, hi)
             n_act = lb - la
             if n_act <= 0:
                 continue
@@ -626,7 +640,7 @@ def _fill_q_uniform_fast(tab, lnk, iz, t, lnchi, ln_nu, inv_dlnk, work_row, work
                 buf[k] = w0 * row[j0] + w1 * row[j0 + 1] + w2 * row[j0 + 2] + w3 * row[j0 + 3]
             _vexp_1d(buf, n_act)
             for k in range(n_act):
-                out[m, la + k] = buf[k]
+                out_m[la + k] = buf[k]
 
 
 # Lagrange (inv_den) is kept for kcap because Newton form suffers catastrophic cancellation on coarse P grids.
@@ -642,12 +656,13 @@ def _fill_q_cursor_kcap(tab, lnk, iz, t, lnchi, ln_nu, inv_den, work_row, out):
     for c in prange(nchunk):
         row = work_row[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             lc = lnchi[m]
-            la, lb = _active_bounds_and_zero(out, m, ln_nu, lc, lo, hi)
+            la, lb = _active_bounds_and_zero(out_m, ln_nu, lc, lo, hi)
             if lb <= la:
                 continue
             _z_row(tab, i0, t[m], row)
@@ -670,7 +685,7 @@ def _fill_q_cursor_kcap(tab, lnk, iz, t, lnchi, ln_nu, inv_den, work_row, out):
                 w2 = d0 * d1 * d3 * inv_den[j0, 2]
                 w3 = d0 * d1 * d2 * inv_den[j0, 3]
                 v = w0 * row[j0] + w1 * row[j0 + 1] + w2 * row[j0 + 2] + w3 * row[j0 + 3]
-                out[m, l] = v if v > 0.0 else 0.0
+                out_m[l] = v if v > 0.0 else 0.0
 
 
 @njit(parallel=True, cache=True)
@@ -682,21 +697,23 @@ def _fill_q_cached_kcap(tab, lnk, inv_den, iz, t, lnchi, ln_nu, las, lbs, j0s, w
     for c in prange(nchunk):
         row = work_row[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             la = las[m]
             lb = lbs[m]
             if lb <= la:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
-            _zero_margins(out, m, la, lb, nl)
+            _zero_margins(out_m, la, lb, nl)
             _z_row(tab, i0, t[m], row)
             lc = lnchi[m]
+            jm = j0s[m]
             for l in range(la, lb):
                 x = ln_nu[l] - lc
-                j0 = j0s[m, l]
+                j0 = jm[l]
                 d0 = x - lnk[j0]
                 d1 = x - lnk[j0 + 1]
                 d2 = x - lnk[j0 + 2]
@@ -706,7 +723,7 @@ def _fill_q_cached_kcap(tab, lnk, inv_den, iz, t, lnchi, ln_nu, las, lbs, j0s, w
                 w2 = d0 * d1 * d3 * inv_den[j0, 2]
                 w3 = d0 * d1 * d2 * inv_den[j0, 3]
                 v = w0 * row[j0] + w1 * row[j0 + 1] + w2 * row[j0 + 2] + w3 * row[j0 + 3]
-                out[m, l] = v if v > 0.0 else 0.0
+                out_m[l] = v if v > 0.0 else 0.0
 
 
 @njit(parallel=True, cache=True)
@@ -721,12 +738,13 @@ def _fill_q_uniform_kcap(tab, lnk, iz, t, lnchi, ln_nu, inv_dlnk, work_row, out)
     for c in prange(nchunk):
         row = work_row[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             lc = lnchi[m]
-            la, lb = _active_bounds_and_zero(out, m, ln_nu, lc, lo, hi)
+            la, lb = _active_bounds_and_zero(out_m, ln_nu, lc, lo, hi)
             if lb <= la:
                 continue
             _z_row(tab, i0, t[m], row)
@@ -747,7 +765,7 @@ def _fill_q_uniform_kcap(tab, lnk, iz, t, lnchi, ln_nu, inv_dlnk, work_row, out)
                 w2 = -(u * a1 * a3) * 0.5
                 w3 = (u * a1 * a2) * (1.0 / 6.0)
                 v = w0 * row[j0] + w1 * row[j0 + 1] + w2 * row[j0 + 2] + w3 * row[j0 + 3]
-                out[m, l] = v if v > 0.0 else 0.0
+                out_m[l] = v if v > 0.0 else 0.0
 
 
 @njit(parallel=True, cache=True)
@@ -763,12 +781,13 @@ def _fill_q_linear_cursor_fast(tab, lnk, iz, t, lnchi, ln_nu, inv_dk, work_row, 
         row = work_row[c]
         buf = work_buf[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             lc = lnchi[m]
-            la, lb = _active_bounds_and_zero(out, m, ln_nu, lc, lo, hi)
+            la, lb = _active_bounds_and_zero(out_m, ln_nu, lc, lo, hi)
             n_act = lb - la
             if n_act <= 0:
                 continue
@@ -785,7 +804,7 @@ def _fill_q_linear_cursor_fast(tab, lnk, iz, t, lnchi, ln_nu, inv_dk, work_row, 
                     buf[k] = row[0]
             _vexp_1d(buf, n_act)
             for k in range(n_act):
-                out[m, la + k] = buf[k]
+                out_m[la + k] = buf[k]
 
 
 @njit(parallel=True, cache=True)
@@ -800,12 +819,13 @@ def _fill_q_linear_cursor_kcap(tab, lnk, iz, t, lnchi, ln_nu, inv_dk, work_row, 
     for c in prange(nchunk):
         row = work_row[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             lc = lnchi[m]
-            la, lb = _active_bounds_and_zero(out, m, ln_nu, lc, lo, hi)
+            la, lb = _active_bounds_and_zero(out_m, ln_nu, lc, lo, hi)
             if lb <= la:
                 continue
             _z_row(tab, i0, t[m], row)
@@ -816,11 +836,11 @@ def _fill_q_linear_cursor_kcap(tab, lnk, iz, t, lnchi, ln_nu, inv_dk, work_row, 
                     while j < nk - 2 and lnk[j + 1] <= x:
                         j += 1
                     v = row[j] + (row[j + 1] - row[j]) * (x - lnk[j]) * inv_dk[j]
-                    out[m, l] = v if v > 0.0 else 0.0
+                    out_m[l] = v if v > 0.0 else 0.0
             else:
                 for l in range(la, lb):
                     v = row[0]
-                    out[m, l] = v if v > 0.0 else 0.0
+                    out_m[l] = v if v > 0.0 else 0.0
 
 
 @njit(parallel=True, cache=True)
@@ -836,12 +856,13 @@ def _fill_q_linear_uniform_fast(tab, lnk, iz, t, lnchi, ln_nu, inv_dlnk, work_ro
         row = work_row[c]
         buf = work_buf[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             lc = lnchi[m]
-            la, lb = _active_bounds_and_zero(out, m, ln_nu, lc, lo, hi)
+            la, lb = _active_bounds_and_zero(out_m, ln_nu, lc, lo, hi)
             n_act = lb - la
             if n_act <= 0:
                 continue
@@ -861,7 +882,7 @@ def _fill_q_linear_uniform_fast(tab, lnk, iz, t, lnchi, ln_nu, inv_dlnk, work_ro
                     buf[k] = row[0]
             _vexp_1d(buf, n_act)
             for k in range(n_act):
-                out[m, la + k] = buf[k]
+                out_m[la + k] = buf[k]
 
 
 @njit(parallel=True, cache=True)
@@ -876,12 +897,13 @@ def _fill_q_linear_uniform_kcap(tab, lnk, iz, t, lnchi, ln_nu, inv_dlnk, work_ro
     for c in prange(nchunk):
         row = work_row[c]
         for m in range((c * nm) // nchunk, ((c + 1) * nm) // nchunk):
+            out_m = out[m]
             i0 = iz[m]
             if i0 < 0:
-                _zero_row(out, m, nl)
+                _zero_row(out_m, nl)
                 continue
             lc = lnchi[m]
-            la, lb = _active_bounds_and_zero(out, m, ln_nu, lc, lo, hi)
+            la, lb = _active_bounds_and_zero(out_m, ln_nu, lc, lo, hi)
             if lb <= la:
                 continue
             _z_row(tab, i0, t[m], row)
@@ -895,11 +917,11 @@ def _fill_q_linear_uniform_kcap(tab, lnk, iz, t, lnchi, ln_nu, inv_dlnk, work_ro
                     if j < 0:
                         j = 0
                     v = row[j] + (row[j + 1] - row[j]) * (s - j)
-                    out[m, l] = v if v > 0.0 else 0.0
+                    out_m[l] = v if v > 0.0 else 0.0
             else:
                 for l in range(la, lb):
                     v = row[0]
-                    out[m, l] = v if v > 0.0 else 0.0
+                    out_m[l] = v if v > 0.0 else 0.0
 
 
 def _fill_q_cursor(tab, lnk, iz, t, lnchi, ln_nu, use_exp, inv_den, work, out):
@@ -1006,20 +1028,53 @@ _CACHE_LOCK = threading.RLock()
 _DIST_CACHE_MAX = 8
 _STENCIL_CACHE_MAX = 4
 _GROWTH_CACHE_MAX = 8
+_QT_POOL_MAX = 4
 _DIST_CACHE: OrderedDict[int, "_DistEntry"] = OrderedDict()
 _STENCIL_CACHE: OrderedDict[int, "_StencilEntry"] = OrderedDict()
 _GROWTH_CACHE: OrderedDict[int, "_GrowthEntry"] = OrderedDict()
+_QT_POOL: list[np.ndarray] = []
 _NEXT_DIST_ID = 0
 _NEXT_STENCIL_ID = 0
 _NEXT_GROWTH_ID = 0
 
 
 def _clear_limber_caches() -> None:
-    """Clear module-level Limber distance, stencil, and growth caches (for tests)."""
+    """Clear module-level Limber distance, stencil, growth caches, and ``_QT_POOL`` (for tests)."""
     with _CACHE_LOCK:
         _DIST_CACHE.clear()
         _STENCIL_CACHE.clear()
         _GROWTH_CACHE.clear()
+        _QT_POOL.clear()
+
+
+def _acquire_qt(nm: int, nl: int) -> np.ndarray:
+    """Pop a matching pooled ``Qt`` buffer if available, else allocate a fresh ``(nm, nl)`` array."""
+    shape = (nm, nl)
+    with _CACHE_LOCK:
+        for i in range(len(_QT_POOL) - 1, -1, -1):
+            if _QT_POOL[i].shape == shape:
+                return _QT_POOL.pop(i)
+    return np.empty(shape, dtype=np.float64)
+
+
+def _is_poolable_qt(qt) -> bool:
+    """Return True iff ``qt`` is a standalone large C-contiguous writeable 2-D float64 array."""
+    return (
+        isinstance(qt, np.ndarray)
+        and qt.base is None
+        and qt.dtype == np.float64
+        and qt.flags.c_contiguous
+        and qt.flags.writeable
+        and qt.ndim == 2
+        and qt.size >= 100_000
+    )
+
+
+def _push_qt_pool(qt: np.ndarray) -> None:
+    """Return an unreferenced ``Qt`` buffer to ``_QT_POOL`` up to ``_QT_POOL_MAX``."""
+    with _CACHE_LOCK:
+        if len(_QT_POOL) < _QT_POOL_MAX:
+            _QT_POOL.append(qt)
 
 
 def _freeze(a: np.ndarray) -> np.ndarray:
@@ -1087,6 +1142,7 @@ class _StencilEntry:
     lbs: np.ndarray | None
     j0s: np.ndarray | None
     us: np.ndarray | None
+    hits: int = 0
 
 
 @dataclass
@@ -1185,10 +1241,9 @@ def _get_stencil_entry(dist: _DistEntry, z_pk: np.ndarray, k_h: np.ndarray, ell:
         inv_den = _freeze(inv_den)
         if interp_order == 3 and lnk.size >= 4:
             h1, h2, ih1, ih21, ih32, ih2, ih31, ih3 = (_freeze(a) for a in _prep_newton_geom(lnk))
-            las, lbs, j0s, us = (_freeze(a) for a in _precompute_cubic_stencils(lnk, iz, dist.lnchi, ln_nu))
         else:
             h1 = h2 = ih1 = ih21 = ih32 = ih2 = ih31 = ih3 = None
-            las = lbs = j0s = us = None
+        las = lbs = j0s = us = None
         _NEXT_STENCIL_ID += 1
         sid = _NEXT_STENCIL_ID
         entry = _StencilEntry(
@@ -1217,11 +1272,28 @@ def _get_stencil_entry(dist: _DistEntry, z_pk: np.ndarray, k_h: np.ndarray, ell:
             lbs=lbs,
             j0s=j0s,
             us=us,
+            hits=0,
         )
         _STENCIL_CACHE[sid] = entry
         while len(_STENCIL_CACHE) > _STENCIL_CACHE_MAX:
             _STENCIL_CACHE.popitem(last=False)
         return entry
+
+
+def _ensure_cubic_stencils(st: _StencilEntry, dist: _DistEntry) -> bool:
+    """Lazily precompute cubic stencil indices on the second hit so cold one-shot calls stay fast."""
+    with _CACHE_LOCK:
+        if st.j0s is not None:
+            return True
+        if st.hits == 0:
+            st.hits = 1
+            return False
+        las, lbs, j0s, us = (_freeze(a) for a in _precompute_cubic_stencils(st.lnk, st.iz, dist.lnchi, st.ln_nu))
+        st.las = las
+        st.lbs = lbs
+        st.us = us
+        st.j0s = j0s
+        return True
 
 
 def _get_growth_entry(dist: _DistEntry, z_pk: np.ndarray, D_pk: np.ndarray) -> np.ndarray:
@@ -1290,6 +1362,16 @@ class Limber:
         self._ready = False
         self._nz_cache = None
 
+    def __del__(self):
+        try:
+            qt = getattr(self, "Qt", None)
+            if qt is not None:
+                self.Qt = None
+                if _is_poolable_qt(qt) and sys.getrefcount(qt) == 2:
+                    _push_qt_pool(qt)
+        except Exception:
+            pass
+
     # ------------------------------------------------------------------ power-spectrum stage
     def set_power(self, chi_tab, z_tab, omega_m, z_pk, k_h, pk_nl, z_max=None):
         """Build everything that depends on the cosmology only.
@@ -1346,7 +1428,7 @@ class Limber:
         nm = dist.z.size
         nl = self.ell.size
         nchunk = max(1, min(nm, _CHUNKS_PER_THREAD * numba.get_num_threads()))
-        Qt = np.empty((nm, nl), dtype=np.float64)
+        Qt = _acquire_qt(nm, nl)
         if cubic:
             if use_exp:
                 work_buf = np.empty((nchunk, max(nl, 1)))
@@ -1354,17 +1436,26 @@ class Limber:
                     work_row = np.empty((nchunk, nk))
                     _fill_q_uniform_fast(tab, st.lnk, st.iz, st.t, dist.lnchi, st.ln_nu, st.inv_dlnk,
                                          work_row, work_buf, Qt)
-                else:
+                elif _ensure_cubic_stencils(st, dist):
                     _fill_q_newton_cached_fast(d0, d1, d2, d3, st.h1, st.h2, st.iz, st.t,
                                                st.las, st.lbs, st.j0s, st.us, work_buf, Qt)
+                else:
+                    nl_buf = max(nl, 1)
+                    work_j0 = np.empty((nchunk, nl_buf), dtype=np.int32)
+                    work_u = np.empty((nchunk, nl_buf))
+                    _fill_q_newton_cursor_fast(d0, d1, d2, d3, st.h1, st.h2, st.lnk, st.iz, st.t,
+                                               dist.lnchi, st.ln_nu, work_buf, work_j0, work_u, Qt)
             else:
                 work_row = np.empty((nchunk, nk))
                 if st.uniform:
                     _fill_q_uniform_kcap(pk_nl_in, st.lnk, st.iz, st.t, dist.lnchi, st.ln_nu, st.inv_dlnk,
                                          work_row, Qt)
-                else:
+                elif _ensure_cubic_stencils(st, dist):
                     _fill_q_cached_kcap(pk_nl_in, st.lnk, st.inv_den, st.iz, st.t, dist.lnchi, st.ln_nu,
                                         st.las, st.lbs, st.j0s, work_row, Qt)
+                else:
+                    _fill_q_cursor_kcap(pk_nl_in, st.lnk, st.iz, st.t, dist.lnchi, st.ln_nu, st.inv_den,
+                                        work_row, Qt)
         else:
             work_row = np.empty((nchunk, max(nk, 1)))
             if use_exp:
@@ -1383,6 +1474,7 @@ class Limber:
                     _fill_q_linear_cursor_kcap(pk_nl_in, st.lnk, st.iz, st.t, dist.lnchi, st.ln_nu, st.inv_dk,
                                                work_row, Qt)
 
+        old_qt = getattr(self, "Qt", None)
         self.omega_m = float(omega_m)
         self.s = lensing_prefactor(omega_m)
         self.z_max = dist.z_max
@@ -1398,6 +1490,8 @@ class Limber:
         self.Qt = Qt  # (nm, nell)
         self._nz_cache = None
         self._ready = True
+        if old_qt is not None and _is_poolable_qt(old_qt) and sys.getrefcount(old_qt) == 2:
+            _push_qt_pool(old_qt)
         return self
 
     # ------------------------------------------------------------------ kernel stage

@@ -1015,3 +1015,84 @@ def test_set_power_cache_equivalence_and_invalidation(toy, nz):
     with pytest.raises(ValueError):
         lim_v.set_power(chi_w, z_w, OM, zpk_w[:0], kh_w, pk_w[:0])
     assert lim_v._ready and np.array_equal(lim_v.Qt, qt_ok)
+
+
+def test_lazy_cubic_stencil_population(toy):
+    """1st set_power leaves st.j0s is None (cursor path); 2nd populates st.j0s; 1st/2nd/3rd are bit-identical."""
+    ell = coarse_ell(30)
+    k_nonuni = np.concatenate([toy["k_h"][:200], toy["k_h"][200::2]])
+    pk_nonuni = np.concatenate([toy["pk"][:, :200], toy["pk"][:, 200::2]], axis=1)
+    for fidelity in ("fast", "kcap"):
+        _lim._clear_limber_caches()
+        lim = Limber(ell=ell, fidelity=fidelity, n_nodes=300)
+        lim.set_power(toy["chi_tab"], toy["z_tab"], OM, toy["z_pk"], k_nonuni, pk_nonuni)
+        st = next(reversed(_lim._STENCIL_CACHE.values()))
+        assert not st.uniform
+        assert st.j0s is None and st.hits == 1
+        q1 = lim.Qt.copy()
+
+        lim.set_power(toy["chi_tab"], toy["z_tab"], OM, toy["z_pk"], k_nonuni, pk_nonuni)
+        assert st.j0s is not None
+        q2 = lim.Qt.copy()
+
+        lim.set_power(toy["chi_tab"], toy["z_tab"], OM, toy["z_pk"], k_nonuni, pk_nonuni)
+        q3 = lim.Qt.copy()
+        assert np.array_equal(q1, q2) and np.array_equal(q1, q3)
+
+
+def test_qt_pool_reuse_and_aliasing_safety(toy):
+    """_QT_POOL recycles large unaliased Qt buffers (overwriting NaN poison) and skips aliased buffers."""
+    ell = default_ell(250)  # 500 * 250 = 125_000 >= 100_000
+    chi_w, z_w, zpk_w = toy["chi_tab"], toy["z_tab"], toy["z_pk"]
+    kh_w = np.concatenate([toy["k_h"][:200], toy["k_h"][200::2]])
+    pk_w = np.concatenate([toy["pk"][:, :200], toy["pk"][:, 200::2]], axis=1)
+
+    # Positive control: del lim pushes Qt into _QT_POOL; NaN-poisoned pooled buffer is completely overwritten
+    for fidelity in ("fast", "kcap"):
+        _lim._clear_limber_caches()
+        lim = Limber(ell=ell, fidelity=fidelity, n_nodes=500).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w)
+        ref = lim.Qt.copy()
+        assert np.any(ref == 0.0) and np.any(ref > 0.0)
+        del lim
+        assert len(_lim._QT_POOL) >= 1
+        _lim._QT_POOL[-1][:] = np.nan
+        lim2 = Limber(ell=ell, fidelity=fidelity, n_nodes=500).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w)
+        assert np.all(np.isfinite(lim2.Qt)) and np.array_equal(lim2.Qt, ref)
+        # 2nd hit (cached stencil path) on a NaN-poisoned pooled buffer
+        del lim2
+        assert len(_lim._QT_POOL) >= 1
+        _lim._QT_POOL[-1][:] = np.nan
+        lim3 = Limber(ell=ell, fidelity=fidelity, n_nodes=500).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w)
+        assert np.all(np.isfinite(lim3.Qt)) and np.array_equal(lim3.Qt, ref)
+
+    # Negative control: holding saved = lim.Qt prevents recycling on both set_power() and del lim
+    _lim._clear_limber_caches()
+    lim = Limber(ell=ell, fidelity="fast", n_nodes=500).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w)
+    saved = lim.Qt
+    saved_ref = saved.copy()
+    lim.set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w * 1.5)
+    assert len(_lim._QT_POOL) == 0
+
+    lim2 = Limber(ell=ell, fidelity="fast", n_nodes=500).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w)
+    saved2 = lim2.Qt
+    saved2_ref = saved2.copy()
+    del lim2
+    assert len(_lim._QT_POOL) == 0
+    lim.set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w * 2.0)
+    assert np.array_equal(saved, saved_ref) and np.array_equal(saved2, saved2_ref)
+
+    # Negative control: holding a slice view lim.Qt[0] prevents recycling on both set_power() and del lim
+    _lim._clear_limber_caches()
+    lim_v = Limber(ell=ell, fidelity="fast", n_nodes=500).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w)
+    view = lim_v.Qt[0]
+    view_ref = view.copy()
+    lim_v.set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w * 1.4)
+    assert len(_lim._QT_POOL) == 0
+
+    lim_v2 = Limber(ell=ell, fidelity="fast", n_nodes=500).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w)
+    view2 = lim_v2.Qt[0]
+    view2_ref = view2.copy()
+    del lim_v2
+    assert len(_lim._QT_POOL) == 0
+    lim_v.set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w * 2.1)
+    assert np.array_equal(view, view_ref) and np.array_equal(view2, view2_ref)
