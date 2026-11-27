@@ -740,7 +740,11 @@ import numpy as np
 from numba.core.runtime import rtsys
 from kidspipe.theory import limber as L
 lnk = np.log(np.logspace(-4, 2.7, 150)) + np.r_[0.0, 1e-3 * np.sin(np.arange(149))]
-z_pk = np.linspace(0.0, 3.0, 40); tab = np.log(np.outer(1 + z_pk, np.exp(lnk)) ** -1.0 + 1.0)
+z_pk = np.linspace(0.0, 3.0, 40)
+tab_ln = np.log(np.outer(1 + z_pk, np.exp(lnk)) ** -1.0 + 1.0)
+tab_p = np.exp(tab_ln)
+h1, h2, ih1, ih21, ih32, ih2, ih31, ih3 = L._prep_newton_geom(lnk)
+d0, d1, d2, d3 = L._build_newton_from_tab(tab_ln, ih1, ih21, ih32, ih2, ih31, ih3)
 counts = []
 for nm in (64, 640):
     for nch in (1, 50):
@@ -748,10 +752,27 @@ for nm in (64, 640):
         lnchi = np.where(chi > 0, np.log(np.where(chi > 0, chi, 1.0)), np.nan)
         ln_nu = np.log(np.logspace(-1, 5, 80) + 0.5); out = np.empty((nm, 80))
         iz, t, uni, idl, idk, iden = L._fill_q_prepare(z_pk, z, lnchi, lnk, L.UNIFORM_LNK_RTOL)
+        las, lbs, j0s, us = L._precompute_cubic_stencils(lnk, iz, lnchi, ln_nu)
         work = np.empty((nch, lnk.size))
-        for kern in (lambda: L._fill_q_cursor(tab, lnk, iz, t, lnchi, ln_nu, True, iden, work, out),
-                     lambda: L._fill_q_uniform(tab, lnk, iz, t, lnchi, ln_nu, True, idl, work, out),
-                     lambda: L._fill_q_linear(tab, lnk, iz, t, lnchi, ln_nu, True, False, idl, idk, work, out)):
+        wbuf = np.empty((nch, ln_nu.size))
+        wj0 = np.empty((nch, ln_nu.size), dtype=np.int32)
+        wu = np.empty((nch, ln_nu.size))
+        kerns = (
+            lambda: L._fill_q_newton_cursor_fast(d0, d1, d2, d3, h1, h2, lnk, iz, t, lnchi, ln_nu, wbuf, wj0, wu, out),
+            lambda: L._fill_q_newton_cached_fast(d0, d1, d2, d3, h1, h2, iz, t, las, lbs, j0s, us, wbuf, out),
+            lambda: L._fill_q_uniform_fast(tab_ln, lnk, iz, t, lnchi, ln_nu, idl, work, wbuf, out),
+            lambda: L._fill_q_cursor_kcap(tab_p, lnk, iz, t, lnchi, ln_nu, iden, work, out),
+            lambda: L._fill_q_cached_kcap(tab_p, lnk, iden, iz, t, lnchi, ln_nu, las, lbs, j0s, work, out),
+            lambda: L._fill_q_uniform_kcap(tab_p, lnk, iz, t, lnchi, ln_nu, idl, work, out),
+            lambda: L._fill_q_linear_cursor_fast(tab_ln, lnk, iz, t, lnchi, ln_nu, idk, work, wbuf, out),
+            lambda: L._fill_q_linear_cursor_kcap(tab_p, lnk, iz, t, lnchi, ln_nu, idk, work, out),
+            lambda: L._fill_q_linear_uniform_fast(tab_ln, lnk, iz, t, lnchi, ln_nu, idl, work, wbuf, out),
+            lambda: L._fill_q_linear_uniform_kcap(tab_p, lnk, iz, t, lnchi, ln_nu, idl, work, out),
+            lambda: L._fill_q_cursor(tab_ln, lnk, iz, t, lnchi, ln_nu, True, iden, work, out),
+            lambda: L._fill_q_uniform(tab_ln, lnk, iz, t, lnchi, ln_nu, True, idl, work, out),
+            lambda: L._fill_q_linear(tab_ln, lnk, iz, t, lnchi, ln_nu, True, False, idl, idk, work, out),
+        )
+        for kern in kerns:
             kern()
             s0 = rtsys.get_allocation_stats(); kern(); s1 = rtsys.get_allocation_stats()
             counts.append(s1.alloc - s0.alloc)
@@ -767,7 +788,7 @@ for nm in (64, 640):
     o = np.empty((nm, 1)); per_node_alloc(o)
     s0 = rtsys.get_allocation_stats(); per_node_alloc(o); s1 = rtsys.get_allocation_stats()
     ctrl.append(s1.alloc - s0.alloc)
-print(json.dumps({"counts": counts, "control": ctrl}))
+print(json.dumps({"counts": counts, "control": ctrl, "nkern": 13}))
 '''
     import os
     env = dict(os.environ, NUMBA_NRT_STATS="1")
@@ -776,8 +797,188 @@ print(json.dumps({"counts": counts, "control": ctrl}))
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, timeout=600)
     assert res.returncode == 0, res.stderr[-2000:]
     got = json.loads(res.stdout.strip().splitlines()[-1])
-    counts, ctrl = got["counts"], got["control"]
+    counts, ctrl, nkern = got["counts"], got["control"], got["nkern"]
     assert ctrl[0] >= 64 and ctrl[1] >= 640, ctrl            # the counter does see per-node allocations
-    per_kernel = [counts[i::3] for i in range(3)]            # (nm, nchunk) = (64,1), (64,50), (640,1), (640,50)
+    per_kernel = [counts[i::nkern] for i in range(nkern)]    # (nm, nchunk) = (64,1), (64,50), (640,1), (640,50)
     for c in per_kernel:
         assert len(set(c)) == 1 and c[0] < 64, counts         # a small constant per-call overhead (parfor scheduling)
+
+
+def test_vexp1_accuracy_and_fallback():
+    """Branch-free ``_vexp1`` achieves < 5e-16 rel across [-708, 709] and ``_vexp_1d`` falls back on outliers."""
+    @njit
+    def _eval_vexp1(arr):
+        out = np.empty_like(arr)
+        for i in range(arr.size):
+            out[i] = _lim._vexp1(arr[i])
+        return out
+
+    @njit
+    def _eval_vexp_1d(arr, n):
+        out = arr.copy()
+        _lim._vexp_1d(out, n)
+        return out
+
+    xs = np.concatenate([np.array([-708.0, -50.0, -1e-8, 0.0, 1e-8, 50.0, 709.0]),
+                         np.linspace(-708.0, 709.0, 50000)])
+    got = _eval_vexp1(xs)
+    ref = np.exp(xs)
+    rel = np.max(np.abs(got - ref) / ref)
+    assert rel < 5e-16, rel
+
+    # In-range 1-D vector matches to < 5e-16 relative
+    ok_buf = np.linspace(-100.0, 100.0, 64)
+    got_ok = _eval_vexp_1d(ok_buf, ok_buf.size)
+    assert np.max(np.abs(got_ok - np.exp(ok_buf)) / np.exp(ok_buf)) < 5e-16
+
+    # Outliers trigger fallback to exact np.exp semantics (underflow, overflow, +/-inf, NaN)
+    for bad_val in (-800.0, 800.0, -np.inf, np.inf, np.nan):
+        mixed = np.array([-2.0, 0.0, bad_val, 3.0], dtype=np.float64)
+        got_bad = _eval_vexp_1d(mixed, mixed.size)
+        with np.errstate(over="ignore"):
+            ref_bad = np.exp(mixed)
+        assert np.array_equal(got_bad, ref_bad, equal_nan=True), (bad_val, got_bad, ref_bad)
+
+    # Partial prefix n < buf.size leaves tail untouched
+    tail = np.array([0.0, 1.0, 42.0, -99.0], dtype=np.float64)
+    got_tail = _eval_vexp_1d(tail, 2)
+    assert np.allclose(got_tail[:2], np.exp(tail[:2]), rtol=5e-16, atol=0)
+    assert got_tail[2] == 42.0 and got_tail[3] == -99.0
+
+
+def test_set_power_cache_equivalence_and_invalidation(toy, nz):
+    """Module-level LRU caches are bit-identical to cold computation, thread-safe, and never serve stale data."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    ell = coarse_ell(30)
+    chi_w = toy["chi_tab"].copy()
+    z_w = toy["z_tab"].copy()
+    zpk_w = toy["z_pk"].copy()
+    kh_w = toy["k_h"].copy()
+    pk_w = toy["pk"].copy()
+
+    # 1. Cached medium-move set_power is bit-identical to uncached (fast, kcap, uniform, linear)
+    for fidelity in ("fast", "kcap"):
+        for order in (3, 1):
+            _lim._clear_limber_caches()
+            lim = Limber(ell=ell, fidelity=fidelity, n_nodes=400, interp_order=order)
+            lim.set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w)
+            # k-independent move hits _DIST_CACHE, _STENCIL_CACHE, and _GROWTH_CACHE
+            pk_move1 = pk_w * 1.15
+            lim.set_power(chi_w, z_w, OM * 1.02, zpk_w, kh_w, pk_move1)
+            q1_cached, d1_cached = lim.Qt.copy(), lim.D.copy()
+            # k-dependent move hits _DIST_CACHE and _STENCIL_CACHE, misses _GROWTH_CACHE
+            pk_move2 = pk_w * (1.0 + 0.05 * np.tanh(kh_w))[None, :]
+            lim.set_power(chi_w, z_w, OM * 0.98, zpk_w, kh_w, pk_move2)
+            q2_cached, d2_cached = lim.Qt.copy(), lim.D.copy()
+
+            _lim._clear_limber_caches()
+            f1 = Limber(ell=ell, fidelity=fidelity, n_nodes=400, interp_order=order).set_power(
+                chi_w, z_w, OM * 1.02, zpk_w, kh_w, pk_move1)
+            _lim._clear_limber_caches()
+            f2 = Limber(ell=ell, fidelity=fidelity, n_nodes=400, interp_order=order).set_power(
+                chi_w, z_w, OM * 0.98, zpk_w, kh_w, pk_move2)
+            assert np.array_equal(q1_cached, f1.Qt) and np.array_equal(d1_cached, f1.D)
+            assert np.array_equal(q2_cached, f2.Qt) and np.array_equal(d2_cached, f2.D)
+
+    # Uniform k_h grid cached equivalence
+    kh_u = np.exp(np.linspace(np.log(kh_w[0]), np.log(kh_w[-1]), 120))
+    pk_u = np.exp(np.stack([np.interp(np.log(kh_u), np.log(kh_w), np.log(row)) for row in pk_w]))
+    _lim._clear_limber_caches()
+    lim_u = Limber(ell=ell, fidelity="fast", n_nodes=300).set_power(chi_w, z_w, OM, zpk_w, kh_u, pk_u)
+    lim_u.set_power(chi_w, z_w, OM, zpk_w, kh_u, pk_u * 1.2)
+    qu_cached = lim_u.Qt.copy()
+    _lim._clear_limber_caches()
+    fu = Limber(ell=ell, fidelity="fast", n_nodes=300).set_power(chi_w, z_w, OM, zpk_w, kh_u, pk_u * 1.2)
+    assert np.array_equal(qu_cached, fu.Qt)
+
+    # 2. In-place mutations of writeable input arrays invalidate caches
+    def check_mut(mut_fn):
+        c = chi_w.copy()
+        z = z_w.copy()
+        zp = zpk_w.copy()
+        k = kh_w.copy()
+        p = pk_w.copy()
+        _lim._clear_limber_caches()
+        lim_m = Limber(ell=ell, n_nodes=300)
+        lim_m.set_power(c, z, OM, zp, k, p)
+        q_before = lim_m.Qt.copy()
+        mut_fn(c, z, zp, k, p)
+        lim_m.set_power(c, z, OM, zp, k, p)
+        q_mut = lim_m.Qt.copy()
+        _lim._clear_limber_caches()
+        fresh_m = Limber(ell=ell, n_nodes=300).set_power(c, z, OM, zp, k, p)
+        assert not np.array_equal(q_mut, q_before)
+        assert np.array_equal(q_mut, fresh_m.Qt) and np.array_equal(lim_m.D, fresh_m.D)
+
+    check_mut(lambda c, z, zp, k, p: c.__setitem__(slice(100, None), c[100:] * 1.03))
+    check_mut(lambda c, z, zp, k, p: z.__setitem__(slice(1, -1), z[1:-1] + 5e-4))
+    check_mut(lambda c, z, zp, k, p: zp.__setitem__(slice(1, -1), zp[1:-1] + 5e-4))
+    check_mut(lambda c, z, zp, k, p: k.__setitem__(120, k[120] * 1.01))
+    check_mut(lambda c, z, zp, k, p: p.__setitem__(10, p[10] * 1.5))
+
+    # 3. Varying z_max, n_nodes, kernel_oversample, ell, interp_order, fidelity never serves stale data
+    _lim._clear_limber_caches()
+    base = Limber(ell=ell, fidelity="fast", n_nodes=300, interp_order=3, kernel_oversample=4).set_power(
+        chi_w, z_w, OM, zpk_w, kh_w, pk_w, z_max=5.5)
+    variants = [
+        dict(ell=ell, fidelity="fast", n_nodes=300, interp_order=3, kernel_oversample=4, z_max=5.0),
+        dict(ell=ell, fidelity="fast", n_nodes=350, interp_order=3, kernel_oversample=4, z_max=5.5),
+        dict(ell=ell, fidelity="fast", n_nodes=300, interp_order=3, kernel_oversample=2, z_max=5.5),
+        dict(ell=ell * 1.15, fidelity="fast", n_nodes=300, interp_order=3, kernel_oversample=4, z_max=5.5),
+        dict(ell=ell, fidelity="fast", n_nodes=300, interp_order=1, kernel_oversample=4, z_max=5.5),
+        dict(ell=ell, fidelity="kcap", n_nodes=300, interp_order=3, kernel_oversample=4, z_max=5.5),
+    ]
+    for kw in variants:
+        zm = kw.pop("z_max")
+        l_var = Limber(**kw).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w, z_max=zm)
+        cl_var = l_var.cl(nz.n, 0.3, z_nz=nz.z)
+        _lim._clear_limber_caches()
+        l_ref = Limber(**kw).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w, z_max=zm)
+        cl_ref = l_ref.cl(nz.n, 0.3, z_nz=nz.z)
+        assert np.array_equal(l_var.Qt, l_ref.Qt)
+        assert np.array_equal(l_var._chif, l_ref._chif)
+        assert np.array_equal(cl_var, cl_ref)
+        if kw["kernel_oversample"] == 4:
+            assert not np.array_equal(l_var.Qt, base.Qt)
+        else:
+            assert l_var._zf.size != base._zf.size
+
+    # 4. Concurrent multi-threaded set_power produces bit-identical results
+    _lim._clear_limber_caches()
+    ref_t = [
+        Limber(ell=ell, fidelity="fast", n_nodes=300).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w * (1.0 + 0.1 * i)).Qt
+        for i in range(4)
+    ]
+    _lim._clear_limber_caches()
+
+    def worker(idx):
+        return Limber(ell=ell, fidelity="fast", n_nodes=300).set_power(
+            chi_w, z_w, OM, zpk_w, kh_w, pk_w * (1.0 + 0.1 * (idx % 4))).Qt
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        got_t = list(ex.map(worker, range(16)))
+    for idx, qt in enumerate(got_t):
+        assert np.array_equal(qt, ref_t[idx % 4])
+
+    # 5. Invalid inputs still raise ValueError after warm cache hits without corrupting existing state
+    lim_v = Limber(ell=ell, fidelity="fast", n_nodes=300).set_power(chi_w, z_w, OM, zpk_w, kh_w, pk_w)
+    qt_ok = lim_v.Qt.copy()
+    for bad_pk in (np.nan, 0.0, -1.0):
+        bpk = pk_w.copy()
+        bpk[3, 4] = bad_pk
+        with pytest.raises(ValueError):
+            lim_v.set_power(chi_w, z_w, OM, zpk_w, kh_w, bpk)
+        bpk0 = pk_w.copy()
+        bpk0[0, 0] = bad_pk
+        with pytest.raises(ValueError):
+            lim_v.set_power(chi_w, z_w, OM, zpk_w, kh_w, bpk0)
+    with pytest.raises(ValueError):
+        lim_v.set_power(chi_w, z_w, OM, zpk_w, kh_w[::-1], pk_w[:, ::-1])
+    with pytest.raises(ValueError):
+        lim_v.set_power(chi_w, z_w[::-1], OM, zpk_w, kh_w, pk_w)
+    with pytest.raises(ValueError):
+        lim_v.set_power(chi_w, z_w[:2], OM, zpk_w, kh_w, pk_w)
+    with pytest.raises(ValueError):
+        lim_v.set_power(chi_w, z_w, OM, zpk_w[:0], kh_w, pk_w[:0])
+    assert lim_v._ready and np.array_equal(lim_v.Qt, qt_ok)
