@@ -79,7 +79,19 @@ _G_NORM = -_G_LOGZ - 0.5 * np.log(2.0 * np.pi * _G_SIG ** 2)    # additive const
 _IS_GAUSS = np.zeros(N_PARAM, dtype=bool)
 _IS_GAUSS[_G_IDX] = True
 _FLAT_IDX = np.nonzero(~_IS_GAUSS)[0]
-_FLAT_LOGNORM = -np.log(BOUNDS[_FLAT_IDX, 1] - BOUNDS[_FLAT_IDX, 0])
+_FLAT_LO = BOUNDS[_FLAT_IDX, 0]
+_FLAT_HI = BOUNDS[_FLAT_IDX, 1]
+_FLAT_SPAN = _FLAT_HI - _FLAT_LO
+_FLAT_LOGNORM = -np.log(_FLAT_SPAN)
+
+_G_PA = ndtr(_G_A)
+_G_PB = ndtr(_G_B)
+_G_DP = _G_PB - _G_PA
+_G_QA = ndtr(-_G_B)
+_G_QB = ndtr(-_G_A)
+_G_DQ = _G_QB - _G_QA
+_G_USE_MIRROR = _G_A >= 0.0
+_G_ANY_MIRROR = bool(np.any(_G_USE_MIRROR))
 
 # --------------------------------------------------------------------------------------
 # fixed constants
@@ -160,7 +172,7 @@ def prior_transform(u):
     """Map the unit cube to parameter space with the exact prior inverse CDFs (spec s1.1).
 
     Flat parameters: ``lo + u (hi - lo)``.  Truncated Gaussians: ``mu + sig Phi^-1(Phi(a) + u (Phi(b)-Phi(a)))``.
-    Vectorised; ``u`` may have shape (14,) or (..., 14).  Output has the same shape and always lies
+    Vectorised; ``u`` may have shape (14,), (M, 14), or (..., 14).  Output has the same shape and always lies
     inside ``BOUNDS`` (so ``log_prior`` is finite on it).  ``u`` outside [0, 1] is clipped to [0, 1]
     (identically for flat and Gaussian parameters); a NaN in ``u`` raises ``ValueError`` rather than
     silently producing NaN parameters.
@@ -172,10 +184,14 @@ def prior_transform(u):
         raise ValueError("prior_transform: NaN in unit-cube coordinates")
     u = np.clip(u, 0.0, 1.0)
     out = np.empty_like(u)
-    lo, hi = BOUNDS[:, 0], BOUNDS[:, 1]
-    out[..., _FLAT_IDX] = lo[_FLAT_IDX] + u[..., _FLAT_IDX] * (hi - lo)[_FLAT_IDX]
-    out[..., _G_IDX] = np.clip(_trunc_norm_ppf(u[..., _G_IDX], _G_A, _G_B, _G_MU, _G_SIG), _G_LO, _G_HI)
-    out[..., _FLAT_IDX] = np.clip(out[..., _FLAT_IDX], lo[_FLAT_IDX], hi[_FLAT_IDX])
+    out[..., _FLAT_IDX] = np.clip(_FLAT_LO + u[..., _FLAT_IDX] * _FLAT_SPAN, _FLAT_LO, _FLAT_HI)
+    ug = u[..., _G_IDX]
+    x = ndtri(_G_PA + ug * _G_DP)
+    if _G_ANY_MIRROR:
+        mirrored = -ndtri(_G_QA + (1.0 - ug) * _G_DQ)
+        x = np.where(_G_USE_MIRROR, mirrored, x)
+    x = np.clip(x, _G_A, _G_B)
+    out[..., _G_IDX] = np.clip(_G_MU + _G_SIG * x, _G_LO, _G_HI)
     return out
 
 

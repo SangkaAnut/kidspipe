@@ -29,6 +29,7 @@ splines or the adaptive QAG quadrature, so it differs from kcap by ~1e-3, not bi
 """
 from __future__ import annotations
 
+import math
 import sys
 import threading
 from collections import OrderedDict
@@ -1572,3 +1573,378 @@ def cl_shear(chi_tab, z_tab, omega_m, z_pk, k_h, pk_nl, z_nz, nz_shifted, A_IA, 
     lim = Limber(ell=ell, fidelity=fidelity, n_nodes=n_nodes)
     lim.set_power(chi_tab, z_tab, omega_m, z_pk, k_h, pk_nl)
     return lim.cl(nz_shifted, A_IA, z_nz=z_nz)
+
+
+# ------------------------------------------------------------------ batched Limber kernels (Prompt 10)
+@njit(cache=True, parallel=True)
+def _prepare_batch_fast(z_pk, z_nodes, lnchi_b, k_b, lnk_b, iz_b, t_b,
+                        h1_b, h2_b, ih1_b, ih21_b, ih32_b, ih2_b, ih31_b, ih3_b):
+    """Prepare z-stencils and Newton ln-k geometry for ``B`` cosmologies in parallel."""
+    B = k_b.shape[0]
+    nk = k_b.shape[1]
+    nzp = z_pk.size
+    nm = z_nodes.size
+    ns = nk - 3
+    for b in prange(B):
+        kb = k_b[b]
+        lnkb = lnk_b[b]
+        for j in range(nk):
+            lnkb[j] = math.log(kb[j])
+        lnchib = lnchi_b[b]
+        izb = iz_b[b]
+        tb = t_b[b]
+        for m in range(nm):
+            z = z_nodes[m]
+            if nzp < 2 or (not np.isfinite(lnchib[m])) or not (z >= z_pk[0] and z <= z_pk[nzp - 1]):
+                izb[m] = -1
+                tb[m] = 0.0
+                continue
+            i = np.searchsorted(z_pk, z) - 1
+            if i < 0:
+                i = 0
+            if i > nzp - 2:
+                i = nzp - 2
+            izb[m] = i
+            tb[m] = (z - z_pk[i]) / (z_pk[i + 1] - z_pk[i])
+        for j0 in range(ns):
+            x0 = lnkb[j0]
+            x1 = lnkb[j0 + 1]
+            x2 = lnkb[j0 + 2]
+            x3 = lnkb[j0 + 3]
+            d10 = x1 - x0
+            d21 = x2 - x1
+            d32 = x3 - x2
+            d20 = x2 - x0
+            d31 = x3 - x1
+            d30 = x3 - x0
+            h1_b[b, j0] = d10
+            h2_b[b, j0] = d20
+            ih1_b[b, j0] = 1.0 / d10
+            ih21_b[b, j0] = 1.0 / d21
+            ih32_b[b, j0] = 1.0 / d32
+            ih2_b[b, j0] = 1.0 / d20
+            ih31_b[b, j0] = 1.0 / d31
+            ih3_b[b, j0] = 1.0 / d30
+
+
+@njit(cache=True, parallel=True)
+def _validate_log_and_newton_batch(pk_b, ih1_b, ih21_b, ih32_b, ih2_b, ih31_b, ih3_b,
+                                   d0_b, d1_b, d2_b, d3_b):
+    """Fused validation (finite > 0), ln, and Newton divided-difference SoA across ``B * nz_pk``."""
+    B, nzp, nk = pk_b.shape
+    ns = nk - 3
+    row_ok = np.empty(B * nzp, dtype=np.bool_)
+    for idx in prange(B * nzp):
+        b = idx // nzp
+        i = idx % nzp
+        r_ok = True
+        v0 = pk_b[b, i, 0]
+        g0 = np.isfinite(v0) and v0 > 0.0
+        r_ok = r_ok and g0
+        y0 = math.log(v0 if (g0 and v0 > 1e-300) else 1e-300)
+        v1 = pk_b[b, i, 1]
+        g1 = np.isfinite(v1) and v1 > 0.0
+        r_ok = r_ok and g1
+        y1 = math.log(v1 if (g1 and v1 > 1e-300) else 1e-300)
+        v2 = pk_b[b, i, 2]
+        g2 = np.isfinite(v2) and v2 > 0.0
+        r_ok = r_ok and g2
+        y2 = math.log(v2 if (g2 and v2 > 1e-300) else 1e-300)
+        ih1 = ih1_b[b]
+        ih21 = ih21_b[b]
+        ih32 = ih32_b[b]
+        ih2 = ih2_b[b]
+        ih31 = ih31_b[b]
+        ih3 = ih3_b[b]
+        for j0 in range(ns):
+            v3 = pk_b[b, i, j0 + 3]
+            g3 = np.isfinite(v3) and v3 > 0.0
+            r_ok = r_ok and g3
+            y3 = math.log(v3 if (g3 and v3 > 1e-300) else 1e-300)
+            f01 = (y1 - y0) * ih1[j0]
+            f12 = (y2 - y1) * ih21[j0]
+            f23 = (y3 - y2) * ih32[j0]
+            f012 = (f12 - f01) * ih2[j0]
+            f123 = (f23 - f12) * ih31[j0]
+            d0_b[b, i, j0] = y0
+            d1_b[b, i, j0] = f01
+            d2_b[b, i, j0] = f012
+            d3_b[b, i, j0] = (f123 - f012) * ih3[j0]
+            y0 = y1
+            y1 = y2
+            y2 = y3
+        row_ok[idx] = r_ok
+    for idx in range(B * nzp):
+        if not row_ok[idx]:
+            return False
+    return True
+
+
+@njit(cache=True, parallel=True)
+def _fill_q_batch_newton_fast(d0_b, d1_b, d2_b, d3_b, h1_b, h2_b, lnk_b, iz_b, t_b, lnchi_b,
+                              ln_nu, chunks_per_cosmo, work_buf, work_j0, work_u, Qt_b):
+    """Fill ``Qt_b[B, nm, nl]`` in one parallel loop over ``(cosmology, node_chunk)`` pairs."""
+    B = d0_b.shape[0]
+    nm = iz_b.shape[1]
+    nl = ln_nu.size
+    nk = lnk_b.shape[1]
+    total_chunks = B * chunks_per_cosmo
+    for tc in prange(total_chunks):
+        b = tc // chunks_per_cosmo
+        c = tc % chunks_per_cosmo
+        buf = work_buf[tc]
+        j0_arr = work_j0[tc]
+        u_arr = work_u[tc]
+        d0 = d0_b[b]
+        d1 = d1_b[b]
+        d2 = d2_b[b]
+        d3 = d3_b[b]
+        h1 = h1_b[b]
+        h2 = h2_b[b]
+        lnk = lnk_b[b]
+        iz = iz_b[b]
+        t = t_b[b]
+        lnchi = lnchi_b[b]
+        out = Qt_b[b]
+        lo = lnk[0]
+        hi = lnk[nk - 1]
+        for m in range((c * nm) // chunks_per_cosmo, ((c + 1) * nm) // chunks_per_cosmo):
+            out_m = out[m]
+            i0 = iz[m]
+            if i0 < 0:
+                _zero_row(out_m, nl)
+                continue
+            lc = lnchi[m]
+            la = 0
+            while la < nl and (ln_nu[la] - lc) < lo:
+                out_m[la] = 0.0
+                la += 1
+            lb = nl
+            while lb > la and (ln_nu[lb - 1] - lc) > hi:
+                lb -= 1
+                out_m[lb] = 0.0
+            n_act = lb - la
+            if n_act <= 0:
+                continue
+            j = 0
+            for k in range(n_act):
+                x = ln_nu[la + k] - lc
+                while j < nk - 2 and lnk[j + 1] <= x:
+                    j += 1
+                j0 = j - 1
+                if j0 < 0:
+                    j0 = 0
+                if j0 > nk - 4:
+                    j0 = nk - 4
+                j0_arr[k] = j0
+                u_arr[k] = x - lnk[j0]
+            r00 = d0[i0]
+            r01 = d1[i0]
+            r02 = d2[i0]
+            r03 = d3[i0]
+            r10 = d0[i0 + 1]
+            r11 = d1[i0 + 1]
+            r12 = d2[i0 + 1]
+            r13 = d3[i0 + 1]
+            tt = t[m]
+            omt = 1.0 - tt
+            for k in range(n_act):
+                j0 = j0_arr[k]
+                u = u_arr[k]
+                u1 = u - h1[j0]
+                u2 = u - h2[j0]
+                p0 = ((r03[j0] * u2 + r02[j0]) * u1 + r01[j0]) * u + r00[j0]
+                p1 = ((r13[j0] * u2 + r12[j0]) * u1 + r11[j0]) * u + r10[j0]
+                buf[k] = omt * p0 + tt * p1
+            _vexp_1d(buf, n_act)
+            for k in range(n_act):
+                out_m[la + k] = buf[k]
+
+
+@njit(cache=True, parallel=True)
+def _limber_cl_batch(row_cids, nzs_b, z_nz, a_ia_b, zf, chif_b, z_nodes, dchidz_b, w_nodes,
+                     inv_chi_b, D_b, s_b, omega_m_b, Qt_b, r, C15_out):
+    """Compute ``C15_out[row, 15, nell]`` in ``PAIRS`` order in one parallel pass over ``M`` rows."""
+    M = row_cids.size
+    nb = nzs_b.shape[1]
+    nm = z_nodes.size
+    nf_len = zf.size
+    nz_len = z_nz.size
+    dz_f = (zf[nf_len - 1] - zf[0]) / (nf_len - 1)
+    half_dzf = 0.5 * dz_f
+    n_pair = (nb * (nb + 1)) // 2
+
+    for idx in prange(M):
+        c = row_cids[idx]
+        chif = chif_b[c]
+        dchidz = dchidz_b[c]
+        inv_chi = inv_chi_b[c]
+        D = D_b[c]
+        s_val = s_b[c]
+        om = omega_m_b[c]
+        a_ia = a_ia_b[idx]
+        nzs_row = nzs_b[idx]
+        q = np.empty((nb, nm), dtype=np.float64)
+
+        for b in range(nb):
+            n_row = nzs_row[b]
+            nf_b = np.interp(zf, z_nz, n_row)
+            # clamp outside [z_nz[0], z_nz[-1]] to 0.0 (matching left=0.0, right=0.0)
+            z_lo = z_nz[0]
+            z_hi = z_nz[nz_len - 1]
+            for mf in range(nf_len):
+                zfv = zf[mf]
+                if zfv < z_lo or zfv > z_hi:
+                    nf_b[mf] = 0.0
+            a_acc = 0.0
+            b_acc = 0.0
+            inv_c_prev = 1.0 / chif[nf_len - 1] if chif[nf_len - 1] > 0.0 else 0.0
+            b_prev = nf_b[nf_len - 1] * inv_c_prev
+            mm = nm - 1
+            n_chi_last = nf_b[nf_len - 1] / dchidz[mm]
+            F_last = -a_ia * C1_RHO_CRIT * om / D[mm]
+            q[b, mm] = F_last * n_chi_last
+            for mf in range(nf_len - 2, -1, -1):
+                cf = chif[mf]
+                inv_c = 1.0 / cf if cf > 0.0 else 0.0
+                n_cur = nf_b[mf]
+                b_cur = n_cur * inv_c
+                a_acc += half_dzf * (n_cur + nf_b[mf + 1])
+                b_acc += half_dzf * (b_cur + b_prev)
+                b_prev = b_cur
+                if mf % r == 0:
+                    mm = mf // r
+                    W_v = cf * (1.0 + zf[mf]) * (a_acc - cf * b_acc)
+                    n_chi_v = n_cur / dchidz[mm]
+                    F_v = -a_ia * C1_RHO_CRIT * om / D[mm]
+                    q[b, mm] = s_val * W_v + F_v * n_chi_v
+
+        KK = np.empty((n_pair, nm), dtype=np.float64)
+        p = 0
+        for i in range(nb):
+            qi = q[i]
+            for j in range(i, nb):
+                qj = q[j]
+                kkp = KK[p]
+                for m in range(nm):
+                    meas = w_nodes[m] * dchidz[m] * inv_chi[m] * inv_chi[m]
+                    kkp[m] = qj[m] * qi[m] * meas
+                p += 1
+        C15_out[idx] = KK @ Qt_b[c]
+
+
+def _eval_cl_batch_fast(lim_blk: dict, row_cids: np.ndarray, nzs_b: np.ndarray, z_nz: np.ndarray,
+                        a_ia_b: np.ndarray, omega_m_b: np.ndarray, C15_out: np.ndarray) -> None:
+    """Validate n(z) support and evaluate batched Limber C_ell into ``C15_out``."""
+    z_nz_arr = np.ascontiguousarray(z_nz, dtype=np.float64)
+    z_max = float(lim_blk["z_max"])
+    if z_nz_arr[-1] > z_max + 1e-12 and np.any(nzs_b[:, :, z_nz_arr > z_max + 1e-12] != 0):
+        raise ValueError("n(z) has support above the integration limit z_max")
+    _limber_cl_batch(
+        np.ascontiguousarray(row_cids, dtype=np.int64),
+        np.ascontiguousarray(nzs_b, dtype=np.float64),
+        z_nz_arr,
+        np.ascontiguousarray(a_ia_b, dtype=np.float64),
+        lim_blk["zf"],
+        lim_blk["chif_b"],
+        lim_blk["z_nodes"],
+        lim_blk["dchidz_b"],
+        lim_blk["w_nodes"],
+        lim_blk["inv_chi_b"],
+        lim_blk["D_b"],
+        lim_blk["s_b"],
+        np.ascontiguousarray(omega_m_b, dtype=np.float64),
+        lim_blk["Qt_b"],
+        int(lim_blk["kernel_oversample"]),
+        C15_out,
+    )
+
+
+def _build_limber_batch_fast(chi_tab_b, z_tab, omega_m_b, z_pk, k_ext_b, pk_ext_b,
+                             ell, n_nodes: int = 2000, kernel_oversample: int = 4,
+                             Qt_buf: np.ndarray | None = None):
+    """Build batched ``Qt_b`` and geometry arrays for ``B`` cosmologies under ``fidelity='fast'``."""
+    B, nzp, nk = pk_ext_b.shape
+    z_max_val = float(min(z_tab[-1], z_pk[-1]))
+    r = max(1, int(kernel_oversample))
+    nm = int(n_nodes)
+    nf_len = (nm - 1) * r + 1
+    z_nodes = np.linspace(0.0, z_max_val, nm)
+    zf = np.linspace(0.0, z_max_val, nf_len)
+    dz = float(z_nodes[1] - z_nodes[0])
+    w_nodes = np.full(nm, dz, dtype=np.float64)
+    w_nodes[[0, -1]] *= 0.5
+
+    spl = CubicSpline(z_tab, chi_tab_b, axis=1)
+    chi_b = spl(z_nodes)
+    chi_b[:, 0] = np.maximum(chi_b[:, 0], 0.0)
+    chif_b = spl(zf)
+    chif_b[:, 0] = np.maximum(chif_b[:, 0], 0.0)
+    dchidz_b = spl(z_nodes, 1)
+    inv_chi_b = np.divide(1.0, chi_b, out=np.zeros_like(chi_b), where=chi_b > 0)
+    with np.errstate(divide="ignore"):
+        lnchi_b = np.where(chi_b > 0, np.log(np.where(chi_b > 0, chi_b, 1.0)), np.nan)
+
+    D_pk_b = np.sqrt(pk_ext_b[:, :, 0] / pk_ext_b[:, 0:1, 0])
+    D_b = CubicSpline(z_pk, D_pk_b, axis=1)(z_nodes) if nzp > 3 else np.array(
+        [np.interp(z_nodes, z_pk, D_pk_b[b]) for b in range(B)]
+    )
+
+    k_b = np.ascontiguousarray(k_ext_b, dtype=np.float64)
+    pk_b = np.ascontiguousarray(pk_ext_b, dtype=np.float64)
+    lnk_b = np.empty((B, nk), dtype=np.float64)
+    iz_b = np.empty((B, nm), dtype=np.int64)
+    t_b = np.empty((B, nm), dtype=np.float64)
+    ns = nk - 3
+    h1_b = np.empty((B, ns), dtype=np.float64)
+    h2_b = np.empty((B, ns), dtype=np.float64)
+    ih1_b = np.empty((B, ns), dtype=np.float64)
+    ih21_b = np.empty((B, ns), dtype=np.float64)
+    ih32_b = np.empty((B, ns), dtype=np.float64)
+    ih2_b = np.empty((B, ns), dtype=np.float64)
+    ih31_b = np.empty((B, ns), dtype=np.float64)
+    ih3_b = np.empty((B, ns), dtype=np.float64)
+    _prepare_batch_fast(
+        z_pk, z_nodes, lnchi_b, k_b, lnk_b, iz_b, t_b,
+        h1_b, h2_b, ih1_b, ih21_b, ih32_b, ih2_b, ih31_b, ih3_b,
+    )
+
+    d0_b = np.empty((B, nzp, ns), dtype=np.float64)
+    d1_b = np.empty((B, nzp, ns), dtype=np.float64)
+    d2_b = np.empty((B, nzp, ns), dtype=np.float64)
+    d3_b = np.empty((B, nzp, ns), dtype=np.float64)
+    if not _validate_log_and_newton_batch(pk_b, ih1_b, ih21_b, ih32_b, ih2_b, ih31_b, ih3_b, d0_b, d1_b, d2_b, d3_b):
+        raise ValueError("pk_nl must be finite and strictly positive")
+
+    ln_nu = np.ascontiguousarray(np.log(ell + 0.5), dtype=np.float64)
+    nl = ell.size
+    chunks_per_cosmo = max(1, min(nm, max(2, (2 * numba.get_num_threads() + B - 1) // max(B, 1))))
+    total_chunks = B * chunks_per_cosmo
+    nl_buf = max(nl, 1)
+    work_buf = np.empty((total_chunks, nl_buf), dtype=np.float64)
+    work_j0 = np.empty((total_chunks, nl_buf), dtype=np.int32)
+    work_u = np.empty((total_chunks, nl_buf), dtype=np.float64)
+    if Qt_buf is not None and Qt_buf.shape[0] >= B and Qt_buf.shape[1:] == (nm, nl):
+        Qt_b = Qt_buf[:B]
+    else:
+        Qt_b = np.empty((B, nm, nl), dtype=np.float64)
+    _fill_q_batch_newton_fast(
+        d0_b, d1_b, d2_b, d3_b, h1_b, h2_b, lnk_b, iz_b, t_b, lnchi_b,
+        ln_nu, chunks_per_cosmo, work_buf, work_j0, work_u, Qt_b,
+    )
+    s_b = np.asarray([lensing_prefactor(float(om)) for om in omega_m_b], dtype=np.float64)
+    return dict(
+        z_max=z_max_val,
+        zf=zf,
+        chif_b=chif_b,
+        z_nodes=z_nodes,
+        dz=dz,
+        chi_b=chi_b,
+        dchidz_b=dchidz_b,
+        w_nodes=w_nodes,
+        inv_chi_b=inv_chi_b,
+        D_b=D_b,
+        s_b=s_b,
+        Qt_b=Qt_b,
+        kernel_oversample=r,
+    )

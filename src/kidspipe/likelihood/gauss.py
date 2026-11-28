@@ -100,13 +100,13 @@ class GaussianLikelihood:
         A_c = np.broadcast_to(np.asarray(A_c, dtype=np.float64), (n,))
         delta_c = np.broadcast_to(np.asarray(delta_c, dtype=np.float64), (n,))
         self.n_calls += n
-        good = np.all(np.isfinite(mus), axis=1)
+        good = np.all(np.isfinite(mus), axis=1) & np.isfinite(A_c) & np.isfinite(delta_c)
         out = np.full(n, np.inf)
         if good.any():
             with np.errstate(invalid="ignore", over="ignore"):
                 r = self.residual(mus[good], A_c[good], delta_c[good])
                 c = self.chi2_from_residual(r)
-            out[good] = np.where(np.isfinite(c), c, np.inf)   # NaN/inf A_c, delta_c -> inf
+            out[good] = np.where(np.isfinite(c), c, np.inf)
         return out
 
     def log_like(self, mu, A_c=1.0, delta_c=0.0) -> float:
@@ -114,8 +114,19 @@ class GaussianLikelihood:
         c = self.chi2(mu, A_c, delta_c)
         return -0.5 * c if np.isfinite(c) else -np.inf
 
-    def log_like_batch(self, mus, A_c=1.0, delta_c=0.0) -> np.ndarray:
-        """Vectorised ln L, shape (N,)."""
+    def log_like_batch(self, mus, A_c=1.0, delta_c=0.0, *, model=None) -> np.ndarray:
+        """Vectorised ln L, shape (N,).
+
+        When ``model`` is ``None`` (default), ``mus`` is ``(N, 195)`` theory vectors.
+        When ``model`` is provided, ``mus`` is treated as ``thetas (N, 14)``, evaluated via
+        ``model.mu_batch(thetas)``, with ``A_c = thetas[:, 8]`` and ``delta_c = thetas[:, 7]``.
+        """
+        if model is not None:
+            th = np.atleast_2d(np.asarray(mus, dtype=np.float64))
+            if th.shape[0] == 0:
+                return np.empty(0, dtype=np.float64)
+            mu_arr = model.mu_batch(th)
+            return -0.5 * self.chi2_batch(mu_arr, A_c=th[:, 8], delta_c=th[:, 7])
         return -0.5 * self.chi2_batch(mus, A_c, delta_c)
 
     # ---- diagnostics -------------------------------------------------------------------

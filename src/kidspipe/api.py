@@ -175,6 +175,21 @@ class DerivedRecorder:
                 self.table[key] = (d["sigma8"], d["omega_m"], d["S8"])
         return mu
 
+    def mu_batch(self, thetas) -> np.ndarray:
+        """Batched ``theta (M, 14) -> mu (M, 195)`` recording derived quantities for every row."""
+        th = np.atleast_2d(np.asarray(thetas, dtype=np.float64))
+        mus = self.model.mu_batch(th)
+        batch_der = getattr(getattr(self.model, "_tls", None), "last_derived_batch", None)
+        if batch_der is not None and len(batch_der) == len(th) and len(self.table) < self.max_entries:
+            for r in range(len(th)):
+                if len(self.table) >= self.max_entries:
+                    break
+                key = self._key(th[r])
+                if key not in self.table:
+                    d = batch_der[r]
+                    self.table[key] = (d["sigma8"], d["omega_m"], d["S8"])
+        return mus
+
     __call__ = mu
 
     @staticmethod

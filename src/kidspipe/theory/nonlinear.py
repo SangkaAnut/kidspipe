@@ -22,7 +22,7 @@ from typing import Callable, Dict
 
 import numpy as np
 
-__all__ = ["get_pnl", "extend_high_k", "BACKENDS", "eta_baryon"]
+__all__ = ["get_pnl", "extend_high_k", "extend_high_k_batch", "BACKENDS", "eta_baryon"]
 
 # =====================================================================================================
 # SECTION 1: shared helpers
@@ -92,6 +92,44 @@ def extend_high_k(k_h, pk, khmax: float = 500.0, nnew: int = 200):
     k_ext = np.concatenate([k_h, np.exp(xnew)])
     pk_ext = np.concatenate([P, np.exp(ynew)], axis=1)
     return (k_ext, pk_ext[0]) if one_d else (k_ext, pk_ext)
+
+
+def extend_high_k_batch(k_h_batch, pk_batch, khmax: float = 500.0, nnew: int = 200):
+    """Batched log-log linear extrapolation of ``pk_batch`` ``(U, nz, nk)`` to ``khmax``.
+
+    ``k_h_batch`` may have shape ``(U, nk)`` or ``(nk,)`` (broadcast across ``U``).
+    Returns ``(k_ext_batch (U, nk + nnew - 1), pk_ext_batch (U, nz, nk + nnew - 1))``.
+    """
+    P = np.asarray(pk_batch, dtype=np.float64)
+    if P.ndim != 3:
+        raise ValueError(f"pk_batch must have shape (U, nz, nk), got {P.shape}")
+    u, nz, nk = P.shape
+    k_b = np.asarray(k_h_batch, dtype=np.float64)
+    if k_b.ndim == 1:
+        k_b = np.broadcast_to(k_b, (u, nk))
+    if k_b.shape != (u, nk):
+        raise ValueError(f"k_h_batch shape {k_b.shape} incompatible with pk_batch {P.shape}")
+    if nk < 3:
+        raise ValueError("need at least 3 nodes for the fit")
+    if u == 0:
+        nn = max(int(nnew) - 1, 0)
+        return np.empty((0, nk + nn), dtype=np.float64), np.empty((0, nz, nk + nn), dtype=np.float64)
+    if np.any(khmax <= k_b[:, -1]):
+        raise ValueError("khmax must exceed the last k node")
+    nnew_i = int(nnew)
+    x = np.log(k_b[:, -3:])                                        # (U, 3)
+    y = np.log(P[:, :, -3:])                                       # (U, nz, 3)
+    xm = x.mean(axis=1, keepdims=True)                             # (U, 1)
+    dx = x - xm                                                    # (U, 3)
+    ym = y.mean(axis=2, keepdims=True)                             # (U, nz, 1)
+    b = np.sum(dx[:, None, :] * (y - ym), axis=2) / np.sum(dx * dx, axis=1)[:, None]
+    a = ym[:, :, 0] - b * xm
+    t = np.arange(1, nnew_i, dtype=np.float64) / (nnew_i - 1)
+    xnew = x[:, -1:] + (np.log(khmax) - x[:, -1:]) * t[None, :]    # (U, nnew - 1)
+    ynew = a[:, :, None] + b[:, :, None] * xnew[:, None, :]        # (U, nz, nnew - 1)
+    k_ext = np.concatenate([k_b, np.exp(xnew)], axis=1)
+    pk_ext = np.concatenate([P, np.exp(ynew)], axis=2)
+    return k_ext, pk_ext
 
 
 # =====================================================================================================

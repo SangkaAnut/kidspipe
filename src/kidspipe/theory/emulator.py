@@ -52,6 +52,7 @@ from typing import Optional
 
 import numba as nb
 import numpy as np
+from numba import njit, prange
 from numpy.polynomial import legendre as _leg
 from scipy.interpolate import CubicSpline
 
@@ -90,6 +91,18 @@ def gp_kernel(Xa: np.ndarray, Xb: np.ndarray, ell: np.ndarray) -> np.ndarray:
     return np.exp(-0.5 * np.maximum(d2, 0.0))
 
 
+@njit(cache=True, parallel=True)
+def _gp_exp_contract(d2: np.ndarray, alpha: np.ndarray, out: np.ndarray) -> None:
+    """Parallel ``out[b, p] += sum_n exp(-d2[b, n, p]) * alpha[n, p]`` over batch rows."""
+    B, N, P = d2.shape
+    for b in prange(B):
+        for p in range(P):
+            s = 0.0
+            for n in range(N):
+                s += math.exp(-d2[b, n, p]) * alpha[n, p]
+            out[b, p] += s
+
+
 class _Regressor:
     """Maps scaled parameters x (n, 3) -> PCA coefficients (n, npc).
 
@@ -97,6 +110,8 @@ class _Regressor:
     kind 'polygp' : polynomial of degree ``deg`` + per-PC squared-exponential ARD Gaussian process on the residual,
                     ``c_j(x) = P(x) coef_j + sum_i exp(-|(x - X_i) / ell_j|^2 / 2) alpha_ij``.
     """
+
+    _GP_BLOCK_MAX_ELEMS = 3_000_000
 
     def __init__(self, d: dict):
         self.kind = str(d["kind"])
@@ -108,14 +123,30 @@ class _Regressor:
             self.ell = np.asarray(d["gp_ell"], dtype=np.float64)             # (npc, 3)
             self._inv_ell2 = 0.5 / self.ell ** 2                              # (npc, 3)
 
-    def __call__(self, x: np.ndarray) -> np.ndarray:
-        x = np.atleast_2d(x)
+    def __call__(self, x: np.ndarray, block_size: int | None = None) -> np.ndarray:
+        x = np.atleast_2d(np.asarray(x, dtype=np.float64))
+        m = x.shape[0]
+        if m == 0:
+            return np.empty((0, self.coef.shape[1]), dtype=np.float64)
         out = poly_design(x, self.deg) @ self.coef
         if self.kind == "polygp":
-            for i in range(x.shape[0]):
-                diff2 = (x[i][None, :] - self.X) ** 2                         # (N, 3)
-                d2 = diff2 @ self._inv_ell2.T                                  # (N, npc)
-                out[i] += np.einsum("np,np->p", np.exp(-d2), self.alpha)
+            n_train, npc = self.alpha.shape
+            bs = int(block_size) if block_size is not None else max(
+                1, min(m, self._GP_BLOCK_MAX_ELEMS // max(n_train * npc, 1))
+            )
+            inv_ell2_t = self._inv_ell2.T                                    # (3, npc)
+            for s in range(0, m, bs):
+                e = min(s + bs, m)
+                b = e - s
+                xb = x[s:e]                                                  # (b, 3)
+                diff2 = (xb[:, None, :] - self.X[None, :, :]) ** 2           # (b, N, 3)
+                d2 = (diff2.reshape(-1, 3) @ inv_ell2_t).reshape(b, n_train, npc)
+                if b >= 2:
+                    _gp_exp_contract(d2, self.alpha, out[s:e])
+                else:
+                    np.negative(d2, out=d2)
+                    np.exp(d2, out=d2)
+                    out[s:e] += np.einsum("bnp,np->bp", d2, self.alpha)
         return out
 
 
@@ -189,6 +220,36 @@ class TransferEmulator:
         lnp = self.pca_tot.recon(self.reg_tot(x))[0].reshape(self.nz, self.nk)
         rat = self.pca_rat.recon(self.reg_rat(x))[0].reshape(self.nz, self.nk)
         return lnp, lnp + rat
+
+    def predict_batch(self, thetas, block_size: int = 64) -> tuple[np.ndarray, np.ndarray]:
+        """Batched prediction ``(lnP_tot, lnP_cb)``, each ``(M, nz_master, nk)``.
+
+        ``thetas`` may have shape ``(M, 3)`` or ``(M, 14)`` (first 3 columns ``omch2, ombh2, h``);
+        1-D inputs ``(3,)`` or ``(14,)`` are promoted to ``M = 1``. Evaluated in blocks of ``block_size``
+        to bound intermediate memory.
+        """
+        arr = np.asarray(thetas, dtype=np.float64)
+        if arr.ndim == 1:
+            arr = arr[None, :]
+        if arr.ndim != 2 or arr.shape[1] < 3:
+            raise ValueError(f"predict_batch expects shape (M, >=3), got {arr.shape}")
+        m = arr.shape[0]
+        lnp_tot = np.empty((m, self.nz, self.nk), dtype=np.float64)
+        lnp_cb = np.empty((m, self.nz, self.nk), dtype=np.float64)
+        if m == 0:
+            return lnp_tot, lnp_cb
+        xs = self.scale(arr[:, :3])
+        bs = max(1, int(block_size))
+        for s in range(0, m, bs):
+            e = min(s + bs, m)
+            b = e - s
+            c_tot = self.reg_tot(xs[s:e])
+            c_rat = self.reg_rat(xs[s:e])
+            lt = self.pca_tot.recon(c_tot).reshape(b, self.nz, self.nk)
+            lr = self.pca_rat.recon(c_rat).reshape(b, self.nz, self.nk)
+            lnp_tot[s:e] = lt
+            lnp_cb[s:e] = lt + lr
+        return lnp_tot, lnp_cb
 
 
 def load_emulator(path=None) -> TransferEmulator:
@@ -320,6 +381,43 @@ class _Sigma8:
 # ======================================================================================================
 # the backend
 # ======================================================================================================
+@nb.njit(cache=True, parallel=True)
+def _exp_scale_and_s8_batch(
+    lnp_z: np.ndarray,
+    lnpcb_z: np.ndarray,
+    h_arr: np.ndarray,
+    d_mat: np.ndarray,
+    idx_h: np.ndarray,
+    w00: np.ndarray,
+    w10: np.ndarray,
+    w01: np.ndarray,
+    w11: np.ndarray,
+    k_dense: np.ndarray,
+    k3_fac: np.ndarray,
+    dlnk: float,
+    pk_out: np.ndarray,
+    pcb_out: np.ndarray,
+    integ_out: np.ndarray,
+    s2_ref_out: np.ndarray,
+) -> None:
+    """Parallel ``exp(ln P) * h^3`` and cached Hermite ``_Sigma8`` integrand build across ``U`` cosmologies."""
+    u, nz, nk = lnp_z.shape
+    nd = k_dense.size
+    for j in nb.prange(u):
+        hj = h_arr[j]
+        h3 = hj * hj * hj
+        for iz in range(nz):
+            for ik in range(nk):
+                pk_out[j, iz, ik] = math.exp(lnp_z[j, iz, ik]) * h3
+                pcb_out[j, iz, ik] = math.exp(lnpcb_z[j, iz, ik]) * h3
+        integ_j, s2_j = _sigma8_build_integ_nb(
+            lnp_z[j, 0], d_mat, idx_h, w00, w10, w01, w11, k_dense, k3_fac, dlnk, hj
+        )
+        for d in range(nd):
+            integ_out[j, d] = integ_j[d]
+        s2_ref_out[j] = s2_j
+
+
 class _EmuEntry:
     __slots__ = ("k_h", "pk_ref", "pk_cb_ref", "chi", "ez", "omega_m", "omnuh2", "h", "ombh2", "omch2", "mnu",
                  "s8", "sigma8_ref")
@@ -467,6 +565,165 @@ class EmulatedLinearBackend(LinearBackend):
             S8=float(s8 * np.sqrt(e.omega_m / 0.3)), n_s=float(n_s), ombh2=e.ombh2, omch2=e.omch2,
             ln_1e10_A_s=float(ln_1e10_A_s), mnu=e.mnu,
             _state=_LazyCambState(self, (omch2, ombh2, h, float(n_s), float(ln_1e10_A_s), mnu)))
+
+    def compute_batch(self, cosmo_params, mnu: float = 0.06) -> list[LinearResult]:
+        """Batched linear evaluation for ``(M, 5)`` or ``(M, 14)`` parameter rows.
+
+        In-box rows are de-duplicated on ``(omch2, ombh2, h)``, evaluated through
+        :meth:`TransferEmulator.predict_batch`, and rescaled per row for ``(n_s, ln_1e10_A_s)``.
+        Entries needed inside the batch are pinned in a local map so ``cache_size`` eviction
+        cannot drop them mid-batch. Out-of-box rows fall back to :class:`LinearBackend` when
+        ``fallback=True``.
+        """
+        arr = np.asarray(cosmo_params, dtype=np.float64)
+        if arr.ndim == 1:
+            arr = arr[None, :]
+        if arr.ndim != 2 or arr.shape[1] < 5:
+            raise ValueError(f"compute_batch expects shape (M, >=5), got {arr.shape}")
+        m = arr.shape[0]
+        if m == 0:
+            return []
+
+        validated = [self._validate(r[0], r[1], r[2], r[3], r[4], mnu) for r in arr]
+        em = self.emulator
+        results: list[Optional[LinearResult]] = [None] * m
+        in_rows: list[tuple[int, tuple[float, float, float, float, float, float]]] = []
+
+        for idx, row in enumerate(validated):
+            omch2, ombh2, h, n_s, ln_As, mnu_v = row
+            if not em.contains(omch2, ombh2, h, mnu_v):
+                if not self.fallback:
+                    raise ValueError(f"(omch2, ombh2, h) = ({omch2}, {ombh2}, {h}) outside the emulator box "
+                                     f"{em.box.tolist()} (or mnu != {em.mnu})")
+                self.stats["fallback"] += 1
+                results[idx] = super().compute(omch2, ombh2, h, n_s, ln_As, mnu_v)
+            else:
+                in_rows.append((idx, row))
+
+        if not in_rows:
+            return results  # type: ignore[return-value]
+
+        self.stats["compute_calls"] += len(in_rows)
+        local_entries: dict[tuple, _EmuEntry] = {}
+        miss_keys: list[tuple] = []
+        with self._lock:
+            for _, row in in_rows:
+                key = (row[0], row[1], row[2])
+                if key in local_entries:
+                    self.stats["emu_cache_hits"] += 1
+                    continue
+                hit = self._emu_cache.get(key)
+                if hit is not None:
+                    self._emu_cache.move_to_end(key)
+                    self.stats["emu_cache_hits"] += 1
+                    local_entries[key] = hit
+                else:
+                    if key not in local_entries:
+                        local_entries[key] = None  # type: ignore[assignment]
+                        miss_keys.append(key)
+
+        if miss_keys:
+            t0 = perf_counter()
+            miss_arr = np.asarray(miss_keys, dtype=np.float64)
+            lnp_all, lnpcb_all = em.predict_batch(miss_arr)
+            if self._z_subset:
+                lnp_z = lnp_all[:, self._zi, :]
+                lnpcb_z = lnpcb_all[:, self._zi, :]
+            else:
+                lnp_z = CubicSpline(em.z, lnp_all, axis=1)(self.z_grid)
+                lnpcb_z = CubicSpline(em.z, lnpcb_all, axis=1)(self.z_grid)
+
+            # Parallel exp/h^3 + cached Hermite _Sigma8 integrand build
+            op = em._sigma8_op
+            h_miss = np.ascontiguousarray(miss_arr[:, 2], dtype=np.float64)
+            u_miss = len(miss_keys)
+            pk_all = np.empty((u_miss, lnp_z.shape[1], lnp_z.shape[2]), dtype=np.float64)
+            pcb_all = np.empty((u_miss, lnp_z.shape[1], lnp_z.shape[2]), dtype=np.float64)
+            integ_all = np.empty((u_miss, _N_DENSE), dtype=np.float64)
+            s2_ref_all = np.empty(u_miss, dtype=np.float64)
+            _exp_scale_and_s8_batch(
+                np.ascontiguousarray(lnp_z), np.ascontiguousarray(lnpcb_z), h_miss,
+                op.d_mat, op.idx_h, op.w00, op.w10, op.w01, op.w11, op.k_dense, op.k3_fac, op.dlnk,
+                pk_all, pcb_all, integ_all, s2_ref_all,
+            )
+            z_chi_arr = np.asarray(Z_CHI)
+            z_grid_arr = np.asarray(self.z_grid)
+
+            new_entries: list[tuple[tuple, _EmuEntry]] = []
+            for j, key in enumerate(miss_keys):
+                omch2_j, ombh2_j, h_j = key
+                e = _EmuEntry()
+                e.k_h = _ro(em.k_mpc / h_j)
+                pk_j = pk_all[j]
+                pk_j.flags.writeable = False
+                pcb_j = pcb_all[j]
+                pcb_j.flags.writeable = False
+                e.pk_ref = pk_j
+                e.pk_cb_ref = pcb_j
+                if self.background_backend == "numba" and abs(mnu - 0.06) < 1e-12:
+                    om, on, ez, chi = compute_background(
+                        omch2_j, ombh2_j, h_j, mnu, self.z_grid, _Z_CHI_RO, camb_major=self._camb_major
+                    )
+                    e.chi = _ro(chi)
+                    e.ez = _ro(ez)
+                    e.omega_m, e.omnuh2 = float(om), float(on)
+                else:
+                    p, b = self._background(omch2_j, ombh2_j, h_j, mnu)
+                    e.chi = _ro(b.comoving_radial_distance(z_chi_arr, tol=1e-8) * p.h)
+                    e.ez = _ro(b.h_of_z(z_grid_arr) / b.h_of_z(0.0))
+                    e.omega_m, e.omnuh2 = float(p.omegam), float(p.omnuh2)
+                e.h, e.ombh2, e.omch2, e.mnu = float(h_j), float(ombh2_j), float(omch2_j), float(mnu)
+                s8 = object.__new__(_Sigma8)
+                s8.lnk = op.lnk
+                s8.lnk_rel = op.lnk_rel
+                s8.dlnk = op.dlnk
+                integ_j = integ_all[j]
+                integ_j.flags.writeable = False
+                s8.integ = integ_j
+                s8._s2_ref = float(s2_ref_all[j])
+                e.s8 = s8
+                e.sigma8_ref = e.s8(1.0, 0.0)
+                if not (np.isfinite(e.pk_ref).all() and np.isfinite(e.pk_cb_ref).all() and (e.pk_ref > 0).all()):
+                    raise RuntimeError("emulator returned a non-finite / non-positive spectrum")
+                local_entries[key] = e
+                new_entries.append((key, e))
+
+            self.stats["emu_evals"] += len(miss_keys)
+            self.stats["emu_seconds"] += perf_counter() - t0
+            with self._lock:
+                if self.cache_size > 0:
+                    for key, e in new_entries[-self.cache_size:]:
+                        self._emu_cache[key] = e
+                        self._emu_cache.move_to_end(key)
+                        while len(self._emu_cache) > self.cache_size:
+                            self._emu_cache.popitem(last=False)
+
+        As_ref = float(np.exp(em.ln_As_ref) * 1e-10)
+        for idx, row in in_rows:
+            omch2, ombh2, h, n_s, ln_1e10_A_s, mnu_v = row
+            e = local_entries[(omch2, ombh2, h)]
+            As = float(np.exp(ln_1e10_A_s) * 1e-10)
+            fac = As / As_ref
+            dn = float(n_s) - em.ns_ref
+            if dn != 0.0:
+                tilt = (e.k_h * e.h / K_PIVOT_MPC) ** dn
+                pk = e.pk_ref * (fac * tilt)[None, :]
+                pcb = e.pk_cb_ref * (fac * tilt)[None, :]
+            else:
+                pk = e.pk_ref * fac
+                pcb = e.pk_cb_ref * fac
+            s8 = e.s8(fac, dn)
+            if not (np.isfinite(s8) and np.isfinite(pk).all() and np.isfinite(pcb).all()):
+                raise ValueError("non-finite linear power spectrum (n_s / ln_1e10_A_s out of the representable range): "
+                                 f"n_s={n_s}, ln_1e10_A_s={ln_1e10_A_s}")
+            results[idx] = LinearResult(
+                z=self.z_grid, k_h=e.k_h, pk_lin=pk, chi=e.chi, z_chi=_Z_CHI_RO, omega_m=e.omega_m,
+                sigma8_0=float(s8), h=e.h, pk_cb=pcb, ez=e.ez, omnuh2=e.omnuh2,
+                omega_b=e.ombh2 / e.h ** 2, omega_c=e.omch2 / e.h ** 2,
+                S8=float(s8 * np.sqrt(e.omega_m / 0.3)), n_s=float(n_s), ombh2=e.ombh2, omch2=e.omch2,
+                ln_1e10_A_s=float(ln_1e10_A_s), mnu=e.mnu,
+                _state=_LazyCambState(self, (omch2, ombh2, h, float(n_s), float(ln_1e10_A_s), mnu_v)))
+        return results  # type: ignore[return-value]
 
     def clear_cache(self) -> None:
         super().clear_cache()

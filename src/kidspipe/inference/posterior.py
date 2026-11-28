@@ -211,8 +211,12 @@ class Posterior:
                  log_prior: Optional[Callable] = None, prior_transform: Optional[Callable] = None,
                  start=None, blocks: Optional[ParamBlocks] = None, memo: bool = True,
                  like_kwargs: Optional[dict] = None):
+        self._model_obj = model_mu
+        self._like_obj = likelihood
         self._model = model_mu.mu if hasattr(model_mu, "mu") else model_mu
         self._like = likelihood.log_like if hasattr(likelihood, "log_like") else likelihood
+        self._model_batch = getattr(model_mu, "mu_batch", None)
+        self._like_batch = getattr(likelihood, "log_like_batch", None)
         pm = params_module
         if pm is None and names is None and bounds is None:
             import importlib
@@ -266,6 +270,13 @@ class Posterior:
         if t.shape != (self.ndim,):
             raise ValueError(f"theta must have shape ({self.ndim},), got {t.shape}")
         return bool(np.all(t >= self.bounds[:, 0]) and np.all(t <= self.bounds[:, 1]) and np.all(np.isfinite(t)))
+
+    def in_bounds_batch(self, thetas) -> np.ndarray:
+        """Boolean mask (M,) for ``thetas`` of shape ``(M, ndim)``."""
+        th = np.asarray(thetas, dtype=np.float64)
+        if th.ndim != 2 or th.shape[1] != self.ndim:
+            raise ValueError(f"thetas must have shape (M, {self.ndim}), got {th.shape}")
+        return np.all((th >= self.bounds[:, 0]) & (th <= self.bounds[:, 1]) & np.isfinite(th), axis=1)
 
     def log_prior(self, theta) -> float:
         """ln pi(theta) (spec s1.3); -inf outside the bounds or if the prior returns NaN."""
@@ -358,10 +369,72 @@ class Posterior:
         """-ln P (``+inf`` if invalid)."""
         return -self.log_post(theta)
 
+    def log_like_batch(self, thetas) -> np.ndarray:
+        """Batched ``ln L(theta)`` for ``thetas`` of shape ``(M, ndim)`` (``-inf`` outside bounds or on failure)."""
+        th = np.asarray(thetas, dtype=np.float64)
+        if th.ndim == 1:
+            if th.size != self.ndim:
+                raise ValueError(f"thetas must have shape (M, {self.ndim}), got {th.shape}")
+            th = th[None, :]
+        elif th.ndim != 2 or th.shape[1] != self.ndim:
+            raise ValueError(f"thetas must have shape (M, {self.ndim}), got {th.shape}")
+        m = th.shape[0]
+        if m == 0:
+            return np.empty(0, dtype=np.float64)
+        out = np.full(m, -np.inf, dtype=np.float64)
+        ok = self.in_bounds_batch(th)
+        good_idx = np.nonzero(ok)[0]
+        if good_idx.size == 0:
+            return out
+        if self._model_batch is not None and self._like_batch is not None:
+            t0 = time.perf_counter()
+            try:
+                th_good = th[good_idx]
+                mus = self._model_batch(th_good)
+                t1 = time.perf_counter()
+                self.stats.t_model += t1 - t0
+                kw = {k: th_good[:, i] for k, i in self._like_idx.items()}
+                lls = np.asarray(self._like_batch(mus, **kw), dtype=np.float64)
+                self.stats.t_like += time.perf_counter() - t1
+                bad = ~np.isfinite(lls)
+                if bad.any():
+                    self.stats.n_fail += int(np.sum(bad))
+                    lls = np.where(bad, -np.inf, lls)
+                out[good_idx] = lls
+                self.stats.n_like += int(good_idx.size)
+                self._last_theta = th_good[-1].copy()
+                return out
+            except Exception as e:  # noqa: BLE001
+                self.last_error = e
+        for i in good_idx:
+            out[i] = self._eval_like(th[i].copy())
+        return out
+
     def log_post_batch(self, thetas) -> np.ndarray:
-        """ln P for each row of ``thetas`` (n, ndim) (a plain loop; the model is not vectorised)."""
-        th = np.atleast_2d(np.asarray(thetas, float))
-        return np.array([self.log_post(t) for t in th])
+        """Vectorised ``ln P`` for each row of ``thetas`` ``(M, ndim)``."""
+        th = np.asarray(thetas, dtype=np.float64)
+        if th.ndim == 1:
+            th = th[None, :]
+        if th.ndim != 2 or th.shape[1] != self.ndim:
+            raise ValueError(f"thetas must have shape (M, {self.ndim}), got {th.shape}")
+        m = th.shape[0]
+        if m == 0:
+            return np.empty(0, dtype=np.float64)
+        ok = self.in_bounds_batch(th)
+        if self._lp is None:
+            lp = np.where(ok, float(-np.sum(np.log(self.bounds[:, 1] - self.bounds[:, 0]))), -np.inf)
+        else:
+            try:
+                lp_try = np.asarray(self._lp(th), dtype=np.float64)
+                if lp_try.shape == (m,):
+                    lp = np.where(ok & np.isfinite(lp_try), lp_try, -np.inf)
+                else:
+                    raise ValueError("non-batched log_prior")
+            except Exception:  # noqa: BLE001
+                lp = np.array([self.log_prior(t) for t in th], dtype=np.float64)
+                return np.where(np.isfinite(lp), lp + self.log_like_batch(th), -np.inf)
+        ll = self.log_like_batch(th)
+        return np.where(np.isfinite(lp) & np.isfinite(ll), lp + ll, -np.inf)
 
     # ----------------------------------------------------------------- bookkeeping
     def reset_stats(self):
