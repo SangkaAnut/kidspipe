@@ -100,11 +100,15 @@ def test_dropin_fields_and_exact_pieces(backend, exact, case):
     assert np.all((ratio > 0.99) & (ratio < 1.06)) and abs(ratio[0, 0] - 1) < 1e-4
     assert a.k_h[-1] == pytest.approx(21.0 / case["h"], rel=1e-6)
     assert a.k_h[0] == pytest.approx(5e-5 / case["h"], rel=1e-6)
-    # exact (non-emulated) quantities
-    assert np.max(np.abs(a.chi[1:] / b.chi[1:] - 1)) < 1e-12
-    assert np.max(np.abs(a.ez / b.ez - 1)) < 1e-12
-    assert a.omega_m == b.omega_m and a.omnuh2 == b.omnuh2 and a.h == b.h
-    assert a.omega_nu_frac == pytest.approx(b.omega_nu_frac, rel=1e-14)
+    # background / derived quantities (numba default backend matches CAMB within Prompt 08 gates;
+    # CAMB 1.5.8 itself jumps -9.38e-6 in rho_nu at am~63 / z~4.7, shifting E(z=6) up to ~5e-8 vs exact quad)
+    ez_tol = 1e-8 if int(camb.__version__.split(".")[0]) >= 2 else 1e-7
+    assert np.max(np.abs(a.chi[1:] / b.chi[1:] - 1)) < 1e-7
+    assert np.max(np.abs(a.ez / b.ez - 1)) < ez_tol
+    assert a.omega_m == pytest.approx(b.omega_m, rel=1e-6)
+    assert a.omnuh2 == pytest.approx(b.omnuh2, rel=1e-6)
+    assert a.h == b.h
+    assert a.omega_nu_frac == pytest.approx(b.omega_nu_frac, rel=1e-6)
     for f in ("omega_b", "omega_c", "n_s", "ombh2", "omch2", "ln_1e10_A_s", "mnu"):
         assert getattr(a, f) == pytest.approx(getattr(b, f), rel=1e-14)
     # derived sigma8 (quadrature of the emulated spectrum)
@@ -377,3 +381,162 @@ def test_shared_model_threads_last_derived_is_thread_local():
     finally:
         sys.setswitchinterval(old)
     assert not errs and not bad, (errs[:2], len(bad))
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Prompt 08: stand-alone Numba background solver and cached sigma8 Hermite operator
+# ---------------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("case", CASES)
+def test_background_backend_camb_exact_parity(emu, exact, case):
+    """background_backend='camb' preserves exact diagnostic parity with LinearBackend."""
+    be_c = EmulatedLinearBackend(emulator=emu, nthreads=4, background_backend="camb")
+    a = be_c.compute(**case)
+    b = exact.compute(**case)
+    assert np.max(np.abs(a.chi[1:] / b.chi[1:] - 1)) < 1e-12
+    assert np.max(np.abs(a.ez / b.ez - 1)) < 1e-12
+    assert a.omega_m == b.omega_m and a.omnuh2 == b.omnuh2
+    assert a.omega_nu_frac == pytest.approx(b.omega_nu_frac, rel=1e-14)
+
+
+def test_background_fd_table_accuracy():
+    """Fermi-Dirac massive-neutrino lookup table agrees with direct quad across all relativistic regimes."""
+    import math
+    from scipy.integrate import quad
+    from kidspipe.theory.background import fd_rho_table
+
+    norm_fd = 7.0 * math.pi ** 4 / 120.0
+
+    def fd_quad(am):
+        val, _ = quad(lambda q: q * q * math.sqrt(q * q + am * am) * math.exp(-q) / (1.0 + math.exp(-q)),
+                      0.0, 60.0, epsabs=0.0, epsrel=1e-13, limit=200)
+        return val / norm_fd
+
+    ams_all = np.concatenate([[0.0, 1e-5, 1e-3, 0.1, 1.0, 8.0, 25.0, 60.0, 356.6, 1000.0, 1e4],
+                              np.geomspace(1e-3, 1e3, 40)])
+    errs_all = [abs(fd_rho_table(a) / fd_quad(a) - 1.0) for a in ams_all]
+    assert max(errs_all) < 1e-11
+    ams_late = np.linspace(40.0, 400.0, 25)
+    assert max(abs(fd_rho_table(a) / fd_quad(a) - 1.0) for a in ams_late) < 1e-13
+
+
+def test_background_equivalence_50_box_points(emu):
+    """50 random in-box cosmologies match CAMB background within Prompt 08 gates + edge-case grids."""
+    from kidspipe.theory.background import compute_background
+    from kidspipe.theory.linear import Z_CHI
+
+    camb_major = int(camb.__version__.split(".")[0])
+    rng = np.random.default_rng(42)
+    lo, hi = emu.box[:, 0], emu.box[:, 1]
+    pts = lo + (hi - lo) * rng.uniform(0.0, 1.0, (50, 3))
+    max_chi = max_ez = max_ez_lowz = max_om = max_on = 0.0
+    zc = np.asarray(Z_CHI)
+    zg = np.asarray(Z_GRID_SPEC)
+    lowz = zg <= 4.5
+    for omch2, ombh2, h in pts:
+        p, b = EmulatedLinearBackend._background(float(omch2), float(ombh2), float(h), 0.06)
+        chi_c = b.comoving_radial_distance(zc, tol=1e-8) * p.h
+        ez_c = b.h_of_z(zg) / b.h_of_z(0.0)
+        om_n, on_n, ez_n, chi_n = compute_background(
+            float(omch2), float(ombh2), float(h), 0.06, zg, zc, camb_major=2 if camb_major >= 2 else 1
+        )
+        max_chi = max(max_chi, float(np.max(np.abs(chi_n[1:] / chi_c[1:] - 1.0))))
+        ez_rel = np.abs(ez_n / ez_c - 1.0)
+        max_ez = max(max_ez, float(np.max(ez_rel)))
+        max_ez_lowz = max(max_ez_lowz, float(np.max(ez_rel[lowz])))
+        max_om = max(max_om, abs(om_n / float(p.omegam) - 1.0))
+        max_on = max(max_on, abs(on_n / float(p.omnuh2) - 1.0))
+
+    assert max_chi < 1e-7
+    assert max_ez_lowz < 1e-8
+    # CAMB 1.5.8 itself jumps -9.38e-6 in rho_nu at am ~ 63 (z ~ 4.7), shifting CAMB's E(z=6) up to 5.12e-8
+    assert max_ez < (1e-8 if camb_major >= 2 else 1e-7)
+    assert max_om < 1e-6
+    assert max_on < 1e-6
+
+    # Non-uniform z_chi starting at z > 0 and massless neutrino mnu=0.0 fallback branch
+    z_nonunif = np.array([0.15, 0.5, 1.3, 3.7, 6.0])
+    p0, b0 = EmulatedLinearBackend._background(0.12, 0.0222, 0.70, 0.0)
+    om0, on0, ez0, chi0 = compute_background(
+        0.12, 0.0222, 0.70, 0.0, Z_GRID_SPEC, z_nonunif, camb_major=2 if camb_major >= 2 else 1
+    )
+    assert on0 == 0.0 and om0 == pytest.approx(p0.omegam, rel=1e-12)
+    assert np.max(np.abs(chi0 / (b0.comoving_radial_distance(z_nonunif, tol=1e-8) * p0.h) - 1.0)) < 1e-9
+    assert np.max(np.abs(ez0 / (b0.h_of_z(np.asarray(Z_GRID_SPEC)) / b0.h_of_z(0.0)) - 1.0)) < 1e-10
+
+    for bad_args in (
+        (-0.1, 0.022, 0.7, 0.06),
+        (0.12, np.nan, 0.7, 0.06),
+        (0.12, 0.022, 0.05, 0.06),
+        (0.12, 0.022, 0.7, -0.01),
+    ):
+        with pytest.raises(ValueError):
+            compute_background(*bad_args, zg, zc)
+
+
+def test_background_backend_validation_and_mnu_fallback(emu):
+    """Invalid background_backend raises ValueError; mnu != 0.06 delegates _emu_entry background to CAMB."""
+    with pytest.raises(ValueError):
+        EmulatedLinearBackend(emulator=emu, background_backend="unknown")
+    be = EmulatedLinearBackend(emulator=emu, nthreads=4, background_backend="numba")
+    e = be._emu_entry(*INNER, 0.12)
+    p, _ = EmulatedLinearBackend._background(*INNER, 0.12)
+    assert e.omnuh2 == float(p.omnuh2) and e.omega_m == float(p.omegam)
+
+
+def test_sigma8_operator_matches_cubic_spline(emu):
+    """Cached cubic-Hermite sigma8 operator matches fresh CubicSpline quadrature to < 1e-12 across tilts."""
+    from scipy.interpolate import CubicSpline
+    from kidspipe.theory.emulator import _N_DENSE, _Sigma8, _tophat_w2
+    from kidspipe.theory.linear import K_PIVOT_MPC
+
+    lnk_nodes = np.log(emu.k_mpc)
+    lnk_dense = np.linspace(lnk_nodes[0], lnk_nodes[-1], _N_DENSE)
+    k_dense = np.exp(lnk_dense)
+    dlnk = lnk_dense[1] - lnk_dense[0]
+    lnk_rel = lnk_dense - np.log(K_PIVOT_MPC)
+
+    rng = np.random.default_rng(42)
+    lo, hi = emu.box[:, 0], emu.box[:, 1]
+    pts = lo + (hi - lo) * rng.uniform(0.0, 1.0, (50, 3))
+    max_rel = 0.0
+    for omch2, ombh2, h in pts:
+        lnp, _ = emu.predict(float(omch2), float(ombh2), float(h))
+        lnp0 = lnp[0]
+        p_dense = np.exp(CubicSpline(lnk_nodes, lnp0)(lnk_dense))
+        integ_ref = k_dense ** 3 * p_dense / (2.0 * np.pi ** 2) * _tophat_w2(k_dense * 8.0 / float(h))
+        s8_fast = _Sigma8(emu.k_mpc, lnp0, float(h), op=emu._sigma8_op)
+        for fac, dn in ((1.0, 0.0), (1.15, -0.1), (0.85, 0.08)):
+            g = integ_ref if dn == 0.0 else integ_ref * np.exp(dn * lnk_rel)
+            s8_ref = float(np.sqrt(fac * dlnk * (g.sum() - 0.5 * (g[0] + g[-1]))))
+            rel = abs(s8_fast(fac, dn) / s8_ref - 1.0)
+            max_rel = max(max_rel, rel)
+    assert max_rel < 1e-12
+
+
+def test_background_model_delta_chi2(emu):
+    """Full CosmicShearModel + GaussianLikelihood |delta chi2| < 1e-4 between background_backend='numba' and 'camb'."""
+    from kidspipe.likelihood.gauss import GaussianLikelihood
+    from kidspipe.params import START
+    from kidspipe.theory.model import CosmicShearModel
+
+    like = GaussianLikelihood()
+    m_numba = CosmicShearModel(
+        linear_backend=EmulatedLinearBackend(emulator=emu, nthreads=4, background_backend="numba"), nthreads=4
+    )
+    m_camb = CosmicShearModel(
+        linear_backend=EmulatedLinearBackend(emulator=emu, nthreads=4, background_backend="camb"), nthreads=4
+    )
+    rng = np.random.default_rng(7)
+    lo, hi = emu.box[:, 0], emu.box[:, 1]
+    max_dchi2 = 0.0
+    for _ in range(20):
+        th = np.array(START, float)
+        th[:3] = lo + (hi - lo) * rng.uniform(0.05, 0.95, 3)
+        th[3] = rng.uniform(0.88, 1.08)
+        th[4] = rng.uniform(2.3, 3.5)
+        th[5] = rng.uniform(2.0, 3.13)
+        th[6] = rng.uniform(-2.0, 2.0)
+        c1 = like.chi2(m_numba.mu(th), A_c=th[8], delta_c=th[7])
+        c2 = like.chi2(m_camb.mu(th), A_c=th[8], delta_c=th[7])
+        max_dchi2 = max(max_dchi2, abs(c1 - c2))
+    assert max_dchi2 < 1e-4
