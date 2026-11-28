@@ -52,6 +52,28 @@ Implementation choices where the spec is silent (all validated against CAMB 1.5.
 * The NFW window uses the exact Ci/Si expression through the non-oscillatory auxiliary functions
   f, g:  W m(c) = g(x) + [f(y) - 1/y] sin(c x) - g(y) cos(c x),  x = k r_s, y = (1+c) x,
   m(c) = ln(1+c) - c/(1+c); f, g are tabulated (linear in ln z) with an asymptotic series for z > 60.
+
+Cost of the 1-halo loop (``_hm_one_z``).  The inner loop is executed
+``nz * nk * nh`` times (~4e6 for the 150-z KV450 grid), so it is written to keep every
+(k, z)-invariant out of it: ``r_s,eff = exp(ln r_s,eff)``, ``1+c``, ``1/m(c)`` and the f/g table
+coordinate of each halo node are computed once per node, ``x = k r_s,eff`` is one multiply (no
+``exp`` per pair) and the two f/g lookups use a pre-split table coordinate
+``(lk + lnsc - ln z0)/du = lk/du + (lnsc - ln z0)/du``.  ``sin(c x)`` and ``cos(c x)`` share one
+argument so LLVM can use a single sincos call (``afn`` is in ``_FASTMATH``).  Two further savings do
+not touch the physics:
+
+* ``_dot`` (the sigma(R) quadrature ``sum_q dl W_th(qR)^2 Delta^2(q)``) is a latency-bound
+  single-accumulator reduction because ``reassoc`` is deliberately not in ``_FASTMATH``; it now uses
+  eight fixed-order accumulators, which is ~4x faster and still deterministic.
+* The low-k prefix where the 1-halo term is provably negligible is skipped entirely (see the comment
+  at the assembly loop: `W^2 <= 1` bounds `d1`, and `(1+u)^(1/alpha) - 1 <= 3u` turns the bound into
+  a relative-error guarantee of `3e-13 < 1e-12`).  With CAMB's k grid this fires for no node: even at
+  k = 7e-5 h/Mpc the true 1-halo/2-halo ratio is ~1e-6, four orders of magnitude above the 1e-8.7
+  that the 1e-12 criterion allows, so the guard costs one scan over k and changes nothing.  It is
+  kept because it is provable, cheap and protects coarse/low-amplitude k grids.
+
+Neither changes any algorithmic constant, quadrature node or tolerance, and both are deterministic:
+the association order is fixed by the code, so results stay bit-identical for 1 or N threads.
 """
 from __future__ import annotations
 
@@ -103,20 +125,29 @@ def _fg_tables():
 
 
 @njit(cache=True, inline="always")
-def _fg_eval(lnz, z, ftab, gtab):
-    """Return (F, G) = (z f(z), z^2 g(z)) by table lookup or asymptotic series (z > Z_ASYM)."""
+def _fg_tab(t, z, ftab, gtab):
+    """Return (F, G) = (z f(z), z^2 g(z)) at the table coordinate ``t = (ln z - FG_LNZ0)/FG_DU``.
+
+    ``z`` must be consistent with ``t`` (only the asymptotic-series branch uses it).  The coordinate
+    is passed in already scaled so that the inner loop can precompute it per halo node and per k node.
+    """
     if z > Z_ASYM:
         iz2 = 1.0 / (z * z)
         # F = sum (-1)^n (2n)! z^-2n ; G = sum (-1)^n (2n+1)! z^-2n
         fa = 1.0 - iz2 * (2.0 - iz2 * (12.0 - iz2 * (120.0 - iz2 * (1680.0 - iz2 * 30240.0))))
         ga = 1.0 - iz2 * (6.0 - iz2 * (60.0 - iz2 * (840.0 - iz2 * (15120.0 - iz2 * 332640.0))))
         return fa, ga
-    t = (lnz - FG_LNZ0) / FG_DU
     if t < 0.0:
         t = 0.0
     i = int(t)
     w = t - i
     return ftab[i] + w * (ftab[i + 1] - ftab[i]), gtab[i] + w * (gtab[i + 1] - gtab[i])
+
+
+@njit(cache=True, inline="always")
+def _fg_eval(lnz, z, ftab, gtab):
+    """Return (F, G) = (z f(z), z^2 g(z)) by table lookup or asymptotic series (z > Z_ASYM)."""
+    return _fg_tab((lnz - FG_LNZ0) / FG_DU, z, ftab, gtab)
 
 
 @njit(cache=True)
@@ -285,10 +316,38 @@ def _dense_dsq(lnd2, i0, w, nin, lq, lk_last, slope, out):
 
 @njit(cache=True, fastmath=_FASTMATH)
 def _dot(a, b):
-    s = 0.0
-    for i in range(a.size):
-        s += a[i] * b[i]
-    return s
+    """Sum ``a[k] * b[k]`` with eight independent accumulators.
+
+    ``reassoc`` is deliberately absent from :data:`_FASTMATH` (the results must not depend on the
+    thread count), which also forbids LLVM from vectorising a single-accumulator floating-point
+    reduction: that chain is latency-bound at ~4 cycles per element and dominates the sigma(R)
+    quadrature of ``_hm_one_z``.  Eight accumulators overlap the additions (~4x faster) and keep the
+    result deterministic: the association order is fixed by this code, not by the machine.
+    """
+    n = a.size
+    s0 = 0.0
+    s1 = 0.0
+    s2 = 0.0
+    s3 = 0.0
+    s4 = 0.0
+    s5 = 0.0
+    s6 = 0.0
+    s7 = 0.0
+    i = 0
+    while i + 7 < n:
+        s0 += a[i] * b[i]
+        s1 += a[i + 1] * b[i + 1]
+        s2 += a[i + 2] * b[i + 2]
+        s3 += a[i + 3] * b[i + 3]
+        s4 += a[i + 4] * b[i + 4]
+        s5 += a[i + 5] * b[i + 5]
+        s6 += a[i + 6] * b[i + 6]
+        s7 += a[i + 7] * b[i + 7]
+        i += 8
+    while i < n:
+        s0 += a[i] * b[i]
+        i += 1
+    return ((s0 + s1) + (s2 + s3)) + ((s4 + s5) + (s6 + s7))
 
 
 @njit(cache=True, fastmath=_FASTMATH)
@@ -381,11 +440,17 @@ def _hm_one_z(k, lk, pk_t, pk_c, i0, w, nin, lq, WR, W8, W100, Wv,
     alpha = min(max(3.24 * 1.85 ** neff, 0.5), 2.0)
     # --- halo nodes: Jacobian weights, window scales, concentrations --------------------------
     nh = ib - ia + 1
-    wt = np.zeros(nh)      # g(nu) Rv^3 (dnu/dlnR) dlnR
-    lnsc = np.zeros(nh)    # ln( nu^eta R_v / c ) = ln r_s,eff
-    cc = np.zeros(nh)
-    l1c = np.zeros(nh)
-    mcc = np.zeros(nh)
+    # every one of these is written for all ii below, so no zero-fill is needed
+    wt = np.empty(nh)      # g(nu) Rv^3 (dnu/dlnR) dlnR
+    lnsc = np.empty(nh)    # ln( nu^eta R_v / c ) = ln r_s,eff
+    sc = np.empty(nh)      # r_s,eff = exp(lnsc): x = k * sc, no exp per (k, node) pair
+    cc = np.empty(nh)
+    c1 = np.empty(nh)      # 1 + c
+    l1c = np.empty(nh)
+    mcc = np.empty(nh)
+    imcc = np.empty(nh)    # 1 / m(c)
+    tz = np.empty(nh)      # f/g table coordinate of x, (lnsc - FG_LNZ0)/FG_DU
+    ty = np.empty(nh)      # f/g table coordinate of y = (1+c) x
     lng_z = math.log(g_z)
     lna_z = -math.log1p(z_z)
     Dv13 = Dv ** (1.0 / 3.0)
@@ -406,6 +471,11 @@ def _hm_one_z(k, lk, pk_t, pk_c, i0, w, nin, lq, WR, W8, W100, Wv,
         gnu = 0.21616 * (1.0 + (0.707 * nu * nu) ** (-0.3)) * math.exp(-0.5 * 0.707 * nu * nu)
         wt[ii] = gnu * Rv * Rv * Rv * (-nu * dsg[j]) * dR
         lnsc[ii] = eta * math.log(nu) + math.log(Rv) - math.log(cval)
+        sc[ii] = math.exp(lnsc[ii])
+        c1[ii] = 1.0 + cval
+        imcc[ii] = 1.0 / mcc[ii]
+        tz[ii] = (lnsc[ii] - FG_LNZ0) / FG_DU
+        ty[ii] = tz[ii] + l1c[ii] / FG_DU
         total += wt[ii]
     # prune negligible tails of the nu-integral (W^2 <= 1)
     i_lo = 0
@@ -419,35 +489,83 @@ def _hm_one_z(k, lk, pk_t, pk_c, i0, w, nin, lq, WR, W8, W100, Wv,
         acc += wt[i_hi]
         i_hi -= 1
     # --- assemble P(k) ---------------------------------------------------------------------------
+    # The halo-node sum is the outer loop: every node-invariant (r_s,eff, 1+c, c, 1/m(c), weight,
+    # both f/g table coordinates) then lives in a register for the whole k sweep, and the sum into
+    # acc[j] runs over the nodes in the same order as the original j-outer loop.
     inv_alpha = 1.0 / alpha
     sqf = math.sqrt(fdamp)
-    for j in range(nk):
+    two_pi2 = 2.0 * pi * pi
+    j0 = 0
+    while j0 < nk and k[j0] < kmin_nl:
+        out[j0] = pk_t[j0]
+        j0 += 1
+    # Low-k prefix where the 1-halo term is provably negligible.  With W^2 <= 1 the whole nu-integral
+    # is bounded by  d1_ub = (1 - exp(-(k/kstar)^2)) (2 Dv k^3 / 3 pi) * total  (total = sum of the
+    # quadrature weights, i.e. the value of the integral for W = 1).  Dropping d1 replaces
+    # Delta^2 = (d1^alpha + d2^alpha)^(1/alpha) by d2 = Delta^2_2h, i.e. multiplies it by
+    # (1 + u)^(1/alpha) with u = (d1/d2)^alpha <= (d1_ub/d2)^alpha.  For 1/alpha <= 2 and u <= 1
+    # concavity/covexity give (1+u)^(1/alpha) - 1 <= 3u, so u <= 1e-13 proves a relative change
+    # < 3e-13 < 1e-12.  d1_ub rises like k^5 while d2 rises like the linear Delta^2, so the bound is
+    # monotone here and the scan stops at the first k that fails: the skipped set is [j0, jc].
+    jc = j0 - 1
+    for j in range(j0, nk):
         kj = k[j]
-        if kj < kmin_nl:
-            out[j] = pk_t[j]
-            continue
-        lkj = lk[j]
-        acc = 0.0
-        for ii in range(i_lo, i_hi + 1):
-            lnx = lkj + lnsc[ii]
-            x = math.exp(lnx)
-            c = cc[ii]
-            y = (1.0 + c) * x
-            if y < 5.0e-3:
-                acc += wt[ii]
-                continue
-            _, gx = _fg_eval(lnx, x, ftab, gtab)
-            fy, gy = _fg_eval(lnx + l1c[ii], y, ftab, gtab)
-            cx = c * x
-            wv = (gx / (x * x) + ((fy - 1.0) / y) * math.sin(cx) - (gy / (y * y)) * math.cos(cx)) / mcc[ii]
-            wv = min(max(wv, 0.0), 1.0)
-            acc += wt[ii] * wv * wv
-        kk = kj / kstar
-        d1 = (1.0 - math.exp(-kk * kk)) * (2.0 * Dv * kj ** 3 / (3.0 * pi)) * acc
         th = math.tanh(kj * sv / sqf)
-        d2 = pk_t[j] * kj ** 3 / (2.0 * pi * pi) * max(1.0 - fdamp * th * th, 0.0)
+        d2 = pk_t[j] * kj ** 3 / two_pi2 * max(1.0 - fdamp * th * th, 0.0)
+        if d2 <= 0.0:
+            break
+        kk = kj / kstar
+        d1ub = (1.0 - math.exp(-kk * kk)) * (2.0 * Dv * kj ** 3 / (3.0 * pi)) * total
+        if (d1ub / d2) ** alpha > 1.0e-13:
+            break
+        jc = j
+    tks = np.empty(nk)
+    for j in range(j0, nk):
+        tks[j] = lk[j] / FG_DU
+    acc = np.zeros(nk)
+    for ii in range(i_lo, i_hi + 1):
+        sd = sc[ii]
+        c1i = c1[ii]
+        ci = cc[ii]
+        imi = imcc[ii]
+        wi = wt[ii]
+        tzi = tz[ii]
+        tyi = ty[ii]
+        # W = 1 exactly while y = (1+c) x < 5e-3, i.e. for k below this cut: those acc entries are
+        # simply the quadrature weight, so the branch disappears from the k loop.
+        kcut = 5.0e-3 / (c1i * sd)
+        j = jc + 1
+        while j < nk and k[j] < kcut:
+            acc[j] += wi
+            j += 1
+        for j in range(j, nk):
+            kj = k[j]
+            x = kj * sd
+            y = c1i * x
+            tk = tks[j]
+            _, gx = _fg_tab(tk + tzi, x, ftab, gtab)
+            fy, gy = _fg_tab(tk + tyi, y, ftab, gtab)
+            ix = 1.0 / x
+            iy = 1.0 / y
+            cx = ci * x
+            # sin/cos of the same argument: LLVM emits one sincos with 'afn' in _FASTMATH
+            wv = (gx * (ix * ix) + (fy - 1.0) * iy * math.sin(cx) - gy * (iy * iy) * math.cos(cx)) * imi
+            if wv < 0.0:
+                wv = 0.0
+            elif wv > 1.0:
+                wv = 1.0
+            acc[j] += wi * wv * wv
+    for j in range(j0, nk):
+        kj = k[j]
+        th = math.tanh(kj * sv / sqf)
+        d2 = pk_t[j] * kj ** 3 / two_pi2 * max(1.0 - fdamp * th * th, 0.0)
+        if j <= jc:
+            out[j] = d2 * two_pi2 / kj ** 3
+            continue
+        kk = kj / kstar
+        d1 = (1.0 - math.exp(-kk * kk)) * (2.0 * Dv * kj ** 3 / (3.0 * pi)) * acc[j]
         dh = (d1 ** alpha + d2 ** alpha) ** inv_alpha
-        out[j] = dh * 2.0 * pi * pi / kj ** 3
+        out[j] = dh * two_pi2 / kj ** 3
     diag[0] = sig8
     diag[1] = sv
     diag[2] = sv100
