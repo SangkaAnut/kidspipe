@@ -330,3 +330,11 @@ and the KiDS-Legacy papers listed in `data/kids_legacy/RELEASE_README.txt` (the 
 The full acknowledgement statement is on the KiDS page <https://kids.strw.leidenuniv.nl/DR5/legacy_wl.php>; the release README additionally asks for
 "Based on observations made with ESO Telescopes at the La Silla Paranal Observatory under programme IDs 179.A-2004, 177.A-3016, 177.A-3017, 177.A-3018, 298.A-5015."
 For KV450 data cite Hildebrandt et al. 2020 (A&A 633, A69). If you use this code, mention the repository and its version.
+
+## Development & AI-assisted contributions
+
+Maintained by `SangkaAnut`. Parts of the implementation, optimisation, verification, and documentation were developed with AI coding assistants recorded in the git history:
+
+* **Claude**: baseline KV450, COSEBIs, KiDS-Legacy validation, and DR5 measurement pipeline, CAMB 2 / NumPy 2 compatibility, emulator artefacts, and the initial Limber `_fill_q` kernel restructure (`bf9f2cf`).
+* **Hermes Agent**: Pick B1 HMcode 1-halo inner-loop optimisation (`588df04`).
+* **Gemini (Google Antigravity)**: Track B2–B5 efficiency patches (Limber `_fill_q` v2 kernels, caches, and `Qt` buffer pool; stand-alone Numba background solver and cached Hermite `sigma8` operator; DR5 bounding-cap chunk pruning and streaming `mmap` loading; end-to-end vectorised batch evaluation and nested-sampler wiring), Track B integration onto `main`, and README updates.
