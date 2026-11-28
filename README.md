@@ -36,8 +36,9 @@ Extras (`pyproject.toml`): `samplers` (dynesty, nautilus, h5py), `measure` (tree
 The data files needed for KV450, COSEBIs and the KiDS-Legacy validation are in `data/` (see [data/README.md](data/README.md)); only the DR5 measurement needs a download.
 
 **Supported versions**: Python 3.10 - 3.13, numpy 1.26 or 2.x, CAMB 1.5.8 or 2.x (with the matching scipy / numba / astropy releases); details, the combinations that were
-tested and known differences between them: see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md). The numbers in this README were obtained on the development
-workstation (22 cores, WSL2) with Python 3.12, numpy 1.26, scipy 1.13, numba 0.59, camb 1.5.8, dynesty 2.1.4, nautilus 1.0.5.
+tested and known differences between them: see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md). The baseline numbers in `docs/PERFORMANCE.md` were obtained on the development
+workstation (22 cores, WSL2) with Python 3.12, numpy 1.26, scipy 1.13, numba 0.59, camb 1.5.8, dynesty 2.1.4, nautilus 1.0.5; the current efficiency/optimisation patch (`main`)
+has also been verified with Python 3.11 / 3.12, numpy 2.x, scipy 1.17, numba 0.68, camb 2.0.5, dynesty 3.1.0, and treecorr 5.1.4.
 
 ## Run in Google Colab
 
@@ -50,6 +51,7 @@ persistent outputs, and how to survive session limits are in [docs/COLAB.md](doc
 | [notebooks/01_kv450_inference.ipynb](notebooks/01_kv450_inference.ipynb) | KV450 xi+/- likelihood, MAP, MCMC / nested sampling at Colab-sized settings |
 | [notebooks/02_cosebis_and_legacy.ipynb](notebooks/02_cosebis_and_legacy.ipynb) | COSEBIs validation and the KiDS-Legacy comparison |
 | [notebooks/03_dr5_measurement.ipynb](notebooks/03_dr5_measurement.ipynb) | download the public DR5 catalogue, extract the per-bin files and run the measurement chain (resumable, on Drive) |
+| [notebooks/04_dr5_exact_colab_cli.ipynb](notebooks/04_dr5_exact_colab_cli.ipynb) | Option-B Colab CLI clone notebook for resumable DR5 exact continuation |
 
 The DR5 chain can also be driven from a terminal with `scripts/dr5_chain.py` (see [scripts/README.md](scripts/README.md)). The catalogue (16.4 GB, 7.2 GB gzipped) is downloaded from the
 public KiDS server; the per-bin extract (about 1.6 GB) and all run outputs should live on Drive (`KIDSPIPE_DR5_WORK`, `KIDSPIPE_RUNS`) because Colab sessions end after about 12 h (free) or 24 h (Pro).
@@ -69,12 +71,12 @@ With none of them set, the defaults below are used.
 | `KIDSPIPE_OFFICIAL` | official KiDS-Legacy release files used by the DR5 checks (`KiDS_Legacy_xipm.fits`, `KiDS_Legacy_cosebis.fits`, `cosmosis_xipm/`) | `<data>/kids_legacy` |
 | `KIDSPIPE_DR5_WORK` | per-bin extract of the DR5 shear catalogue (`bin0.npz` .. `bin5.npz`, about 1.6 GB) | `~/kids_dr5_work` |
 | `KIDSPIPE_DR5_CATALOGUE` | the DR5 shear catalogue `KiDS_Legacy_NS_unblind_final.fits` (16.4 GB) | `<dr5_work>/KiDS_Legacy_NS_unblind_final.fits` |
-| `KIDSPIPE_EMULATOR` | linear-transfer emulator artefact | `<data>/emulator/transfer_emulator_v1.npz` |
+| `KIDSPIPE_EMULATOR` | linear-transfer emulator artefact | auto-selected via `kidspipe.paths.emulator_artefact()`: `<data>/emulator/transfer_emulator_v1.npz` (CAMB 1.x) or `transfer_emulator_v1_camb2.npz` (CAMB 2.x) |
 | `KIDSPIPE_PLOTS` | figures written by the scripts (the clone's `plots/` holds the shipped references) | `<root>/plots` |
 
 `runs/` in the checkout holds the shipped reference results (see "Repository layout"); a result that you produce into `$KIDSPIPE_RUNS` is preferred over the shipped copy when
 a script or test needs an existing result as input (`kidspipe.paths.find_result`). Variables are read at call time, except module-level constants such as `kidspipe.measure.official.OFFICIAL`, which are fixed at import:
-set them before starting Python. Thread control (not part of `paths.py`): `OMP_NUM_THREADS` (CAMB), `NUMBA_NUM_THREADS` (numba ignores `OMP_NUM_THREADS`), see `docs/USAGE.md`.
+set them before starting Python. Thread control (not part of `paths.py`): `OMP_NUM_THREADS` (CAMB), `NUMBA_NUM_THREADS` (numba ignores `OMP_NUM_THREADS`), and `OPENBLAS_NUM_THREADS=1` (prevents pip OpenBLAS wheels from oversubscribing cores alongside Numba), see `docs/USAGE.md`.
 
 ## Repository layout
 
@@ -86,7 +88,7 @@ tests/            pytest suite (markers: slow, timing; see "Tests")
 data/             input data shipped with the repository (about 64 MB, see data/README.md)
 runs/             shipped reference results (KV450 chains, COSEBIs and Legacy validation, DR5 records and products: a curated subset, see .gitignore)
                   and, unless KIDSPIPE_RUNS points elsewhere, the outputs of your own runs
-notebooks/        Colab notebooks 00..03
+notebooks/        Colab notebooks 00..04
 docs/             documentation (see below)
 benchmarks/       timing and accuracy benchmarks (bench_pipeline.py, emulator validation)
 plots/            figures referenced by the docs
@@ -122,44 +124,76 @@ print(-2 * post.log_like(th))           # 196.10
 print(api.derived_for(post, th))        # {'sigma8': 0.70909, 'omega_m': 0.25030, 'S8': 0.64769}
 ```
 
+Batched evaluation (`M` parameter vectors at once) with the transfer emulator and vectorised nested sampling:
+
+```python
+import numpy as np
+from kidspipe import api, params
+from kidspipe.inference.nested import make_nested_functions
+
+post = api.build_posterior(api.build_model(linear_backend="emulator"))
+thetas = params.prior_transform(np.random.default_rng(0).uniform(size=(64, 14)))
+ll_batch = post.log_like_batch(thetas)  # vectorised model.mu_batch + likelihood + prior checks
+ll_fn, pt_fn, ndim = make_nested_functions(post, vectorized=True)
+```
+
+For in-process batched nested sampling with `nautilus`, see `scripts/run_kv450_nested.py --vectorized`.
 Full command reference: `docs/USAGE.md`. Interface decisions and deviations from the design document: `docs/interface_notes/`.
 Worker counts and chain lengths above are those used on the development workstation; scale `--workers` and `--worker-threads` to your machine (a free Colab runtime has 2 vCPUs).
 
 ## Architecture
 
 ```
-params.py              names, bounds, priors (flat + truncated Gaussian), prior_transform
+params.py              names, bounds, priors (flat + truncated Gaussian), scalar & vectorised prior_transform / in_bounds
+theory/background.py   stand-alone Numba flat-LCDM background solver compute_background (E(z), chi(z), Omega_m, omnuh2 for m_nu = 0.06 eV)
 theory/linear.py       CAMB wrapper, LRU cache on (omch2, ombh2, h); n_s and A_s are exact rescales -> sigma8, Omega_m, chi(z)
-theory/emulator.py     optional transfer-function emulator for (omch2, ombh2, h), exact-CAMB fallback outside its box (linear_backend="emulator")
-theory/hmcode.py       stand-alone numba HMcode-2016 P_nl(k, z) (backend "hmcode"); CAMB 'mead' is backend "camb"
-theory/nonlinear.py    backend dispatcher + high-k extension (spec s2.6)
+theory/emulator.py     optional transfer-function emulator for (omch2, ombh2, h), cached Hermite _Sigma8Operator, default Numba background
+                       (background_backend="numba"|"camb"), batched predict_batch / compute_batch, exact-CAMB fallback (linear_backend="emulator")
+theory/hmcode.py       stand-alone numba HMcode-2016 P_nl(k, z) (backend "hmcode"; 8-acc _dot, pre-split _fg_tab, hoisted halo loop, low-k skip)
+                       + batched hmcode_pnl_batch; CAMB 'mead' is backend "camb"
+theory/nonlinear.py    backend dispatcher, batched get_pnl_batch, and high-k extension (spec s2.6)
 theory/nz.py           KV450 n(z) and photo-z shifts
-theory/limber.py       lensing kernels, NLA intrinsic alignments, Limber C_ell (15 pairs)
-theory/hankel.py       C_ell -> xi+/- and theta binning; 'fast' = exact bin-averaged linear operator, 'kcap' = FFT + node-trapezoid
-theory/model.py        CosmicShearModel: theta -> pure 195-vector, three cached stages (below)
-likelihood/            data vector, cut covariance, c-term, m-bias; Cholesky chi2; adds delta_c^2 and A_c^2 c itself
-inference/             Posterior (blocks, stats), find_map + Hessian, blocked Metropolis / ensemble, nautilus / dynesty, chains
-api.py                 build_model / build_likelihood / build_posterior, presets, derived quantities (sigma8, Omega_m, S8)
+theory/limber.py       lensing kernels, NLA intrinsic alignments, Limber C_ell (15 pairs): zero-alloc pre-indexed _fill_q kernels with AVX2 _vexp1,
+                       lazy cubic stencils, refcount-guarded Qt buffer pool, LRU caches, plus batched limber_cl_batch
+theory/hankel.py       C_ell -> xi+/- and theta binning; 'fast' = exact bin-averaged linear operator, 'kcap' = FFT + node-trapezoid, + batch support
+theory/model.py        CosmicShearModel: theta -> pure 195-vector, three cached stages (below), plus batched mu_batch
+likelihood/            data vector, cut covariance, c-term, m-bias; Cholesky chi2 + batched log_like_batch; adds delta_c^2 and A_c^2 c itself
+inference/             Posterior (blocks, stats, log_like_batch, log_post_batch), find_map + Hessian, blocked Metropolis / ensemble,
+                       nautilus / dynesty (with vectorized=True support), chains
+measure/               DR5 xi+/- & COSEBIs measurement helpers (xi.py with mmap / column-selective load_bin, TreeCorr interface, binning)
+api.py                 build_model / build_likelihood / build_posterior (with nthreads forwarding), presets, derived quantities (sigma8, Omega_m, S8)
 cli.py, __main__.py    python -m kidspipe {check,loglike,map,mcmc,nested,bench}
 ```
 
-The model re-uses work according to which parameter moved:
+The model re-uses work according to which parameter moved. Pre-optimisation baseline costs per move (`runs/bench_t4.json`, 2026-10-25, prior to the Track B efficiency patches below):
 
-| block | parameters | what is recomputed | cost per move, exact CAMB* | with transfer emulator* |
+| block | parameters | what is recomputed | baseline cost per move, exact CAMB* | baseline with transfer emulator* |
 |---|---|---|---|---|
 | slow | omch2, ombh2, h (+ n_s, A_s, A_baryon in a joint move) | CAMB transfer function (+ everything below) | 0.58 s | 35 ms |
 | medium | n_s, ln_1e10_A_s, A_baryon | exact rescale of cached P_lin, new HMcode P_nl, Limber power look-up | 26 ms | 26 ms |
 | fast | A_IA, A_c, delta_c, dz1..dz5 | C_ell projection, Hankel/binning (linear operator), likelihood | 1.1 ms | 1.2 ms |
 
-\* Median wall-clock of `CosmicShearModel.mu` at a new point, `fast` fidelity + stand-alone HMcode, 150-node z grid, 4 CAMB/numba threads, from `benchmarks/bench_pipeline.py`
+\* Pre-optimisation median wall-clock of `CosmicShearModel.mu` at a new point, `fast` fidelity + stand-alone HMcode, 150-node z grid, 4 CAMB/numba threads, from `benchmarks/bench_pipeline.py`
 (`runs/bench_t4.json`, 2026-10-25 22:07, development workstation with 22 cores under WSL2; "quiet" is inferred from agreement with two further runs, the load was not logged). With one thread per process: slow 1.93 s (emulator: 76 ms), medium 65 ms (emulator: 64 ms), fast 1.3 ms.
 The likelihood alone costs 0.03-0.2 ms. The faithful `kcap` path (FFT Hankel + node-trapezoid binning + CAMB 'mead' non-linear, `--fidelity kcap --backend camb`) costs 1.1 s per slow move and ~0.5 s for every A_s / n_s / A_baryon move (CAMB re-runs its HMcode).
 Earlier figures (slow 0.78 s, medium 11-21 ms, fast 0.7-1.7 ms from `kidspipe bench`; 1.15 s / 72 ms for exact / emulated slow moves in the first emulator summary) were taken on the development workstation while other jobs were running (load average 20-30) and are 1.4-2x too high.
-The workstation was loaded again when this section was last checked (load 22): the same 1-thread benchmark ran 2.7-3.6x slower than the quiet set, so re-measure before quoting absolute times.
-Details, stage breakdown, thread scaling, accuracy cost of each step: **`docs/PERFORMANCE.md`**.
+The workstation was loaded again when `docs/PERFORMANCE.md` was written (load 22): the same 1-thread benchmark ran 2.7-3.6x slower than the quiet set, so re-measure before quoting absolute times.
+Details, baseline stage breakdown, thread scaling, and accuracy cost of each approximation step: **`docs/PERFORMANCE.md`**.
+
+### Efficiency & optimisation patches (current `main`)
+
+The current `main` branch integrates five performance/efficiency patches (Track B1-B5) on top of the 2026-10-25 baseline while preserving numerical equivalence:
+
+| patch | target & change | measured effect & equivalence |
+|---|---|---|
+| **B1** HMcode 1-halo loop | 8-accumulator deterministic `_dot`, pre-split `_fg_tab`, hoisted halo-node invariants, provable low-k skip (`theory/hmcode.py`) | ~1.9x faster HMcode 1-halo loop; `|dP/P| < 5e-14`; bit-identical across Numba thread counts |
+| **B2** Limber `_fill_q` | Pre-indexed zero-allocation kernels, AVX2 1-ulp `_vexp1`, lazy cubic stencils, refcount-guarded `Qt` pool, thread-safe LRU caches (`theory/limber.py`) | 1.74-1.94x faster `limber_power` (`2.14-2.67x` warm `set_power` at 4t); constant per-call NRT allocs; `< 1.3e-14` max rel diff on `Q` with identical zero masks |
+| **B3** Numba background & Hermite sigma8 | Stand-alone Numba flat-LCDM background solver (`theory/background.py`) and cached Hermite `_Sigma8Operator` (`theory/emulator.py`; default `background_backend="numba"` at `m_nu = 0.06 eV`, `"camb"` retained as diagnostic/fallback) | Cuts emulator background from ~1.2 ms (CAMB) to ~0.06 ms and removes 16-thread scaling regression; `|Delta chi2| < 1e-4` vs CAMB background |
+| **B4** DR5 chunk pruning & `mmap` | Conservative spherical bounding-cap pre-pruning (`--prune` / `--no-prune`, default on), uncompressed per-column `.npy` extraction (`--from-npz --uncompressed-dir`), streaming `--mmap` loading, and ref-counted TreeCorr `GField` cache release (`measure/xi.py`, `scripts/dr5_extract.py`, `scripts/dr5_measure_xi_chunked.py`) | Prunes 3,234 / 4,656 (69.5%) analytically zero chunk pairs (0 false positives across all 21 DR5 pairs); bitwise identical TreeCorr inputs and outputs (`np.array_equal` at 1t) |
+| **B5** Vectorised batch evaluation | End-to-end batched `mu_batch` / `log_like_batch` / `log_post_batch`, `(omch2, ombh2, h)` batch deduplication, unified `hmcode_pnl_batch` (with B1) and `compute_batch` (with B3), vectorised `prior_transform`, `run_dynesty` / `run_nautilus` (`vectorized=True`), and `scripts/run_kv450_nested.py --vectorized` | Cold uncached Config `iii` (`M=64`): `1.89x` throughput speedup at 16 threads (`20.72` vs `10.94 eval/s`, scalar vs batch in one Python process; `1.22x` at 8t); matches scalar `log_like` to `<= 1.2e-15` rel (`mu` within `rtol <= 1e-13` away from `J_0` zero-crossings, `<= 7.6e-19` abs) |
 
 The emulator (`CosmicShearModel(linear_backend="emulator")` or `api.build_posterior(linear_backend="emulator")`; **not exposed by the CLI**) replaces the CAMB run by a PCA + polynomial/Gaussian-process
-regression trained on 1435 CAMB runs inside the box omch2 [0.03, 0.34], ombh2 [0.019, 0.026], h [0.64, 0.82] (m_nu = 0.06 eV); outside the box it falls back to exact CAMB with bit-identical results (counter `model.linear.stats["fallback"]`).
+regression trained on 1435 CAMB runs inside the box omch2 [0.03, 0.34], ombh2 [0.019, 0.026], h [0.64, 0.82] (m_nu = 0.06 eV), paired with the default stand-alone Numba background solver (`background_backend="numba"`); outside the box (or for custom `m_nu != 0.06`) it falls back to exact CAMB with bit-identical results (counter `model.linear.stats["fallback"]`).
 Re-verified on 30 fresh points: max |Delta chi2| vs exact CAMB 0.004 (max relative difference of mu 1.4e-4); P_lin error vs dense-sampling CAMB <= 1.3e-3 for k_h < 10, z <= 3
 (but 6.5e-3 against CAMB's own default k sampling at the low-omch2 / high-ombh2 corner around k_h ~ 0.5, an artefact of CAMB's nodes). The KV450 omch2 prior is [0.01, 0.99], so only 32 % of its volume is inside the box.
 The `fast` exact bin-averaging differs from the `kcap` binning by up to 0.35 in chi2 for chi2 < 230 (1.2 at chi2 ~ 370); that is a numerical choice, not emulator error (the emulator contributes <= 0.007 over the same 20 points).
@@ -226,9 +260,10 @@ plus a CAMB-priced early phase, because only 32 % of the omch2 prior lies inside
 * **CAMB is the bottleneck of the default (exact) path**: any change of omch2, ombh2 or h needs a new Boltzmann run (0.55 s with 4 threads on the quiet workstation, 1.9 s with one
   thread; 0.8-2.8 s on the loaded, shared development workstation). A blocked chain therefore does about one expensive move per cycle; a converged 14-parameter chain takes hours on the development workstation.
   Nested sampling treats every point as a new cosmology (no cache reuse). An optional transfer-function emulator for
-  (omch2, ombh2, h) exists (`CosmicShearModel(linear_backend='emulator')`, `src/kidspipe/theory/emulator.py`, artefact `data/emulator/transfer_emulator_v1.npz`;
-  exact-CAMB fallback outside its box; Python API only, not wired into the `kidspipe` CLI; validation in `runs/validate_emulator_pipeline*.json`, `docs/REVIEW.md` and `docs/PERFORMANCE.md` section 6).
-  It is an approximation (|Delta chi2| 0.004 at worst on 30 fresh points), covers 32 % of the omch2 prior, and an emulator-based chain has not been compared with a CAMB-based chain in its posterior.
+  (omch2, ombh2, h) exists (`CosmicShearModel(linear_backend='emulator')`, `src/kidspipe/theory/emulator.py`, artefacts `data/emulator/transfer_emulator_v1.npz` for CAMB 1.x and `transfer_emulator_v1_camb2.npz` for CAMB 2.x;
+  default Numba background solver via `src/kidspipe/theory/background.py` with `background_backend='camb'` fallback and exact-CAMB transfer fallback outside its box;
+  batched `mu_batch` / `log_like_batch` and vectorized nested sampling via Python API and `scripts/run_kv450_nested.py --vectorized`, not wired into the `kidspipe` CLI; validation in `runs/validate_emulator_pipeline*.json`, `docs/REVIEW.md` and `docs/PERFORMANCE.md` section 6).
+  It is an approximation (|Delta chi2| 0.004 at worst on 30 fresh points for the emulator, plus < 1e-4 from the Numba background solver), covers 32 % of the omch2 prior, and an emulator-based chain has not been compared with a CAMB-based chain in its posterior.
 * **MAP**: the finite-difference gradient needs 3 CAMB runs per gradient evaluation; `map` first optimises the cheap 11 parameters with
   omch2/ombh2/h frozen. The single-start result above sits on three prior boundaries (a long sigma8-Omega_m degeneracy is open towards the box edge), so
   the Hessian there is one-sided and is not used as proposal covariance by `mcmc` (it says so). One start does not prove a global maximum; use `--starts`.
@@ -248,7 +283,7 @@ plus a CAMB-priced early phase, because only 32 % of the omch2 prior lies inside
 pytest -q -m "not slow"          # or: PYTHONPATH=src python3 -m pytest -q -m "not slow"
 ```
 
-`tests/test_e2e.py` holds the spec-anchor, cache-correctness, fidelity/backend, robustness and CLI tests; the nested-sampler CLI smoke tests,
+`tests/test_e2e.py` holds the spec-anchor, cache-correctness, fidelity/backend, robustness and CLI tests; `tests/test_batch_vectorized.py` covers the vectorised batch pipeline (`mu_batch`, `log_like_batch`, `hmcode_pnl_batch`, and vectorised nested-sampler wiring); the nested-sampler CLI smoke tests,
 the ensemble and the multi-process CLI tests are marked `slow`. Tests marked `timing` assert wall-clock speed and are skipped unless
 `KIDSPIPE_TIMING_TESTS=1` is set or the machine has at least 16 cores (`KIDSPIPE_TIMING_TESTS=0` skips them); tolerances are never loosened for slow machines. Tests that need the DR5 products or release files skip when those are absent.
 
@@ -265,7 +300,8 @@ filters, timing): see [docs/KIDS_LEGACY_VALIDATION.md](docs/KIDS_LEGACY_VALIDATI
 
 The chain (extraction of the public catalogue to per-bin float64 files, TreeCorr xi+/- with `bin_slop` 1.5 and the exact `bin_slop` 0 run, COSEBIs from xi+/-, comparison with the official KiDS-Legacy
 vectors, gates and their outcomes) is documented in [docs/DR5_MEASUREMENT_REPORT.md](docs/DR5_MEASUREMENT_REPORT.md), including the findings and open items; the recorded state is in `runs/dr5_measure/RESUME.md`.
-Run it with `scripts/dr5_chain.py` ([scripts/README.md](scripts/README.md)) or from `notebooks/03_dr5_measurement.ipynb`. Only the core chain is meant to be re-run; the many other `scripts/dr5_*.py` are
+With Track B4 merged, `scripts/dr5_measure_xi_chunked.py` enables conservative bounding-cap chunk-pair pruning by default (`--prune` / `--no-prune`, skipping 3,234 / 4,656 empty chunk pairs) and supports read-only `mmap` loading (`--mmap`) over uncompressed per-column `.npy` directories produced by `scripts/dr5_extract.py --from-npz --uncompressed-dir ...`.
+Run it with `scripts/dr5_chain.py` ([scripts/README.md](scripts/README.md)) or from `notebooks/03_dr5_measurement.ipynb` / `notebooks/04_dr5_exact_colab_cli.ipynb`. Only the core chain is meant to be re-run; the many other `scripts/dr5_*.py` are
 the one-off investigations behind the report and are kept for the record (some read data of an earlier pipeline that is not shipped).
 
 ## Data sources
@@ -285,7 +321,7 @@ This repository is private and carries no open-source licence file; it is not li
   its data providers and are redistributed here for reproducibility of the analysis. Their use is governed by the terms stated by KiDS at <https://kids.strw.leidenuniv.nl/DR5/legacy_wl.php> and in `data/kids_legacy/RELEASE_README.txt`. If you make this repository public or share it, check that these terms permit it.
 * **The DR5 catalogue is not included** and must be downloaded by each user from the KiDS server.
 * **Third-party software** is installed from PyPI at install time (CAMB, TreeCorr, numpy, scipy, numba, astropy, dynesty, nautilus-sampler, ...), each under its own licence. The KiDS kcap code (<https://github.com/KiDS-WL/kcap>) is **not** part of this repository.
-* **Our own material**: the source code in `src/`, `scripts/`, `tests/`, `benchmarks/`, the documentation, and the emulator artefact `data/emulator/transfer_emulator_v1.npz` (trained on CAMB runs).
+* **Our own material**: the source code in `src/`, `scripts/`, `tests/`, `benchmarks/`, the documentation, and the emulator artefacts `data/emulator/transfer_emulator_v1.npz` and `data/emulator/transfer_emulator_v1_camb2.npz` (trained on CAMB runs).
 
 ## Acknowledging KiDS
 
