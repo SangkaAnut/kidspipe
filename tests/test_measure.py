@@ -896,3 +896,227 @@ def test_assemble_refuses_to_mix_slop_settings(chunk_case, drv, monkeypatch, tmp
     assert float(out["angle_slop"]) == 0.02
     out0 = np.load(_assemble(drv, chunk_case["root"], K, monkeypatch) / "Bin1_Bin1.npz")
     assert "angle_slop" not in out0.files
+
+
+# --------------------------------------------------------------------------------------------- Prompt 09: mmap, pruning, field cache
+def _load_extract_script():
+    spec = importlib.util.spec_from_file_location("dr5_extract", ROOT / "scripts" / "dr5_extract.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_load_bin_mmap_matches_npz(tmp_path):
+    """mmap=True reads bin{b-1}/*.npy read-only memmaps matching bin{b-1}.npz bit-for-bit."""
+    ext = _load_extract_script()
+    npz_dir = tmp_path / "npz"
+    u_dir = tmp_path / "uncompressed"
+    npz_dir.mkdir()
+    rng = np.random.default_rng(42)
+    for k in range(6):
+        n = 12 + 3 * k
+        np.savez(
+            npz_dir / f"bin{k}.npz",
+            ra=rng.uniform(0.0, 360.0, n),
+            dec=rng.uniform(-35.0, 5.0, n),
+            e1=rng.normal(0.0, 0.25, n),
+            e2=rng.normal(0.0, 0.25, n),
+            w=rng.uniform(0.2, 2.0, n),
+            north=(rng.random(n) > 0.5),
+        )
+    ext.convert_npz_to_uncompressed(npz_dir, u_dir)
+
+    for b in range(1, 7):
+        d_npz = xim_mod.load_bin(b, work=npz_dir, mmap=False)
+        d_mm = xim_mod.load_bin(b, work=u_dir, mmap=True)
+        assert set(d_npz) == set(d_mm)
+        for col in d_npz:
+            assert isinstance(d_mm[col], np.memmap)
+            assert not d_mm[col].flags.writeable
+            np.testing.assert_array_equal(d_mm[col], d_npz[col])
+        sub = xim_mod.load_bin(b, work=u_dir, mmap=True, columns=("ra", "dec"))
+        assert set(sub) == {"ra", "dec"}
+        np.testing.assert_array_equal(sub["ra"], d_npz["ra"])
+
+    with pytest.raises(FileNotFoundError):
+        xim_mod.load_bin(1, work=tmp_path / "absent", mmap=True)
+
+
+def test_dr5_extract_uncompressed_cli_preserves_npz(tmp_path):
+    """--from-npz --uncompressed-dir converts requested bins without altering existing bin*.npz files."""
+    import hashlib
+    import subprocess
+
+    npz_dir = tmp_path / "npz"
+    u_dir = tmp_path / "u"
+    npz_dir.mkdir()
+    _bin_files(npz_dir)
+
+    before_digest = {
+        p.name: (hashlib.md5(p.read_bytes()).hexdigest(), p.stat().st_mtime_ns)
+        for p in sorted(npz_dir.glob("bin*.npz"))
+    }
+    subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "dr5_extract.py"),
+            "--out", str(npz_dir),
+            "--uncompressed-dir", str(u_dir),
+            "--from-npz",
+            "--bins", "1,6",
+        ],
+        check=True,
+    )
+    assert (u_dir / "bin0" / "ra.npy").is_file()
+    assert (u_dir / "bin5" / "w.npy").is_file()
+    for middle in range(1, 5):
+        assert not (u_dir / f"bin{middle}").exists()
+
+    for b in (1, 6):
+        ref = xim_mod.load_bin(b, work=npz_dir, mmap=False)
+        got = xim_mod.load_bin(b, work=u_dir, mmap=True)
+        for col in ref:
+            np.testing.assert_array_equal(got[col], ref[col])
+
+    after_digest = {
+        p.name: (hashlib.md5(p.read_bytes()).hexdigest(), p.stat().st_mtime_ns)
+        for p in sorted(npz_dir.glob("bin*.npz"))
+    }
+    assert after_digest == before_digest
+
+
+def test_load_pair_cats_mmap_and_needed_subset(drv, tmp_path):
+    """Streaming mmap load_pair_cats builds only needed chunks and gives bitwise-identical TreeCorr outputs."""
+    ext = _load_extract_script()
+    npz_dir = tmp_path / "npz"
+    u_dir = tmp_path / "u"
+    npz_dir.mkdir()
+    r1 = lens_field(300, 4.0, seed=101, ra0=150.0)
+    r2 = lens_field(320, 4.0, seed=102, ra0=150.0)
+    np.savez(npz_dir / "bin0.npz", **r1)
+    np.savez(npz_dir / "bin1.npz", **r2)
+    ext.convert_npz_to_uncompressed(npz_dir, u_dir, bins=[0, 1])
+
+    c1_full, c2_full = drv.load_pair_cats(1, 2, 3, {}, mmap=False, work=npz_dir)
+    cache_mm = {}
+    c1_sub, c2_sub = drv.load_pair_cats(1, 2, 3, cache_mm, mmap=True, work=u_dir, needed={1: {0}, 2: {2}})
+    assert c1_sub[0] is not None and c1_sub[1] is None and c1_sub[2] is None
+    assert c2_sub[2] is not None and c2_sub[0] is None and c2_sub[1] is None
+
+    ref = xim_mod.corr_to_arrays(xim_mod.run_pair(c1_full[0], c2_full[2], nbins=NB, bin_slop=0.0, num_threads=1, angle_slop=0.0))
+    got = xim_mod.corr_to_arrays(xim_mod.run_pair(c1_sub[0], c2_sub[2], nbins=NB, bin_slop=0.0, num_threads=1, angle_slop=0.0))
+    np.testing.assert_array_equal(got["npairs"], ref["npairs"])
+    for k in ("weight", "meanr", "xip", "xim", "varxi"):
+        np.testing.assert_array_equal(got[k], ref[k])
+
+
+def test_bounding_cap_pruning_and_manifest_assembly(drv, tmp_path, monkeypatch, capsys):
+    """Conservative cap prune skips distant pairs, handles RA=0/360 wraparound, and assembles identically."""
+    import json
+    import shutil
+
+    # Wraparound sanity: 359.9 deg and 0.1 deg are 0.2 deg apart (12 arcmin < 300'), MUST NOT skip!
+    cap_a = drv.bounding_cap_rad(np.deg2rad([359.85, 359.95]), np.deg2rad([0.0, 0.0]))
+    cap_b = drv.bounding_cap_rad(np.deg2rad([0.05, 0.15]), np.deg2rad([0.0, 0.0]))
+    assert not drv.can_skip_pair(cap_a, cap_b)
+    # Antipodal degenerate points still produce a valid cap, and empty caps are skipped
+    cap_anti = drv.bounding_cap_rad(np.deg2rad([0.0, 180.0]), np.deg2rad([0.0, 0.0]))
+    assert cap_anti["radius_rad"] >= np.pi / 2 - 1e-12
+    assert drv.can_skip_pair(drv.bounding_cap_rad([], []), cap_b)
+
+    ext = _load_extract_script()
+    npz_dir = tmp_path / "npz"
+    u_dir = tmp_path / "u"
+    npz_dir.mkdir()
+    patch1 = lens_field(240, 2.0, seed=111, ra0=10.0)
+    patch2 = lens_field(240, 2.0, seed=112, ra0=35.0)
+    rec = {k: np.concatenate([patch1[k], patch2[k]]) for k in ("ra", "dec", "e1", "e2", "w")}
+    np.savez(npz_dir / "bin0.npz", **rec)
+    ext.convert_npz_to_uncompressed(npz_dir, u_dir, bins=[0])
+
+    # Run --prune --mmap and --no-prune --no-mmap via CLI main()
+    out_pruned = tmp_path / "out_pruned"
+    out_full = tmp_path / "out_full"
+    orig_outroot = drv.OUTROOT
+    try:
+        monkeypatch.setattr(drv, "OUTROOT", out_full)
+        monkeypatch.setattr(sys, "argv", [
+            "drv", "--nchunks", "4", "--pairs", "1-1", "--nbins", str(NB),
+            "--bin-slop", "0.0", "--angle-slop", "0.0", "--threads", "1",
+            "--no-prune", "--no-mmap", "--work", str(npz_dir),
+        ])
+        drv.main()
+
+        monkeypatch.setattr(drv, "OUTROOT", out_pruned)
+        monkeypatch.setattr(sys, "argv", [
+            "drv", "--nchunks", "4", "--pairs", "1-1", "--nbins", str(NB),
+            "--bin-slop", "0.0", "--angle-slop", "0.0", "--threads", "1",
+            "--prune", "--mmap", "--work", str(u_dir),
+        ])
+        drv.main()
+
+        manifest = json.loads((out_pruned / "manifest.json").read_text())
+        assert manifest["prune_zero_pairs"] is True
+        assert manifest["mmap"] is True
+        zero_list = [tuple(x) for x in manifest["analytically_zero_pairs"]["Bin1_Bin1"]]
+        assert len(zero_list) >= 4
+        assert manifest["chunk_pairs_analytically_zero"] == len(zero_list)
+        for (a, b) in zero_list:
+            assert not (out_pruned / "chunks" / "Bin1_Bin1" / f"c{a:02d}_{b:02d}.npz").exists()
+            with np.load(out_full / "chunks" / "Bin1_Bin1" / f"c{a:02d}_{b:02d}.npz") as zf:
+                assert float(np.sum(zf["npairs"])) == 0.0
+
+        # --status reports cleanly on pruned tree
+        monkeypatch.setattr(sys, "argv", ["drv", "--status", "--nchunks", "4"])
+        drv.main()
+        assert "Bin1_Bin1" in capsys.readouterr().out
+
+        # Assemble both and confirm exact agreement
+        monkeypatch.setattr(drv, "OUTROOT", out_full)
+        drv.do_assemble(argparse.Namespace(nchunks=4))
+        monkeypatch.setattr(drv, "OUTROOT", out_pruned)
+        drv.do_assemble(argparse.Namespace(nchunks=4))
+
+        a_full = np.load(out_full / "assembled" / "ns" / "Bin1_Bin1.npz")
+        a_pruned = np.load(out_pruned / "assembled" / "ns" / "Bin1_Bin1.npz")
+        np.testing.assert_array_equal(a_pruned["npairs"], a_full["npairs"])
+        for k in ("weight", "meanr", "xip", "xim", "varxi"):
+            np.testing.assert_allclose(a_pruned[k], a_full[k], rtol=1e-14, atol=0.0)
+
+        # Removing one active file makes --assemble refuse with INCOMPLETE
+        inc = tmp_path / "incomplete"
+        shutil.copytree(out_pruned, inc)
+        first_active = sorted((inc / "chunks" / "Bin1_Bin1").glob("c*.npz"))[0]
+        first_active.unlink()
+        (inc / "assembled" / "ns" / "Bin1_Bin1.npz").unlink()
+        monkeypatch.setattr(drv, "OUTROOT", inc)
+        capsys.readouterr()
+        drv.do_assemble(argparse.Namespace(nchunks=4))
+        assert "INCOMPLETE" in capsys.readouterr().out
+        assert not (inc / "assembled" / "ns" / "Bin1_Bin1.npz").exists()
+    finally:
+        drv.OUTROOT = orig_outroot
+
+
+def test_treecorr_gfield_cached_on_catalog(small):
+    """TreeCorr 5.1.4 caches GField on Catalog across repeated run_pair calls with the same parameters."""
+    other = lens_field(220, 2.0, seed=99)
+    c0 = xim_mod.make_treecorr_cat(small, flip_g2=True)
+    c1 = xim_mod.make_treecorr_cat(other, flip_g2=True)
+    builds = []
+    orig_init = treecorr.GField.__init__
+
+    def spy_init(self, *args, **kwargs):
+        builds.append(id(args[0]) if args else None)
+        return orig_init(self, *args, **kwargs)
+
+    treecorr.GField.__init__ = spy_init
+    try:
+        xim_mod.run_pair(c0, c0, nbins=NB, bin_slop=0.0, num_threads=THREADS, angle_slop=0.0)
+        assert len(builds) == 1
+        xim_mod.run_pair(c0, c1, nbins=NB, bin_slop=0.0, num_threads=THREADS, angle_slop=0.0)
+        assert len(builds) == 2
+        xim_mod.run_pair(c0, c1, nbins=NB, bin_slop=0.0, num_threads=THREADS, angle_slop=0.0)
+        assert len(builds) == 2
+    finally:
+        treecorr.GField.__init__ = orig_init
