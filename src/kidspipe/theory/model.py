@@ -19,12 +19,13 @@ from collections import OrderedDict
 
 import numpy as np
 
-from ..likelihood.data import assemble_vector
-from ..params import PARAM_NAMES
-from .hankel import HankelBinner
-from .limber import Limber, default_ell
+from ..likelihood.data import N_DATA, assemble_vector
+from ..params import N_PARAM, PARAM_NAMES
+from .hankel import _PI, _PJ, HankelBinner
+from .hmcode import hmcode_pnl_batch
+from .limber import Limber, _build_limber_batch_fast, _eval_cl_batch_fast, default_ell
 from .linear import LinearBackend, Z_GRID_REDUCED, Z_GRID_SPEC
-from .nonlinear import extend_high_k, get_pnl
+from .nonlinear import eta_baryon, extend_high_k, extend_high_k_batch, get_pnl
 from .nz import load_nz
 
 _IDX = {n: i for i, n in enumerate(PARAM_NAMES)}
@@ -137,6 +138,260 @@ class CosmicShearModel:
         t2 = time.perf_counter()
         self.t["limber_cl"] += t1 - t0
         self.t["hankel"] += t2 - t1
+        return out
+
+    def _make_limber_from_block(self, lin, lim_blk: dict, b_idx: int) -> Limber:
+        """Materialize a :class:`Limber` object from a precomputed batch block for ``_stage2`` caching."""
+        lim = Limber(self.ell, fidelity=self.fidelity, n_nodes=self._n_nodes)
+        lim.omega_m = float(lin.omega_m)
+        lim.s = float(lim_blk["s_b"][b_idx])
+        lim.z_max = float(lim_blk["z_max"])
+        lim._zf = lim_blk["zf"]
+        lim._chif = lim_blk["chif_b"][b_idx]
+        lim.z = lim_blk["z_nodes"]
+        lim.dz = float(lim_blk["dz"])
+        lim.chi = lim_blk["chi_b"][b_idx]
+        lim.dchidz = lim_blk["dchidz_b"][b_idx]
+        lim.w = lim_blk["w_nodes"]
+        lim.inv_chi = lim_blk["inv_chi_b"][b_idx]
+        lim.D = lim_blk["D_b"][b_idx]
+        lim.Qt = lim_blk["Qt_b"][b_idx].copy()
+        lim._nz_cache = None
+        lim._ready = True
+        lim.set_nz_grid(self.nz.z)
+        return lim
+
+    def mu_batch(self, thetas, *, block_size: int = 32, limber_block_size: int = 16) -> np.ndarray:
+        """Batched binned theory vectors ``(M, 195)`` for ``thetas`` of shape ``(M, 14)`` or ``(14,)``.
+
+        De-duplicates rows by stage-2 key ``(omch2, ombh2, h, n_s, ln_1e10_A_s, A_baryon)``, runs
+        batched linear emulation, batched HMcode ``prange(B * nz)``, batched Limber ``Qt``/``C_ell``
+        in blocks of ``limber_block_size`` to bound memory, and one BLAS-3 Hankel matmul.
+        Thread-safe and eviction-safe: entries required inside the batch are pinned locally so
+        ``cache_size`` eviction never drops an entry still needed by another row of the same batch.
+        """
+        th = np.asarray(thetas, dtype=np.float64)
+        if th.ndim == 1:
+            if th.size != N_PARAM:
+                raise ValueError(f"mu_batch expects shape (M, {N_PARAM}), got {th.shape}")
+            th = th[None, :]
+        elif th.ndim != 2 or th.shape[1] != N_PARAM:
+            raise ValueError(f"mu_batch expects shape (M, {N_PARAM}), got {th.shape}")
+        m = th.shape[0]
+        if m == 0:
+            return np.empty((0, N_DATA), dtype=np.float64)
+
+        # 1. De-duplicate stage-2 keys and photo-z shifts across rows
+        s2_keys: list[tuple] = []
+        s2_index: dict[tuple, int] = {}
+        row_s2 = np.empty(m, dtype=np.int64)
+        row_dz: list[tuple] = []
+        unique_dz: dict[tuple, np.ndarray] = {}
+
+        for r in range(m):
+            key = tuple(float(th[r, i]) for i in _I_COSMO) + (float(th[r, _I_ABARY]),)
+            uid = s2_index.get(key)
+            if uid is None:
+                uid = len(s2_keys)
+                s2_index[key] = uid
+                s2_keys.append(key)
+            row_s2[r] = uid
+            dz = tuple(float(th[r, i]) for i in _I_DZ)
+            row_dz.append(dz)
+            if dz not in unique_dz:
+                unique_dz[dz] = None  # type: ignore[assignment]
+
+        # 2. Check existing stage-2 and n(z) caches into local dicts (eviction-proof)
+        u_total = len(s2_keys)
+        cached_s2: dict[int, tuple[Limber, dict]] = {}
+        miss_uids: list[int] = []
+        with self._lock:
+            for uid, key in enumerate(s2_keys):
+                hit = self._stage2.get(key)
+                if hit is not None:
+                    self._stage2.move_to_end(key)
+                    cached_s2[uid] = hit
+                else:
+                    miss_uids.append(uid)
+            for dz in list(unique_dz):
+                nzs = self._wc.get(dz)
+                if nzs is not None:
+                    unique_dz[dz] = nzs
+        for dz, val in list(unique_dz.items()):
+            if val is None:
+                unique_dz[dz] = self.nz.shifted(np.array(dz))
+
+        # Group row indices by stage-2 uid
+        uid_rows: list[list[int]] = [[] for _ in range(u_total)]
+        for r in range(m):
+            uid_rows[int(row_s2[r])].append(r)
+
+        nell = self.ell.size
+        n_pair = _PJ.size
+        C15_all = np.empty((m, n_pair, nell), dtype=np.float64)
+        derived_by_uid: dict[int, dict] = {uid: cached_s2[uid][1] for uid in cached_s2}
+        new_cache_entries: dict[int, tuple[tuple, Limber, dict]] = {}
+
+        # 3. Evaluate cached stage-2 hits
+        t_cl_acc = 0.0
+        for uid, (lim, _der) in cached_s2.items():
+            t0 = time.perf_counter()
+            for r in uid_rows[uid]:
+                C = lim.cl(unique_dz[row_dz[r]], float(th[r, _I_AIA]))
+                C15_all[r] = C[_PJ, _PI]
+            t_cl_acc += time.perf_counter() - t0
+
+        # 4. Compute missing unique cosmologies in batch
+        if miss_uids:
+            miss_cosmo_5 = np.array([s2_keys[uid][:5] for uid in miss_uids], dtype=np.float64)
+            miss_ab = np.array([s2_keys[uid][5] for uid in miss_uids], dtype=np.float64)
+            t0 = time.perf_counter()
+            if hasattr(self.linear, "compute_batch"):
+                lins = self.linear.compute_batch(miss_cosmo_5)
+            else:
+                lins = [self.linear.compute(*row) for row in miss_cosmo_5]
+            t1 = time.perf_counter()
+
+            # Stage 2a: P_nl
+            n_miss = len(miss_uids)
+            pnls: list[np.ndarray] = [None] * n_miss  # type: ignore[list-item]
+            if self.pnl_backend == "hmcode":
+                groups: dict[tuple[int, int], list[int]] = {}
+                for j, lin in enumerate(lins):
+                    gk = (lin.k_h.size, lin.z.size)
+                    groups.setdefault(gk, []).append(j)
+                for _gk, idxs in groups.items():
+                    k_b = np.stack([lins[j].k_h for j in idxs])
+                    pk_b = np.stack([lins[j].pk_lin for j in idxs])
+                    pcb_b = np.stack([lins[j].pk_cb for j in idxs])
+                    om_b = np.array([lins[j].omega_m for j in idxs], dtype=np.float64)
+                    fnu_b = np.array([lins[j].omega_nu_frac for j in idxs], dtype=np.float64)
+                    h_b = np.array([lins[j].h for j in idxs], dtype=np.float64)
+                    ns_b = np.array([lins[j].n_s for j in idxs], dtype=np.float64)
+                    ab_b = np.array([miss_ab[j] for j in idxs], dtype=np.float64)
+                    eta_b = np.array([eta_baryon(miss_ab[j]) for j in idxs], dtype=np.float64)
+                    out_pnl = hmcode_pnl_batch(
+                        lins[idxs[0]].z, k_b, pk_b, om_b, fnu_b, h_b, ns_b, ab_b, eta_b,
+                        pk_cb_batch=pcb_b, block_size=block_size,
+                    )
+                    for pos, j in enumerate(idxs):
+                        pnls[j] = out_pnl[pos]
+            else:
+                for j, lin in enumerate(lins):
+                    pnls[j] = get_pnl(lin, float(miss_ab[j]), backend=self.pnl_backend)
+            t2 = time.perf_counter()
+
+            keep_start = max(0, n_miss - self._cache_size) if self._cache_size > 0 else n_miss
+            for j, uid in enumerate(miss_uids):
+                lin = lins[j]
+                derived_by_uid[uid] = {"sigma8": lin.sigma8_0, "omega_m": lin.omega_m, "S8": lin.S8}
+
+            # Stage 2b/2c + Stage 3 in bounded Limber blocks
+            t_lim_pow = 0.0
+            if self.fidelity == "fast":
+                fast_groups: dict[tuple[int, int, int], list[int]] = {}
+                scalar_idxs: list[int] = []
+                for j, lin in enumerate(lins):
+                    if lin.k_h.size >= 4:
+                        fk = (lin.k_h.size, lin.z.size, lin.z_chi.size)
+                        fast_groups.setdefault(fk, []).append(j)
+                    else:
+                        scalar_idxs.append(j)
+
+                lbs = max(1, int(limber_block_size))
+                qt_buf = np.empty((min(n_miss, lbs), self._n_nodes, nell), dtype=np.float64)
+                for _fk, idxs in fast_groups.items():
+                    z_tab = lins[idxs[0]].z_chi
+                    z_pk = lins[idxs[0]].z
+                    for s in range(0, len(idxs), lbs):
+                        blk_js = idxs[s:s + lbs]
+                        tp0 = time.perf_counter()
+                        k_b = np.stack([lins[j].k_h for j in blk_js])
+                        pnl_b = np.stack([pnls[j] for j in blk_js])
+                        k_ext_b, pnl_ext_b = extend_high_k_batch(k_b, pnl_b)
+                        chi_tab_b = np.stack([lins[j].chi for j in blk_js])
+                        om_b = np.array([lins[j].omega_m for j in blk_js], dtype=np.float64)
+                        lim_blk = _build_limber_batch_fast(
+                            chi_tab_b, z_tab, om_b, z_pk, k_ext_b, pnl_ext_b,
+                            self.ell, n_nodes=self._n_nodes, Qt_buf=qt_buf,
+                        )
+                        tp1 = time.perf_counter()
+                        t_lim_pow += tp1 - tp0
+
+                        blk_rows: list[int] = []
+                        blk_cids: list[int] = []
+                        for b_idx, j in enumerate(blk_js):
+                            uid = miss_uids[j]
+                            if j >= keep_start:
+                                lim_obj = self._make_limber_from_block(lins[j], lim_blk, b_idx)
+                                new_cache_entries[uid] = (s2_keys[uid], lim_obj, derived_by_uid[uid])
+                            for r in uid_rows[uid]:
+                                blk_rows.append(r)
+                                blk_cids.append(b_idx)
+
+                        if blk_rows:
+                            tc0 = time.perf_counter()
+                            nzs_b = np.stack([unique_dz[row_dz[r]] for r in blk_rows])
+                            a_ia_b = np.array([float(th[r, _I_AIA]) for r in blk_rows], dtype=np.float64)
+                            c15_blk = np.empty((len(blk_rows), n_pair, nell), dtype=np.float64)
+                            _eval_cl_batch_fast(
+                                lim_blk, np.asarray(blk_cids, dtype=np.int64), nzs_b,
+                                self.nz.z, a_ia_b, om_b, c15_blk,
+                            )
+                            C15_all[blk_rows] = c15_blk
+                            t_cl_acc += time.perf_counter() - tc0
+            else:
+                scalar_idxs = list(range(n_miss))
+
+            for j in scalar_idxs:
+                uid = miss_uids[j]
+                lin = lins[j]
+                tp0 = time.perf_counter()
+                k_ext, pnl_ext = extend_high_k(lin.k_h, pnls[j])
+                lim = Limber(self.ell, fidelity=self.fidelity, n_nodes=self._n_nodes)
+                lim.set_power(lin.chi, lin.z_chi, lin.omega_m, lin.z, k_ext, pnl_ext)
+                lim.set_nz_grid(self.nz.z)
+                t_lim_pow += time.perf_counter() - tp0
+                if j >= keep_start:
+                    new_cache_entries[uid] = (s2_keys[uid], lim, derived_by_uid[uid])
+                tc0 = time.perf_counter()
+                for r in uid_rows[uid]:
+                    C = lim.cl(unique_dz[row_dz[r]], float(th[r, _I_AIA]))
+                    C15_all[r] = C[_PJ, _PI]
+                t_cl_acc += time.perf_counter() - tc0
+
+            self.t["linear"] += t1 - t0
+            self.t["pnl"] += t2 - t1
+            self.t["limber_power"] += t_lim_pow
+
+        # 5. Stage 4: batched Hankel + assembly
+        th0 = time.perf_counter()
+        xip, xim = self.binner.xi_binned_batch(C15_all)
+        out = assemble_vector(xip, xim)
+        t_hk = time.perf_counter() - th0
+
+        # 6. Thread-safe cache update + stats + thread-local derived
+        derived_per_row = [derived_by_uid[int(row_s2[r])] for r in range(m)]
+        with self._lock:
+            if self._cache_size > 0:
+                for uid in miss_uids[-self._cache_size:]:
+                    entry = new_cache_entries.get(uid)
+                    if entry is not None:
+                        key, lim_obj, der = entry
+                        self._stage2[key] = (lim_obj, der)
+                        self._stage2.move_to_end(key)
+                        while len(self._stage2) > self._cache_size:
+                            self._stage2.popitem(last=False)
+            for dz, nzs in unique_dz.items():
+                if dz not in self._wc:
+                    if len(self._wc) > 64:
+                        self._wc.clear()
+                    self._wc[dz] = nzs
+        self.last_derived = derived_per_row[-1]
+        self._tls.last_derived_batch = derived_per_row
+        self.n_calls += m
+        self.t["limber_cl"] += t_cl_acc
+        self.t["hankel"] += t_hk
         return out
 
     def cl(self, theta):

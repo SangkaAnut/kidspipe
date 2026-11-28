@@ -543,6 +543,41 @@ class HankelBinner:
             return out[:, :self.nbin].copy(), out[:, self.nbin:].copy()
         return self.xi_binned_fft(C15, binning="kcap")
 
+    def xi_binned_batch(self, C_batch):
+        """Batched binned ``(xi_+, xi_-)`` for ``M`` cosmologies.
+
+        ``C_batch`` may have shape ``(M, 5, 5, nell)`` or ``(M, 15, nell)`` (pairs in ``PAIRS`` order).
+        For ``fidelity="fast"`` uses one BLAS-3 matmul ``(M * 15, nell) @ self._MT``.
+        Returns ``(xip, xim)``, each of shape ``(M, 15, nbin)``.
+        """
+        C = np.asarray(C_batch, dtype=np.float64)
+        if C.ndim == 4:
+            if C.shape[1] != 5 or C.shape[2] != 5:
+                raise ValueError(f"C_batch must have shape (M, 5, 5, nell), got {C.shape}")
+            C15 = C[:, _PJ, _PI, :]                    # (M, 15, nell)
+        elif C.ndim == 3 and C.shape[1] == len(PAIRS):
+            C15 = C
+        else:
+            raise ValueError(f"C_batch must have shape (M, 5, 5, nell) or (M, 15, nell), got {C.shape}")
+        if C15.shape[-1] != self.ell.size:
+            raise ValueError("C_batch last axis must match the ell grid given at construction")
+        m = C15.shape[0]
+        if m == 0:
+            return np.empty((0, len(PAIRS), self.nbin), dtype=np.float64), np.empty((0, len(PAIRS), self.nbin), dtype=np.float64)
+        if self.fidelity == "fast":
+            self._ensure_operator()
+            out = np.ascontiguousarray(C15).reshape(m * len(PAIRS), self.ell.size) @ self._MT
+            _require_finite(out)
+            out = out.reshape(m, len(PAIRS), 2 * self.nbin)
+            return out[:, :, :self.nbin].copy(), out[:, :, self.nbin:].copy()
+        if self._interp is None:
+            self._interp = ClInterpolator(self.ell)
+        _, xip, xim = cl_to_xi_fft(self.ell, C15, ln2=self.ln2, interp=self._interp)
+        W = self.W_kcap
+        xip, xim = xip @ W.T, xim @ W.T
+        _require_finite(xip, xim)
+        return xip, xim
+
     def xi_binned_fft(self, C, binning: str = "kcap"):
         """FFT route with ``binning`` in {"kcap" (node trapezoid), "exact" (spline over true edges)}."""
         if binning not in ("kcap", "exact"):

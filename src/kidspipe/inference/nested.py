@@ -25,7 +25,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
-__all__ = ["NestedResult", "run_nautilus", "run_dynesty", "safe_loglike"]
+__all__ = ["NestedResult", "run_nautilus", "run_dynesty", "safe_loglike", "safe_loglike_batch", "make_nested_functions"]
 
 _NEG = -1.0e300
 
@@ -94,6 +94,61 @@ def safe_loglike(loglike: Callable) -> Callable:
     return _SafeLoglike(loglike)
 
 
+class _SafeLoglikeBatch:
+    """Picklable batched wrapper for ``loglike_batch(thetas) -> (M,)``."""
+
+    def __init__(self, loglike_batch: Callable):
+        self.loglike_batch = loglike_batch
+
+    def __call__(self, thetas):
+        x = np.asarray(thetas, dtype=np.float64)
+        if x.ndim == 1:
+            x = x[None, :]
+        m = x.shape[0]
+        if m == 0:
+            return np.empty(0, dtype=np.float64)
+        try:
+            vals = np.asarray(self.loglike_batch(x), dtype=np.float64)
+            if vals.shape != (m,):
+                vals = vals.reshape(m)
+            return np.where(np.isfinite(vals), vals, _NEG)
+        except Exception:  # noqa: BLE001
+            out = np.empty(m, dtype=np.float64)
+            for i in range(m):
+                try:
+                    v = float(self.loglike_batch(x[i:i + 1])[0])
+                except Exception:  # noqa: BLE001
+                    v = _NEG
+                out[i] = v if np.isfinite(v) else _NEG
+            return out
+
+
+def safe_loglike_batch(loglike_batch: Callable) -> Callable:
+    """Wrap ``loglike_batch`` so exceptions / NaN / +-inf return ``_NEG`` per row."""
+    return _SafeLoglikeBatch(loglike_batch)
+
+
+class _BatchPool:
+    """In-process ``pool.map`` adapter for ``dynesty`` when ``vectorized=True``."""
+
+    def __init__(self, loglike_batch: Callable, prior_batch: Optional[Callable] = None,
+                 prior_vectorized: bool = False):
+        self.loglike_batch = loglike_batch
+        self.prior_batch = prior_batch
+        self.prior_vectorized = bool(prior_vectorized)
+
+    def map(self, func, iterable):
+        items = list(iterable)
+        if not items:
+            return []
+        name = getattr(func, "name", "")
+        if name == "loglikelihood":
+            return list(self.loglike_batch(np.asarray(items, dtype=np.float64)))
+        if name == "prior_transform" and self.prior_vectorized and self.prior_batch is not None:
+            return list(self.prior_batch(np.asarray(items, dtype=np.float64)))
+        return [func(x) for x in items]
+
+
 def _norm_weights(logw: np.ndarray) -> np.ndarray:
     w = np.exp(logw - np.max(logw))
     return w / w.sum()
@@ -122,8 +177,7 @@ def run_nautilus(loglike: Callable, prior_transform: Callable, ndim: int, n_live
     """
     import nautilus  # lazy
 
-    ll = safe_loglike(loglike) if not vectorized else (
-        lambda X: np.nan_to_num(np.asarray(loglike(X), float), nan=_NEG, posinf=_NEG, neginf=_NEG))
+    ll = safe_loglike_batch(loglike) if vectorized else safe_loglike(loglike)
 
     def prior(u):
         u = np.asarray(u, float)
@@ -147,6 +201,7 @@ def run_nautilus(loglike: Callable, prior_transform: Callable, ndim: int, n_live
 def run_dynesty(loglike: Callable, prior_transform: Callable, ndim: int, nlive: int = 500,
                 dynamic: bool = False, bound: str = "multi", sample: str = "auto",
                 dlogz: float = 0.1, seed: Optional[int] = None, pool=None, queue_size=None,
+                vectorized: bool = False, prior_vectorized: bool = False,
                 maxiter: Optional[int] = None, maxcall: Optional[int] = None,
                 nlive_batch: int = 250, maxbatch: Optional[int] = None,
                 wt_kwargs: Optional[dict] = None, checkpoint_file: Optional[str] = None,
@@ -161,15 +216,35 @@ def run_dynesty(loglike: Callable, prior_transform: Callable, ndim: int, nlive: 
     bound, sample : dynesty bounding / sampling methods; ``sample='auto'`` picks 'unif' for d<10,
         'rwalk' for 10<=d<=20 and 'rslice' above.
     dlogz : evidence-remaining stopping tolerance.
+    vectorized : if True (and ``pool`` is None), wrap ``loglike`` (which must accept ``(M, ndim)``
+        batches) in an in-process batched ``pool`` for initial live-point (and queued) evaluation.
+    prior_vectorized : if True with ``vectorized=True``, also batch ``prior_transform``.
     Remaining keyword arguments go to the sampler constructor.  Returns :class:`NestedResult`
     with ``log_z_err`` = dynesty's ``logzerr[-1]``.
     """
     import dynesty  # lazy
 
     rstate = np.random.default_rng(seed)
-    ll = safe_loglike(loglike)
+    use_pool = sampler_kwargs.pop("use_pool", None)
+    if vectorized and pool is None:
+        ll_batch = safe_loglike_batch(loglike)
+        ll = safe_loglike(lambda t: float(ll_batch(np.asarray(t, dtype=np.float64)[None, :])[0]))
+        pool = _BatchPool(ll_batch, prior_transform, prior_vectorized=prior_vectorized)
+        if use_pool is None:
+            use_pool = {
+                "loglikelihood": True,
+                "prior_transform": bool(prior_vectorized),
+                "propose_point": queue_size is not None and int(queue_size) > 1,
+                "update_bound": False,
+            }
+    elif vectorized:
+        ll = safe_loglike_batch(loglike)
+    else:
+        ll = safe_loglike(loglike)
     t0 = time.perf_counter()
     common = dict(bound=bound, sample=sample, rstate=rstate, pool=pool, queue_size=queue_size, **sampler_kwargs)
+    if use_pool is not None:
+        common["use_pool"] = use_pool
     if dynamic:
         s = dynesty.DynamicNestedSampler(ll, prior_transform, ndim, nlive=nlive, **common)
         wt = {"pfrac": 1.0} if wt_kwargs is None else wt_kwargs
@@ -191,6 +266,13 @@ def run_dynesty(loglike: Callable, prior_transform: Callable, ndim: int, nlive: 
                         info={"niter": int(r.niter)})
 
 
-def make_nested_functions(post):
-    """Return ``(loglike, prior_transform, ndim)`` from a :class:`Posterior` for the wrappers."""
+def make_nested_functions(post, vectorized: bool = False):
+    """Return ``(loglike, prior_transform, ndim)`` from a :class:`Posterior` for the wrappers.
+
+    When ``vectorized=True``, returns ``post.log_like_batch`` (if available, falling back to
+    ``post.log_like``) so callers can pass ``vectorized=True, prior_vectorized=True`` to
+    :func:`run_nautilus` or :func:`run_dynesty`.
+    """
+    if vectorized and hasattr(post, "log_like_batch"):
+        return post.log_like_batch, post.prior_transform, post.ndim
     return post.log_like, post.prior_transform, post.ndim

@@ -25,9 +25,15 @@ def loglike(theta):
     return _post.log_like(np.asarray(theta))
 
 
+def loglike_batch(thetas):
+    return _post.log_like_batch(np.asarray(thetas, dtype=np.float64))
+
+
 def prior_transform(u):
-    th = params.prior_transform(np.asarray(u, float))
-    th[0] = OM_LO + float(u[0]) * (OM_HI - OM_LO)
+    u_arr = np.asarray(u, dtype=np.float64)
+    th = params.prior_transform(u_arr)
+    u0 = np.clip(u_arr[..., 0], 0.0, 1.0)
+    th[..., 0] = OM_LO + u0 * (OM_HI - OM_LO)
     return th
 
 
@@ -41,13 +47,24 @@ if __name__ == "__main__":
     ap.add_argument("--timeout", type=float, default=1e9, help="seconds")
     ap.add_argument("--tag", default="nautilus1")
     ap.add_argument("--seed", type=int, default=11)
+    ap.add_argument("--vectorized", action="store_true", help="use in-process batched evaluation (mu_batch / log_like_batch)")
+    ap.add_argument("--threads", type=int, default=min(8, C.NCPU), help="Numba/OMP threads when --vectorized is set")
+    ap.add_argument("--batch-size", type=int, default=None, help="optional nautilus batch_size when --vectorized is set")
     a = ap.parse_args()
     out = C.OUT / a.tag
     out.mkdir(exist_ok=True)
     t0 = time.time()
-    with mp.get_context("spawn").Pool(a.workers, initializer=_init, initargs=(a.z_grid,)) as pool:
-        r = run_nautilus(loglike, prior_transform, 14, n_live=a.n_live, n_eff=a.n_eff, f_live=0.01, seed=a.seed, pool=pool,
-                         filepath=str(out / "nautilus.hdf5"), resume=True, verbose=True, n_like_max=a.n_like_max, timeout=a.timeout)
+    if a.vectorized:
+        _post = C.make_post(threads=a.threads, z_grid=a.z_grid)
+        extra = {"batch_size": a.batch_size} if a.batch_size is not None else {}
+        r = run_nautilus(loglike_batch, prior_transform, 14, n_live=a.n_live, n_eff=a.n_eff, f_live=0.01,
+                         vectorized=True, prior_vectorized=True, seed=a.seed,
+                         filepath=str(out / "nautilus.hdf5"), resume=True, verbose=True,
+                         n_like_max=a.n_like_max, timeout=a.timeout, **extra)
+    else:
+        with mp.get_context("spawn").Pool(a.workers, initializer=_init, initargs=(a.z_grid,)) as pool:
+            r = run_nautilus(loglike, prior_transform, 14, n_live=a.n_live, n_eff=a.n_eff, f_live=0.01, seed=a.seed, pool=pool,
+                             filepath=str(out / "nautilus.hdf5"), resume=True, verbose=True, n_like_max=a.n_like_max, timeout=a.timeout)
     post = C.make_post(threads=1, z_grid=a.z_grid)
     from kidspipe import api
     D = api.derived_columns(post, r.samples)
